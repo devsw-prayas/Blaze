@@ -19,8 +19,6 @@ else()
     set(INSTRUMENTA_LIB Instrumenta)
 endif()
 
-include_directories(src/Public)
-
 add_library(Blaze SHARED
     src/Private/Blaze.cpp
     src/Public/Blaze.h
