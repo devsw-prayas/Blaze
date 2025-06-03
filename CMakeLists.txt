@@ -29,4 +29,4 @@ add_library(Blaze SHARED
 
 target_link_libraries(Blaze PRIVATE ${INSTRUMENTA_LIB})
 
-set_target_properties(Blaze PROPERTIES FOLDER "Threading")
+set_target_properties(Blaze PROPERTIES FOLDER "Base")
