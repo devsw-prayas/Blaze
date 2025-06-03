@@ -1,0 +1,99 @@
+# General OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.out
+*.app
+*.pdb
+*.idb
+*.exp
+*.obj
+*.dll.recipe
+*.ilk
+*.recipe
+
+# Build and intermediate files
+/build/
+/bin/
+/obj/
+/intermediate/
+/DerivedDataCache/
+/Saved/
+/Binaries/
+/Debug/
+/Release/
+/x64/
+/x86/
+
+# Unreal Engine specific
+*.uprojectdirs
+*.sln
+*.VC.db
+*.VC.opendb
+*.VC.VC.opendb
+*.vcxproj
+*.filters
+*.suo
+*.ipch
+*.cache
+*.log
+*.tlog
+*.o
+*.rsp
+*.pch
+*.pyo
+*.pyc
+*.pycache/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Visual Studio specific
+.vscode/
+.vs/
+*.user
+*.ncb
+*.sdf
+*.opendb
+*.VC.db
+*.VC.opendb
+*.code-workspace
+
+# Unreal Engine auto-generated files
+*.generated.h
+*.generated.cpp
+*.log
+*.sav
+*.aps
+*.aps.xml
+*.sdf
+*.tlog
+*.lastbuildstate
+*.o.*
+*.iobj
+*.ipdb
+*.opensdf
+*.sln
+*.suo
+
+# Unreal Engine asset caches
+*.uasset
+*.umap
+*.upk
+
+# Unreal Engine backup files
+*.bak
+*.backup
