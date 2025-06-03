@@ -26,6 +26,10 @@ add_library(Blaze SHARED
     src/Public/Blaze.h
 )
 
+target_include_directories(Blaze PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Public
+)
+
 target_link_libraries(Blaze PRIVATE ${INSTRUMENTA_LIB})
 
 set_target_properties(Blaze PROPERTIES FOLDER "Base")
