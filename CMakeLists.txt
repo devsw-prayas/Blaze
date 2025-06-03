@@ -16,7 +16,6 @@ if (INSTRUMENTA_STANDALONE)
     include_directories(external/Instrumenta/src/Public)
     set(INSTRUMENTA_LIB Instrumenta)
 else()
-    find_package(Instrumenta REQUIRED)
     set(INSTRUMENTA_LIB Instrumenta)
 endif()
 
