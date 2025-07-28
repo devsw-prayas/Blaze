@@ -9,6 +9,11 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 add_library(Blaze SHARED 
 	src/Public/Blaze.h src/Private/Blaze.cpp
+	src/Public/BlazeMemory.h
+	src/Public/BlazeUtils.h
+	src/Public/BlazeEvent.h
+	src/Public/Executors.h
+	src/Public/ExecutorServices.h
 )
 
 target_include_directories(Blaze PUBLIC
@@ -16,3 +21,8 @@ target_include_directories(Blaze PUBLIC
 )
 
 set_target_properties(Blaze PROPERTIES FOLDER "Base")
+
+target_precompile_headers(Blaze PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/Public/Blaze.h)
+
+# Compile options
+add_compile_definitions(ENABLE_EVENT_EMITTERS_BLAZE = 0)

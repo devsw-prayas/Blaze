@@ -1,5 +1,8 @@
 #pragma once
-#ifndef Blaze
-#define Blaze __declspec(dllexport)
+#ifndef BLAZE
+#define BLAZE __declspec(dllexport)
 #endif
-void Blaze Init();
+void BLAZE Init();
+
+#include <type_traits>
+#include <functional>

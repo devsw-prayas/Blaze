@@ -1,2 +1,2 @@
 #include "Blaze.h"
-void Blaze Init() {}
+void BLAZE Init() {}
