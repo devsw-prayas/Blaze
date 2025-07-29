@@ -3,17 +3,42 @@
 
 namespace Blaze::Events {
 	constexpr size_t DEFAULT_HASH = 0xF00D; // From a food lover!
+
+	template<typename T,typename = void>
+	struct HasContract : std::false_type {};
+
+	template<typename T>
+	struct HasContract<T, std::void_t<typename T::Contract>> : std::true_type {};
+
+
+	template<typename ContractTag, size_t Hash = DEFAULT_HASH>
 	class BLAZE IBlazeEvent {
 	public:
-		template<typename Derived, size_t Hash = DEFAULT_HASH, typename...Args>
-		void invoke(Args&&... u_Args) {
-			static_cast<Derived*>(this)->template invoke<Args...>(std::forward<Args>(u_Args)...);
+		using Contract = ContractTag;
+		template<typename Derived, typename...Args>
+		static void invoke(Args&&... u_Args) {
+			static_assert(std::is_base_of_v<IBlazeEvent, Derived>,
+				"Derived must be a subclass of IBlazeEvent");
+			Derived::template invoke<Args...>(std::forward<Args>(u_Args)...);
 		}
 	};
 
-	template<typename...Args>
+	template<size_t Hash = DEFAULT_HASH ,typename...Args>
 	struct BLAZE EventEmitterPack final{
-		static_assert((std::is_base_of_v<IBlazeEvent, Args> &&...), "All events must be derived from IBlazeEvent");
 		using EventPack = std::tuple<Args...>;
+		constexpr size_t Count = sizeof...(Args);
+	private:
+		using Indices = std::make_index_sequence<std::tuple_size_v<EventPack>>;
+
+		template<size_t...I>
+		static consteval bool iterate(std::index_sequence<I...>) {
+			static_assert(std::conjunction_v<HasContract<std::tuple_element_t<I, EventPack>>...>, 
+				"All event types must declare a Contract");
+			return ((...&& std::is_base_of_v<IBlazeEvent<typename std::tuple_element_t<I, EventPack>::Contract, Hash>, 
+				std::tuple_element_t<I, EventPack>>));
+		}
+	public:
+		static_assert(sizeof...(Args) > 0, "EventEmitterPack must contain at least one event types");
+		static_assert(iterate(Indices{}), "All events must be derived from IBlazeEvent");
 	};
 }
