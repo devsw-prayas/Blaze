@@ -7,3 +7,5 @@ void BLAZE Init();
 #include <type_traits>
 #include <functional>
 #include <utility>
+#include <concepts>
+#include <array>
