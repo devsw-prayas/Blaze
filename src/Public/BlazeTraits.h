@@ -91,4 +91,20 @@ namespace Blaze::Traits {
 		{ p_D-> template scheduleRepeatableC<F>(std::forward<F>(u_Func), r_Options) }
 		->std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
+
+	template<typename D>
+	concept hasForkC = requires(D * p_D, D && u_subTask) {
+		{ p_D->forkC(std::forward<D>(u_subTask)) }
+		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
+	};
+
+	template<typename D>
+	concept hasComputeC = requires(D * p_D) {
+		p_D->computeC();
+	};
+
+	template<typename D>
+	concept hasJoinC = requires(D * p_D, Memory::SharedPointer<Utils::IHandle> handle){
+		p_D->joinC(handle);
+	};
 }

@@ -1,0 +1,84 @@
+﻿#pragma once
+#include "Blaze.h"
+#include "BlazeEvent.h"
+#include "BlazeMemory.h"
+#include "BlazeTraits.h"
+#include "BlazeUtils.h"
+
+namespace Blaze::WorkSteal {
+	struct EventContractOnFork final {};
+	struct EventContractOnJoin final {};
+	struct EventContractOnCompute final {};
+
+	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
+		size_t Hash = Events::DEFAULT_HASH>
+	class BLAZE IWorkStealLoad {
+		using EventContract = E;
+		using Derived = D;
+
+		static_assert(std::is_final_v<D>, "Concrete implementations must be final");
+
+#if ENABLE_EVENT_EMITTERS_BLAZE
+		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4, "At least 3 event hook types must be provided in the EventContract");
+
+		using OnFork = Events::IBlazeEvent<EventContractOnFork, Hash>;
+		using OnCompute = Events::IBlazeEvent<EventContractOnCompute, Hash>;
+		using OnJoin = Events::IBlazeEvent<EventContractOnJoin, Hash>;
+
+		using ForkEvent = std::tuple_element_t<0, typename EventContract::Contract>;
+		using JoinEvent = std::tuple_element_t<1, typename EventContract::Contract>;
+		using ComputeEvent = std::tuple_element_t<2, typename EventContract::Contract>;
+	public:
+		struct DefaultOnForkContract final : OnFork {
+			static void invoke() {/* Default implementation does nothing */ }
+		};
+
+		struct DefaultOnJoinContract final : OnJoin {
+			static void invoke() {/* Default implementation does nothing */ }
+		};
+
+		struct DefaultOnComputeContract final : OnCompute {
+			static void invoke() {/* Default implementation does nothing */ }
+		};
+#endif
+
+	protected:
+		void* m_context = nullptr;
+		Memory::SharedPointer<Utils::IHandle>(*m_fork)(Derived&&) = nullptr;
+		void(*m_join)(Memory::SharedPointer<Utils::IHandle>) = nullptr;
+
+	public:
+		decltype(auto) compute() requires(Traits::hasComputeC<Derived>) {
+			if constexpr (!std::is_void_v<EventContract>) {
+				static_assert(std::is_base_of_v <OnCompute, ComputeEvent>,
+					"The third Event type must be a OnCompute Hook");
+				Events::IBlazeEvent<EventContractOnCompute, Hash>::template invoke<ComputeEvent>();
+			}
+
+			return static_cast<Derived*>(this)->computeC();
+		}
+
+		Memory::SharedPointer<Utils::IHandle> fork(Derived&& u_subTask) requires(Traits::hasForkC<Derived>) {
+			if constexpr (!std::is_void_v<EventContract>) {
+				static_assert(std::is_base_of_v <OnFork, ForkEvent>,
+					"The first Event type must be a OnFork Hook");
+				Events::IBlazeEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
+			}
+
+			return static_cast<Derived*>(this)->forkC(std::move(u_subTask));
+		}
+
+		void join(Memory::SharedPointer<Utils::IHandle> handle) requires Traits::hasJoinC<Derived> {
+			if constexpr (!std::is_void_v<EventContract>) {
+				static_assert(std::is_base_of_v <OnJoin, JoinEvent>,
+					"The second Event type must be a OnJoin Hook");
+				Events::IBlazeEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
+			}
+			static_cast<Derived*>(this)->join(handle);
+		}
+
+		[[nodiscard]] bool canJoin() {
+			return static_cast<Derived*>(this)->canJoin();
+		}
+	};
+}

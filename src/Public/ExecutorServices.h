@@ -1,8 +1,30 @@
-﻿#pragma once
+﻿/*
+* Copyright (c) 2025 StormWeaver
+*
+* This file is part of the Blaze Multithreading API
+*
+* Licensed under the MIT License. You may obtain a copy of the License at
+* https://opensource.org/licenses/MIT
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND...
+*/
+
+#pragma once
 #include "Blaze.h"
 #include "BlazeEvent.h"
 #include "BlazeTraits.h"
 #include "Executors.h"
+#include "WorkStealUtils.h"
 
 namespace Blaze::Executors::Services {
 #ifndef NO_OP_DEFAULT_INSTANTANEOUS
@@ -26,6 +48,14 @@ namespace Blaze::Executors::Services {
 
 #endif
 
+#ifndef NO_OP_DEFAULT_WORKSTEAL
+#define  NO_OP_DEFAULT_WORKSTEAL \
+	IWorkStealerService::DefaultOnInvokeContract, \
+	IWorkStealerService::DefaultOnForkContract, \
+	IWorkStealerService::DefaultOnJoinContract
+
+#endif
+
 	//Tags for IThreadExecutorService
 	struct EventContractOnSubmit final {};
 	struct EventContractOnFuture final {};
@@ -37,22 +67,30 @@ namespace Blaze::Executors::Services {
 	struct EventContractOnScheduleFuture final {};
 	struct EventContractOnScheduleRepeatable final {};
 
-	template<typename Derived, typename EventContract = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
+	//Tags for IWorkStealerService
+	struct EventContractOnInvoke final {};
+	struct EventContractOnFork final {};
+	struct EventContractOnJoin final {};
+
+	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
 		size_t Hash = Events::DEFAULT_HASH>
-	class BLAZE IThreadExecutorService : public IExecutor<Derived>, public IExecutorVirtual {
+	class BLAZE IThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
+		static_assert(!std::is_final_v<D>, "A class extending an executor service must be final");
+		using Derived = D;
+		using EventContract = E;
 #if ENABLE_EVENT_EMITTERS_BLAZE
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4, "At least 4 event hook types must be provided in the EventContract");
-
-		using OnSubmit = Events::IBlazeEvent<EventContractOnSubmit, Hash>;
-		using OnFuture = Events::IBlazeEvent<EventContractOnFuture, Hash>;
-		using OnRun = Events::IBlazeEvent<EventContractOnRun, Hash>;
-		using OnCall = Events::IBlazeEvent<EventContractOnCall, Hash>;
 
 		using SubmitEvent = std::tuple_element_t<0, typename EventContract::EventPack>;
 		using FutureEvent = std::tuple_element_t<1, typename EventContract::EventPack>;
 		using RunEvent = std::tuple_element_t<2, typename EventContract::EventPack>;
 		using CallEvent = std::tuple_element_t<3, typename EventContract::EventPack>;
 	public:
+		using OnSubmit = Events::IBlazeEvent<EventContractOnSubmit, Hash>;
+		using OnFuture = Events::IBlazeEvent<EventContractOnFuture, Hash>;
+		using OnRun = Events::IBlazeEvent<EventContractOnRun, Hash>;
+		using OnCall = Events::IBlazeEvent<EventContractOnCall, Hash>;
+
 		struct DefaultOnFutureContract final : Events::IBlazeEvent<EventContractOnFuture, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
@@ -168,20 +206,15 @@ namespace Blaze::Executors::Services {
 		}
 	};
 
-	template<typename Derived, typename EventContract = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
+	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
 		size_t Hash = Events::DEFAULT_HASH>
-	class IScheduledThreadExecutorService : public IExecutor<Derived>, public IExecutorVirtual {
+	class BLAZE IScheduledThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
+		using Derived = D;
+		using EventContract = E;
+		static_assert(!std::is_final_v<D>, "A class extending an executor service must be final");
+
 #if ENABLE_EVENT_EMITTERS_BLAZE
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 7, "At least 7 event hooks must be present in the EventContract");
-		using OnSubmit = Events::IBlazeEvent<EventContractOnSubmit, Hash>;
-		using OnFuture = Events::IBlazeEvent<EventContractOnFuture, Hash>;
-		using OnRun = Events::IBlazeEvent<EventContractOnRun, Hash>;
-		using OnCall = Events::IBlazeEvent<EventContractOnCall, Hash>;
-
-		using OnScheduleRun = Events::IBlazeEvent<EventContractOnScheduleRun, Hash>;
-		using OnScheduleFuture = Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>;
-		using OnScheduleRepeatable = Events::IBlazeEvent<EventContractOnScheduleRepeatable, Hash>;
-
 		using SubmitEvent = std::tuple_element_t<0, typename EventContract::EventPack>;
 		using FutureEvent = std::tuple_element_t<1, typename EventContract::EventPack>;
 		using RunEvent = std::tuple_element_t<2, typename EventContract::EventPack>;
@@ -192,6 +225,15 @@ namespace Blaze::Executors::Services {
 		using ScheduleRepeatableEvent = std::tuple_element_t<6, typename EventContract::EventPack>;
 
 	public:
+		using OnSubmit = Events::IBlazeEvent<EventContractOnSubmit, Hash>;
+		using OnFuture = Events::IBlazeEvent<EventContractOnFuture, Hash>;
+		using OnRun = Events::IBlazeEvent<EventContractOnRun, Hash>;
+		using OnCall = Events::IBlazeEvent<EventContractOnCall, Hash>;
+
+		using OnScheduleRun = Events::IBlazeEvent<EventContractOnScheduleRun, Hash>;
+		using OnScheduleFuture = Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>;
+		using OnScheduleRepeatable = Events::IBlazeEvent<EventContractOnScheduleRepeatable, Hash>;
+
 		struct DefaultOnFutureContract final : Events::IBlazeEvent<EventContractOnFuture, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
@@ -371,5 +413,87 @@ namespace Blaze::Executors::Services {
 		void delayedShutdown(auto&& u_Duration) {
 			static_cast<Derived*>(this)->delayedShutdownC(std::forward<decltype(u_Duration)>(u_Duration));
 		}
+	};
+
+	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
+		size_t Hash = Events::DEFAULT_HASH>
+	class BLAZE IWorkStealerService : IExecutor<D> {
+		using Derived = D;
+		using EventContract = E;
+		static_assert(!std::is_final_v<Derived> && !std::is_base_of_v<IWorkStealerService, Derived>,
+			"The Derived class must be final and should extend IWorkStealerService");
+
+#if ENABLE_EVENT_EMITTERS_BLAZE
+		using ForkEvent = std::tuple_element_t<0, typename EventContract::Contract>;
+		using JoinEvent = std::tuple_element_t<1, typename EventContract::Contract>;
+		using InvokeEvent = std::tuple_element_t <2, typename EventContract::Contract>;
+	public:
+		using OnFork = Events::IBlazeEvent<EventContractOnFork, Hash>;
+		using OnJoin = Events::IBlazeEvent<EventContractOnJoin, Hash>;
+		using OnInvoke = Events::IBlazeEvent<EventContractOnInvoke, Hash>;
+
+		using DefaultPack = Events::EventEmitterPack<Hash, NO_OP_DEFAULT_WORKSTEAL>;
+
+		struct DefaultOnForkContract final : OnFork {
+			static void invoke() {/* Default implementation does nothing */ }
+		};
+
+		struct DefaultOnJoinContract final : OnJoin {
+			static void invoke() {/* Default implementation does nothing */ }
+		};
+
+		struct DefaultOnInvokeContract final : OnInvoke {
+			static void invoke() {/* Default implementation does nothing */ }
+		};
+#endif
+
+	public:
+		template<typename T>
+		Memory::SharedPointer<Utils::IHandle> invoke(const T& r_Workload) {
+			static_assert(std::is_final_v<T> && !std::is_base_of_v<WorkSteal::IWorkStealLoad<T, E, Hash>, T>,
+				"The task submitted must be a subclass of IWorkStealLoad");
+			if constexpr (!std::is_void_v<EventContract>) {
+				static_assert(std::is_base_of_v<InvokeEvent, EventContractOnInvoke>,
+					"The first Event type must be OnInvoke hook");
+				Events::IBlazeEvent<EventContractOnInvoke, Hash>::template invoke<InvokeEvent>();
+			}
+			return static_cast<Derived*>(this) ->template invokeC<T>(r_Workload);
+		}
+
+		template<typename T>
+		Memory::SharedPointer<Utils::IHandle> fork(const T&& u_Workload) {
+			static_assert(std::is_final_v<T> && !std::is_base_of_v<WorkSteal::IWorkStealLoad<T, E, Hash>, T>,
+				"The task submitted must be a subclass of IWorkStealLoad");
+			if constexpr (!std::is_void_v<EventContract>) {
+				static_assert(std::is_base_of_v<ForkEvent, EventContractOnFork>,
+					"The second Event type must be OnFork hook");
+				Events::IBlazeEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
+			}
+			return static_cast<Derived*>(this) ->template forkC<T>(u_Workload);
+		}
+
+		void join(Memory::SharedPointer<Utils::IHandle> ss_Handle) {
+			if constexpr (!std::is_void_v<EventContract>) {
+				static_assert(std::is_base_of_v<JoinEvent, EventContractOnJoin>,
+					"The third Event type must be OnJoin hook");
+				Events::IBlazeEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
+			}
+			static_cast<Derived*>(this)->joinC(ss_Handle);
+		}
+
+		virtual ~IWorkStealerService() = default;
+
+		[[nodiscard]] virtual bool isRunning() const noexcept = 0;
+
+		[[nodiscard]] virtual bool isShutdown() const noexcept = 0;
+
+		virtual void shutdown() noexcept = 0;
+		virtual void shutdownNow() noexcept = 0;
+		virtual bool cancelAllPending() noexcept = 0;
+
+		[[nodiscard]] virtual bool isQuiescent() const noexcept = 0;
+		[[nodiscard]] virtual size_t getActiveTaskCount() const noexcept = 0;
+		[[nodiscard]] virtual size_t getCompletedTasksCount() const noexcept = 0;
+		[[nodiscard]] virtual size_t getCancelledTasksCount() const noexcept = 0;
 	};
 }

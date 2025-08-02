@@ -9,3 +9,4 @@ void BLAZE Init();
 #include <utility>
 #include <concepts>
 #include <array>
+#include <optional>

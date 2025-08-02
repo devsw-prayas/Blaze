@@ -23,7 +23,7 @@ namespace Blaze::Memory {
 	};
 
 	template<typename T, typename Derived>
-	class IAllocator {
+	class BLAZE IAllocator {
 		static_assert(std::is_base_of_v<IAllocator, Derived>, "Derived is not a subclass of IAllocator");
 	public:
 		T* allocate(size_t v_size) noexcept{
