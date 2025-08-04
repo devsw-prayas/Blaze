@@ -10,16 +10,21 @@ namespace Blaze::WorkSteal {
 	struct EventContractOnJoin final {};
 	struct EventContractOnCompute final {};
 
-	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
-		size_t Hash = Events::DEFAULT_HASH>
+#if ENABLE_EVENT_EMITTERS_BLAZE
+	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
+		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
+#else
+	template<typename D, size_t Hash = Events::DEFAULT_HASH>
+#endif
 	class BLAZE IWorkStealLoad {
-		using EventContract = E;
 		using Derived = D;
 
 		static_assert(std::is_final_v<D>, "Concrete implementations must be final");
 
 #if ENABLE_EVENT_EMITTERS_BLAZE
-		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4, "At least 3 event hook types must be provided in the EventContract");
+		using EventContract = E;
+		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4,
+			"At least 3 event hook types must be provided in the EventContract");
 
 		using OnFork = Events::IBlazeEvent<EventContractOnFork, Hash>;
 		using OnCompute = Events::IBlazeEvent<EventContractOnCompute, Hash>;

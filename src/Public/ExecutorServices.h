@@ -72,15 +72,19 @@ namespace Blaze::Executors::Services {
 	struct EventContractOnFork final {};
 	struct EventContractOnJoin final {};
 
-	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
-		size_t Hash = Events::DEFAULT_HASH>
+#if ENABLE_EVENT_EMITTERS_BLAZE
+	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
+		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
+#else
+	template<typename D, size_t Hash = Events::DEFAULT_HASH>
+#endif
 	class BLAZE IThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
 		static_assert(!std::is_final_v<D>, "A class extending an executor service must be final");
 		using Derived = D;
-		using EventContract = E;
 #if ENABLE_EVENT_EMITTERS_BLAZE
-		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4, "At least 4 event hook types must be provided in the EventContract");
+		using EventContract = std::conditional_t<!std::is_void_v<E>, E, void>;
 
+		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4, "At least 4 event hook types must be provided in the EventContract");
 		using SubmitEvent = std::tuple_element_t<0, typename EventContract::EventPack>;
 		using FutureEvent = std::tuple_element_t<1, typename EventContract::EventPack>;
 		using RunEvent = std::tuple_element_t<2, typename EventContract::EventPack>;
@@ -206,8 +210,12 @@ namespace Blaze::Executors::Services {
 		}
 	};
 
-	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
-		size_t Hash = Events::DEFAULT_HASH>
+#if ENABLE_EVENT_EMITTERS_BLAZE
+	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
+		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
+#else
+	template<typename D, size_t Hash = Events::DEFAULT_HASH>
+#endif
 	class BLAZE IScheduledThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
 		using Derived = D;
 		using EventContract = E;
@@ -264,6 +272,9 @@ namespace Blaze::Executors::Services {
 
 		using DefaultPack = Events::EventEmitterPack<Hash, NO_OP_DEFAULT_SCHEDULED>;
 #endif
+	private:
+		using Duration = std::chrono::steady_clock::duration;
+		using TimePoint = std::chrono::steady_clock::time_point;
 	public:
 		template<typename F, typename...Args> requires(Traits::HasVariadicSubmitC<Derived, F, Args...>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> submit(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
@@ -275,14 +286,14 @@ namespace Blaze::Executors::Services {
 			return static_cast<Derived*>(this)->template submitC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
-		template< typename F, typename...Args > requires(Traits::HasVariadicScheduleRunC<Derived, F, Args...>)
-			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRun(F&& u_Func, const Utils::TaskOptions& r_Options, auto&& u_Duration, Args&&...u_Args) {
+		template< typename F, typename T, typename...Args > requires(Traits::HasVariadicScheduleRunC<Derived, F, T, Args...> && Traits::IsDurationV<T>)
+			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRun(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration, Args&&...u_Args) {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRun, ScheduleRunEvent>,
 					"The fifth Event type must be a OnScheduleRun Hook");
 				Events::IBlazeEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
 			}
-			return static_cast<Derived*>(this)->template scheduleRunC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration), std::forward<Args>(u_Args)...);
+			return static_cast<Derived*>(this)->template scheduleRunC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasSubmitC<Derived, F>)
@@ -295,14 +306,14 @@ namespace Blaze::Executors::Services {
 			return static_cast<Derived*>(this)->template submitC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
-		template<typename F> requires(Traits::HasScheduleRunC<Derived, F>)
-			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRun(F&& u_Func, const Utils::TaskOptions& r_Options, auto&& u_Duration) {
+		template<typename F, typename T> requires(Traits::HasScheduleRunC<Derived, F, T> && Traits::IsDurationV<T>)
+			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRun(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration) {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRun, ScheduleRunEvent>,
 					"The fifth Event type must be a OnScheduleRun Hook");
 				Events::IBlazeEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
 			}
-			return static_cast<Derived*>(this)->template scheduleRunC<F>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration));
+			return static_cast<Derived*>(this)->template scheduleRunC<F>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration));
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicRunC<Derived, F, Args...>)
@@ -335,14 +346,14 @@ namespace Blaze::Executors::Services {
 			return static_cast<Derived*>(this)->template futureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
-		template<typename F, typename...Args>
-		[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleFuture(F&& u_Func, const Utils::TaskOptions& r_Options, auto&& u_Duration, Args&&... u_Args) {
+		template<typename F, typename T, typename...Args> requires(Traits::HasVariadicScheduleFutureC<D, F, T, Args...> && Traits::IsDurationV<T>)
+		[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleFuture(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration, Args&&... u_Args) {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleFuture, ScheduleFutureEvent>,
 					"The sixth Event type must be a OnScheduleFuture Hook");
 				Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
 			}
-			return static_cast<Derived*>(this)->template scheduleFutureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration), std::forward<Args>(u_Args)...);
+			return static_cast<Derived*>(this)->template scheduleFutureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasFutureC<Derived, F>)
@@ -355,14 +366,14 @@ namespace Blaze::Executors::Services {
 			return static_cast<Derived*>(this)->template futureC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
-		template<typename F> requires(Traits::HasScheduleFutureC<Derived, F>)
-			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleFuture(F&& u_Func, const Utils::TaskOptions& r_Options, auto&& u_Duration) {
+		template<typename F, typename T> requires(Traits::HasScheduleFutureC<Derived, F, T> && Traits::IsDurationV<T>)
+			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleFuture(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration) {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleFuture, ScheduleFutureEvent>,
 					"The sixth Event type must be a OnScheduleFuture Hook");
 				Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
 			}
-			return static_cast<Derived*>(this)->template scheduleFutureC<F>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration));
+			return static_cast<Derived*>(this)->template scheduleFutureC<F>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration));
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicCallC<Derived, F, Args...>)
@@ -410,13 +421,18 @@ namespace Blaze::Executors::Services {
 		[[nodiscard]] virtual size_t getScheduledTaskCount() const noexcept = 0;
 		virtual bool cancelScheduled() const noexcept = 0;
 
-		void delayedShutdown(auto&& u_Duration) {
-			static_cast<Derived*>(this)->delayedShutdownC(std::forward<decltype(u_Duration)>(u_Duration));
+		template<typename T> requires Traits::IsDurationV<T>
+		void delayedShutdown(T&& u_Duration) {
+			static_cast<Derived*>(this)->delayedShutdownC(std::forward<T>(u_Duration));
 		}
 	};
 
-	template<typename D, typename E = std::conditional_t<ENABLE_EVENT_EMITTERS_BLAZE, Events::EventEmitterPack<>, void>,
-		size_t Hash = Events::DEFAULT_HASH>
+#if ENABLE_EVENT_EMITTERS_BLAZE
+	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
+		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
+#else
+	template<typename D, size_t Hash = Events::DEFAULT_HASH>
+#endif
 	class BLAZE IWorkStealerService : IExecutor<D> {
 		using Derived = D;
 		using EventContract = E;
@@ -446,7 +462,6 @@ namespace Blaze::Executors::Services {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 #endif
-
 	public:
 		template<typename T>
 		Memory::SharedPointer<Utils::IHandle> invoke(const T& r_Workload) {

@@ -28,27 +28,27 @@ namespace Blaze::Traits {
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
-	template<typename D, typename F, typename ...Args>
-	concept HasVariadicScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, auto&& u_Duration, Args&&...u_Args) {
-		{ p_D-> template scheduleRunC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration), std::forward<Args>(u_Args)...) }
+	template<typename D, typename F, typename T, typename ...Args>
+	concept HasVariadicScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T&& u_Duration, Args&&...u_Args) {
+		{ p_D-> template scheduleRunC<F, T, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...) }
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
-	template<typename D, typename F>
-	concept HasScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, auto&& u_Duration) {
-		{ p_D-> template scheduleRunC<F>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration)) }
+	template<typename D, typename F, typename T>
+	concept HasScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T&& u_Duration) {
+		{ p_D-> template scheduleRunC<F, T>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration)) }
 		->std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
-	template<typename D, typename F, typename ...Args>
-	concept HasVariadicScheduleFutureC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, auto&& u_Duration, Args&&...u_Args) {
-		{ p_D-> template scheduleFutureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration), std::forward<Args>(u_Args)...) }
+	template<typename D, typename F, typename T, typename ...Args>
+	concept HasVariadicScheduleFutureC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T&& u_Duration, Args&&...u_Args) {
+		{ p_D-> template scheduleFutureC<F, T, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...) }
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
-	template<typename D, typename F>
-	concept HasScheduleFutureC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, auto&& u_Duration) {
-		{ p_D-> template scheduleFutureC<F>(std::forward<F>(u_Func), r_Options, std::forward<decltype(u_Duration)>(u_Duration)) }
+	template<typename D, typename F, typename T>
+	concept HasScheduleFutureC = requires(D * p_D, F && u_Func,  const Utils::TaskOptions & r_Options, T&& u_Duration) {
+		{ p_D-> template scheduleFutureC<F, T>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration)) }
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
@@ -104,7 +104,16 @@ namespace Blaze::Traits {
 	};
 
 	template<typename D>
-	concept hasJoinC = requires(D * p_D, Memory::SharedPointer<Utils::IHandle> handle){
+	concept hasJoinC = requires(D * p_D, Memory::SharedPointer<Utils::IHandle> handle) {
 		p_D->joinC(handle);
 	};
+
+	template<typename T>
+	struct IsDuration : std::false_type {};
+
+	template<typename R, typename P>
+	struct IsDuration <std::chrono::duration<R, P>> : std::true_type {};
+
+	template<typename T>
+	inline constexpr bool IsDurationV = IsDuration<T>::value;
 }

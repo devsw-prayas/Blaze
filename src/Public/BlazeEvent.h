@@ -10,7 +10,6 @@ namespace Blaze::Events {
 	template<typename T>
 	struct HasContract<T, std::void_t<typename T::Contract>> : std::true_type {};
 
-
 	template<typename ContractTag, size_t Hash = DEFAULT_HASH>
 	class BLAZE IBlazeEvent {
 	public:
