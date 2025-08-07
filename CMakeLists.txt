@@ -14,6 +14,11 @@ add_library(Blaze SHARED
 	src/Public/BlazeEvent.h
 	src/Public/Executors.h
 	src/Public/ExecutorServices.h
+	src/Public/BlazeFunctional.h	
+	src/Public/TaskEngine.h
+	src/Public/WorkStealUtils.h
+	src/Public/BlazeTraits.h
+	src/Public/ThreadPlatform.h src/Private/ThreadPlatform.cpp
 )
 
 target_include_directories(Blaze PUBLIC

@@ -20,13 +20,6 @@ void BLAZE Init();
 #include <sys/mman.h>
 #include <time.h>
 #include <sched.h>
-#elif defined(__APPLE__)
-#include <pthread.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <mach/mach.h>
-#include <mach/thread_policy.h>
 #endif
 
 
