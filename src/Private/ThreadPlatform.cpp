@@ -148,10 +148,17 @@ namespace Blaze::Platform {
 			});
 
 		if (itr != m_Handles.end()) {
+#if defined(_WIN32)
 			CloseHandle(itr->m_ThreadHandle);
 			itr = m_Handles.erase(itr);
 			ro_Handle.m_HandleID = INVALID_HANDLE;
 			return true;
+#elif defined(__linux__)
+			pthread_detach(itr->m_ThreadHandle);
+			itr = m_Handles.erase(itr);
+			ro_Handle.m_HandleID = INVALID_HANDLE;
+			return true;
+#endif
 		}
 		return false;
 	}
@@ -161,10 +168,13 @@ namespace Blaze::Platform {
 		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
 			});
-
 		if (itr == m_Handles.end()) return false;
 
+#if defined(_WIN32)
 		return SetThreadPriority(itr->m_ThreadHandle, static_cast<int>(v_NewPriority));
+#elif defined(__linux__)
+		//No implementation exists
+#endif
 	}
 
 	bool NativeThread::closeHandle(CPUThreadHandle& ro_Handle) {
@@ -186,5 +196,4 @@ namespace Blaze::Platform {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
 			});
 	}
-
 }
