@@ -179,21 +179,75 @@ namespace Blaze::Platform {
 
 	bool NativeThread::closeHandle(CPUThreadHandle& ro_Handle) {
 		if (!ro_Handle.m_IsValid) return false;
-
+#if defined(_WIN32)
 		if (CloseHandle(ro_Handle.m_ThreadHandle)) {
 			ro_Handle.m_IsValid = false;
 			ro_Handle.m_IsClosed = true;
 			return true;
 		}
 		return false;
+#elif defined(__linux__)
+		if (pthread_detach(ro_Handle.m_ThreadHandle) == 0) {
+			ro_Handle.m_IsValid = false;
+			ro_Handle.m_IsClosed = true;
+			return true;
+		}
+		return false;
+#else
+		return false;
+#endif
 	}
 
-	CPUThreadHandle&& NativeThread::duplicate(const ThreadHandle& ro_Handle) {
-		CPUThreadHandle handle;
-		nullHandle(handle);
-		if (!ro_Handle.isValid()) return handle;
+	ProcessorIdx NativeThread::getCurrentProcessorNumber() {
+#if defined(_WIN32)
+		return GetCurrentProcessorNumber();
+#else
+		return -1;
+#endif
+	}
+
+	size_t NativeThread::getHardwareConcurrency() {
+#if defined(_WIN32)
+		SYSTEM_INFO sysInfo;
+		GetSystemInfo(&sysInfo);
+		return sysInfo.dwNumberOfProcessors;
+#elif defined(__linux__)
+		return sysconf(_SC_NPROCESSORS_ONLN);
+#else
+		return 0;
+#endif
+	}
+
+	size_t NativeThread::suspendThread(const ThreadHandle& ro_Handle) {
+		if (!ro_Handle.isValid()) return false;
 		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
 			});
+#if defined(_WIN32)
+		if (itr != m_Handles.end()) {
+			itr->m_IsRunning = false;
+			return SuspendThread(itr->m_ThreadHandle);
+		}
+		return -1;
+
+#else
+		return -1;
+#endif
+	}
+
+	size_t NativeThread::resumeThread(const ThreadHandle& ro_Handle) {
+		if (!ro_Handle.isValid()) return false;
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
+			});
+#if defined(_WIN32)
+		if (itr != m_Handles.end()) {
+			itr->m_IsRunning = false;
+			return ResumeThread(itr->m_ThreadHandle);
+		}
+		return -1;
+#else
+		return -1;
+#endif
 	}
 }
