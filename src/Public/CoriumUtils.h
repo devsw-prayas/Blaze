@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,22 +20,22 @@
 */
 
 #pragma once
-#include "Blaze.h"
+#include "Corium.h"
 
-namespace Blaze::Utils{
-    class BLAZE TaskOptions final {
+namespace Corium::Utils{
+    class CORIUM TaskOptions final {
 	    
     };
 
-    enum class BLAZE TaskState : uint8_t{
+    enum class CORIUM TaskState : uint8_t{
         PENDING, SCHEDULED, RUNNING, FAILED, CANCELLED, COMPLETE
     };
 
-    enum class BLAZE WorkerState : uint8_t{
+    enum class CORIUM WorkerState : uint8_t{
         INITIALIZING, SUSPENDED, RUNNING, TERMINATED
     };
 
-    struct BLAZE IHandle{
+    struct CORIUM IHandle{
 		IHandle() = default;
 		virtual ~IHandle() = default;
 

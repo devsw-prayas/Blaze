@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,12 +20,12 @@
 */
 
 #pragma once
-#include "Blaze.h"
+#include "Corium.h"
 #include "ThreadPlatform.h"
 
-namespace Blaze::Factory {
+namespace Corium::Factory {
 
-	class BLAZE IThreadFactory {
+	class CORIUM IThreadFactory {
 	public:
 		virtual ~IThreadFactory() = default;
 

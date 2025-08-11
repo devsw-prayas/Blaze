@@ -1,7 +1,7 @@
 ﻿/*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,13 +20,13 @@
 */
 
 #pragma once
-#include "Blaze.h"
-#include "BlazeEvent.h"
-#include "BlazeTraits.h"
+#include "Corium.h"
+#include "CoriumEvent.h"
+#include "CoriumTraits.h"
 #include "Executors.h"
 #include "WorkStealUtils.h"
 
-namespace Blaze::Executors::Services {
+namespace Corium::Executors::Services {
 #ifndef NO_OP_DEFAULT_INSTANTANEOUS
 #define NO_OP_DEFAULT_INSTANTANEOUS \
 	IThreadExecutorService::DefaultOnSubmitContract,\
@@ -72,16 +72,16 @@ namespace Blaze::Executors::Services {
 	struct EventContractOnFork final {};
 	struct EventContractOnJoin final {};
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
 		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
 #else
 	template<typename D, size_t Hash = Events::DEFAULT_HASH>
 #endif
-	class BLAZE IThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
+	class CORIUM IThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
 		static_assert(!std::is_final_v<D>, "A class extending an executor service must be final");
 		using Derived = D;
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 		using EventContract = std::conditional_t<!std::is_void_v<E>, E, void>;
 
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4, "At least 4 event hook types must be provided in the EventContract");
@@ -90,24 +90,24 @@ namespace Blaze::Executors::Services {
 		using RunEvent = std::tuple_element_t<2, typename EventContract::EventPack>;
 		using CallEvent = std::tuple_element_t<3, typename EventContract::EventPack>;
 	public:
-		using OnSubmit = Events::IBlazeEvent<EventContractOnSubmit, Hash>;
-		using OnFuture = Events::IBlazeEvent<EventContractOnFuture, Hash>;
-		using OnRun = Events::IBlazeEvent<EventContractOnRun, Hash>;
-		using OnCall = Events::IBlazeEvent<EventContractOnCall, Hash>;
+		using OnSubmit = Events::ICoriumEvent<EventContractOnSubmit, Hash>;
+		using OnFuture = Events::ICoriumEvent<EventContractOnFuture, Hash>;
+		using OnRun = Events::ICoriumEvent<EventContractOnRun, Hash>;
+		using OnCall = Events::ICoriumEvent<EventContractOnCall, Hash>;
 
-		struct DefaultOnFutureContract final : Events::IBlazeEvent<EventContractOnFuture, Hash > {
+		struct DefaultOnFutureContract final : Events::ICoriumEvent<EventContractOnFuture, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnRunContract final : Events::IBlazeEvent<EventContractOnRun, Hash > {
+		struct DefaultOnRunContract final : Events::ICoriumEvent<EventContractOnRun, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnSubmitContract final : Events::IBlazeEvent<EventContractOnSubmit, Hash > {
+		struct DefaultOnSubmitContract final : Events::ICoriumEvent<EventContractOnSubmit, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnCallContract final : Events::IBlazeEvent<EventContractOnCall, Hash> {
+		struct DefaultOnCallContract final : Events::ICoriumEvent<EventContractOnCall, Hash> {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
@@ -122,7 +122,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
-				Events::IBlazeEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
+				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
 			return static_cast<Derived*>(this)->template submitC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_args)...);
 		}
@@ -132,7 +132,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
-				Events::IBlazeEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
+				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
 			return static_cast<Derived*>(this)->template submitC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -142,7 +142,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
-				Events::IBlazeEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
+				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
 			return static_cast<Derived*>(this)->template futureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_args)...);
 		}
@@ -152,7 +152,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
-				Events::IBlazeEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
+				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
 			return static_cast<Derived*>(this)->template futureC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -162,7 +162,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
-				Events::IBlazeEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
+				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
 			static_cast<Derived*>(this)->template runC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
@@ -172,7 +172,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
-				Events::IBlazeEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
+				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
 			static_cast<Derived*>(this)->template runC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -182,7 +182,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth Event type must be a OnCall Hook");
-				Events::IBlazeEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
+				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
 			return static_cast<Derived*>(this)->template callC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
@@ -192,7 +192,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth type must be a OnCall Hook");
-				Events::IBlazeEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
+				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
 			return static_cast<Derived*>(this)->template callC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -210,18 +210,18 @@ namespace Blaze::Executors::Services {
 		}
 	};
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
 		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
 #else
 	template<typename D, size_t Hash = Events::DEFAULT_HASH>
 #endif
-	class BLAZE IScheduledThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
+	class CORIUM IScheduledThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
 		using Derived = D;
 		using EventContract = E;
 		static_assert(!std::is_final_v<D>, "A class extending an executor service must be final");
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 7, "At least 7 event hooks must be present in the EventContract");
 		using SubmitEvent = std::tuple_element_t<0, typename EventContract::EventPack>;
 		using FutureEvent = std::tuple_element_t<1, typename EventContract::EventPack>;
@@ -233,40 +233,40 @@ namespace Blaze::Executors::Services {
 		using ScheduleRepeatableEvent = std::tuple_element_t<6, typename EventContract::EventPack>;
 
 	public:
-		using OnSubmit = Events::IBlazeEvent<EventContractOnSubmit, Hash>;
-		using OnFuture = Events::IBlazeEvent<EventContractOnFuture, Hash>;
-		using OnRun = Events::IBlazeEvent<EventContractOnRun, Hash>;
-		using OnCall = Events::IBlazeEvent<EventContractOnCall, Hash>;
+		using OnSubmit = Events::ICoriumEvent<EventContractOnSubmit, Hash>;
+		using OnFuture = Events::ICoriumEvent<EventContractOnFuture, Hash>;
+		using OnRun = Events::ICoriumEvent<EventContractOnRun, Hash>;
+		using OnCall = Events::ICoriumEvent<EventContractOnCall, Hash>;
 
-		using OnScheduleRun = Events::IBlazeEvent<EventContractOnScheduleRun, Hash>;
-		using OnScheduleFuture = Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>;
-		using OnScheduleRepeatable = Events::IBlazeEvent<EventContractOnScheduleRepeatable, Hash>;
+		using OnScheduleRun = Events::ICoriumEvent<EventContractOnScheduleRun, Hash>;
+		using OnScheduleFuture = Events::ICoriumEvent<EventContractOnScheduleFuture, Hash>;
+		using OnScheduleRepeatable = Events::ICoriumEvent<EventContractOnScheduleRepeatable, Hash>;
 
-		struct DefaultOnFutureContract final : Events::IBlazeEvent<EventContractOnFuture, Hash > {
+		struct DefaultOnFutureContract final : Events::ICoriumEvent<EventContractOnFuture, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnRunContract final : Events::IBlazeEvent<EventContractOnRun, Hash > {
+		struct DefaultOnRunContract final : Events::ICoriumEvent<EventContractOnRun, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnSubmitContract final : Events::IBlazeEvent<EventContractOnSubmit, Hash > {
+		struct DefaultOnSubmitContract final : Events::ICoriumEvent<EventContractOnSubmit, Hash > {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnScheduleRunContract final : Events::IBlazeEvent<EventContractOnScheduleRun, Hash> {
+		struct DefaultOnScheduleRunContract final : Events::ICoriumEvent<EventContractOnScheduleRun, Hash> {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnScheduleFutureContract final : Events::IBlazeEvent<EventContractOnScheduleFuture, Hash> {
+		struct DefaultOnScheduleFutureContract final : Events::ICoriumEvent<EventContractOnScheduleFuture, Hash> {
 			static void invoke() { /* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnScheduleRepeatableContract final : Events::IBlazeEvent<EventContractOnScheduleRepeatable, Hash> {
+		struct DefaultOnScheduleRepeatableContract final : Events::ICoriumEvent<EventContractOnScheduleRepeatable, Hash> {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
-		struct DefaultOnCallContract final : Events::IBlazeEvent<EventContractOnCall, Hash> {
+		struct DefaultOnCallContract final : Events::ICoriumEvent<EventContractOnCall, Hash> {
 			static void invoke() {/* Default implementation does nothing */ }
 		};
 
@@ -281,7 +281,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
-				Events::IBlazeEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
+				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
 			return static_cast<Derived*>(this)->template submitC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
@@ -291,7 +291,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRun, ScheduleRunEvent>,
 					"The fifth Event type must be a OnScheduleRun Hook");
-				Events::IBlazeEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
+				Events::ICoriumEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
 			}
 			return static_cast<Derived*>(this)->template scheduleRunC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...);
 		}
@@ -301,7 +301,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
-				Events::IBlazeEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
+				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
 			return static_cast<Derived*>(this)->template submitC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -311,7 +311,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRun, ScheduleRunEvent>,
 					"The fifth Event type must be a OnScheduleRun Hook");
-				Events::IBlazeEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
+				Events::ICoriumEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
 			}
 			return static_cast<Derived*>(this)->template scheduleRunC<F>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration));
 		}
@@ -321,7 +321,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
-				Events::IBlazeEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
+				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
 			static_cast<Derived*>(this)->template runC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
@@ -331,7 +331,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
-				Events::IBlazeEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
+				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
 			static_cast<Derived*>(this)->template runC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -341,7 +341,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
-				Events::IBlazeEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
+				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
 			return static_cast<Derived*>(this)->template futureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
@@ -351,7 +351,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleFuture, ScheduleFutureEvent>,
 					"The sixth Event type must be a OnScheduleFuture Hook");
-				Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
+				Events::ICoriumEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
 			}
 			return static_cast<Derived*>(this)->template scheduleFutureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...);
 		}
@@ -361,7 +361,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
-				Events::IBlazeEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
+				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
 			return static_cast<Derived*>(this)->template futureC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -371,7 +371,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleFuture, ScheduleFutureEvent>,
 					"The sixth Event type must be a OnScheduleFuture Hook");
-				Events::IBlazeEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
+				Events::ICoriumEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
 			}
 			return static_cast<Derived*>(this)->template scheduleFutureC<F>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration));
 		}
@@ -381,7 +381,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth Event type must be a OnCall Hook");
-				Events::IBlazeEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
+				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
 			return static_cast<Derived*>(this)->template callC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
@@ -391,7 +391,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth type must be a OnCall Hook");
-				Events::IBlazeEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
+				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
 			return static_cast<Derived*>(this)->template callC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -413,7 +413,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRepeatable, ScheduleRepeatableEvent>,
 					"The seventh Event type must be a OnScheduleRepeatable Hook");
-				Events::IBlazeEvent<EventContractOnScheduleRepeatable, Hash>::template invoke<ScheduleRepeatableEvent>();
+				Events::ICoriumEvent<EventContractOnScheduleRepeatable, Hash>::template invoke<ScheduleRepeatableEvent>();
 			}
 			return static_cast<Derived*>(this)->template scheduleRepeatableC<F>(std::forward<F>(u_Func), r_Options);
 		}
@@ -427,26 +427,26 @@ namespace Blaze::Executors::Services {
 		}
 	};
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
 		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
 #else
 	template<typename D, size_t Hash = Events::DEFAULT_HASH>
 #endif
-	class BLAZE IWorkStealerService : IExecutor<D> {
+	class CORIUM IWorkStealerService : IExecutor<D> {
 		using Derived = D;
 		using EventContract = E;
 		static_assert(!std::is_final_v<Derived> && !std::is_base_of_v<IWorkStealerService, Derived>,
 			"The Derived class must be final and should extend IWorkStealerService");
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 		using ForkEvent = std::tuple_element_t<0, typename EventContract::Contract>;
 		using JoinEvent = std::tuple_element_t<1, typename EventContract::Contract>;
 		using InvokeEvent = std::tuple_element_t <2, typename EventContract::Contract>;
 	public:
-		using OnFork = Events::IBlazeEvent<EventContractOnFork, Hash>;
-		using OnJoin = Events::IBlazeEvent<EventContractOnJoin, Hash>;
-		using OnInvoke = Events::IBlazeEvent<EventContractOnInvoke, Hash>;
+		using OnFork = Events::ICoriumEvent<EventContractOnFork, Hash>;
+		using OnJoin = Events::ICoriumEvent<EventContractOnJoin, Hash>;
+		using OnInvoke = Events::ICoriumEvent<EventContractOnInvoke, Hash>;
 
 		using DefaultPack = Events::EventEmitterPack<Hash, NO_OP_DEFAULT_WORKSTEAL>;
 
@@ -470,7 +470,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<InvokeEvent, EventContractOnInvoke>,
 					"The first Event type must be OnInvoke hook");
-				Events::IBlazeEvent<EventContractOnInvoke, Hash>::template invoke<InvokeEvent>();
+				Events::ICoriumEvent<EventContractOnInvoke, Hash>::template invoke<InvokeEvent>();
 			}
 			return static_cast<Derived*>(this) ->template invokeC<T>(r_Workload);
 		}
@@ -482,7 +482,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<ForkEvent, EventContractOnFork>,
 					"The second Event type must be OnFork hook");
-				Events::IBlazeEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
+				Events::ICoriumEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
 			}
 			return static_cast<Derived*>(this) ->template forkC<T>(u_Workload);
 		}
@@ -491,7 +491,7 @@ namespace Blaze::Executors::Services {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<JoinEvent, EventContractOnJoin>,
 					"The third Event type must be OnJoin hook");
-				Events::IBlazeEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
+				Events::ICoriumEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
 			}
 			static_cast<Derived*>(this)->joinC(ss_Handle);
 		}

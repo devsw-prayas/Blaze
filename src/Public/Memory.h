@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,30 +20,30 @@
 */
 
 #pragma once
-#include "Blaze.h"
+#include "Corium.h"
 
-namespace Blaze::Memory {
-	constexpr size_t BLAZE operator""_KB(unsigned long long v_KB) {
+namespace Corium::Memory {
+	constexpr size_t CORIUM operator""_KB(unsigned long long v_KB) {
 		return v_KB * 1000ULL;
 	}
 
-	constexpr size_t BLAZE operator""_KiB(unsigned long long v_KiB) {
+	constexpr size_t CORIUM operator""_KiB(unsigned long long v_KiB) {
 		return v_KiB * 1024ULL;
 	}
 
-	constexpr size_t BLAZE operator""_MB(unsigned long long v_MB) {
+	constexpr size_t CORIUM operator""_MB(unsigned long long v_MB) {
 		return v_MB * 1000ULL * 1000ULL;
 	}
 
-	constexpr size_t BLAZE operator""_MiB(unsigned long long v_MiB) {
+	constexpr size_t CORIUM operator""_MiB(unsigned long long v_MiB) {
 		return v_MiB * 1024ULL * 1024ULL;
 	}
 
-	constexpr size_t BLAZE operator""_GB(unsigned long long v_GB) {
+	constexpr size_t CORIUM operator""_GB(unsigned long long v_GB) {
 		return v_GB * 1000ULL * 1000ULL * 1000ULL;
 	}
 
-	constexpr size_t BLAZE operator""_GiB(unsigned long long v_GiB) {
+	constexpr size_t CORIUM operator""_GiB(unsigned long long v_GiB) {
 		return v_GiB * 1024ULL * 1024ULL * 1024ULL;
 	}
 
@@ -121,7 +121,7 @@ namespace Blaze::Memory {
 		}
 	};
 
-	inline Memory BLAZE reserve(const size_t v_Size) {
+	inline Memory CORIUM reserve(const size_t v_Size) {
 		Memory memory;
 		memory.m_Ptr = nullptr;
 		memory.m_Size = 0;
@@ -144,7 +144,7 @@ namespace Blaze::Memory {
 	}
 
 	inline bool commit(Memory& ro_Memory, const size_t v_BlockSize, const size_t v_BlockOffset) {
-		if (ro_Memory.m_Committed + v_BlockSize > ro_Memory.m_Size || !ro_Memory.isValid()s) return false;
+		if (ro_Memory.m_Committed + v_BlockSize > ro_Memory.m_Size || !ro_Memory.isValid()) return false;
 		auto pByte = reinterpret_cast<std::byte*>(ro_Memory.m_Ptr);
 #if defined(_WIN32)
 		LPVOID mem = VirtualAlloc(reinterpret_cast<void*>(pByte + v_BlockOffset), v_BlockSize, MEM_COMMIT, PAGE_READWRITE);

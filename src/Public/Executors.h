@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,13 +20,13 @@
 */
 
 #pragma once
-#include "Blaze.h"
-#include "BlazeMemory.h"
-#include "BlazeUtils.h"
+#include "Corium.h"
+#include "CoriumMemory.h"
+#include "CoriumUtils.h"
 
-namespace Blaze::Executors {
+namespace Corium::Executors {
     template<typename Derived>
-    class BLAZE IExecutor{
+    class CORIUM IExecutor{
     public:
         void execute(void* (*pf_Func)()){
             static_cast<Derived*>(this)->execute(pf_Func);
@@ -38,7 +38,7 @@ namespace Blaze::Executors {
         }
     };
 
-    class BLAZE IExecutorVirtual {
+    class CORIUM IExecutorVirtual {
     public:
 		IExecutorVirtual() = default;
 		virtual ~IExecutorVirtual() = default;

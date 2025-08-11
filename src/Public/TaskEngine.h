@@ -1,7 +1,7 @@
 ﻿/*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,25 +20,25 @@
 */
 
 #pragma once
-#include "Blaze.h"
-#include "BlazeEvent.h"
-#include "BlazeTraits.h"
+#include "Corium.h"
+#include "CoriumEvent.h"
+#include "CoriumTraits.h"
 
-namespace Blaze::TaskEngine {
+namespace Corium::TaskEngine {
 	struct EventContractOnStaged final {};
 	struct EventContractOnAllStaged final {};
 	struct EventContractOnLaunch final {};
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
 		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
 #else
 	template<typename D, size_t Hash = Events::DEFAULT_HASH>
 #endif
-	class BLAZE ATaskEngine {
+	class CORIUM ATaskEngine {
 		static_assert(std::is_final_v<D>, "Concrete implementations must be final");
 		using Derived = D;
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 		using EventContract = std::conditional_t<std::is_void_v<E>, E, void>;
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 3,
 			"At least 3 Event type hooks must be provided in the EventContract");
@@ -46,9 +46,9 @@ namespace Blaze::TaskEngine {
 		using StagingAllEvent = std::tuple_element_t<1, typename EventContract::Contract>;
 		using LaunchEvent = std::tuple_element_t<2	, typename EventContract::Contract>;
 	public:
-		using OnStaged = Events::IBlazeEvent<EventContractOnStaged, Hash>;
-		using OnAllStaged = Events::IBlazeEvent<EventContractOnAllStaged, Hash>;
-		using OnLaunch = Events::IBlazeEvent<EventContractOnLaunch, Hash>;
+		using OnStaged = Events::ICoriumEvent<EventContractOnStaged, Hash>;
+		using OnAllStaged = Events::ICoriumEvent<EventContractOnAllStaged, Hash>;
+		using OnLaunch = Events::ICoriumEvent<EventContractOnLaunch, Hash>;
 #endif
 	private:
 
@@ -73,7 +73,7 @@ namespace Blaze::TaskEngine {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<StagingEvent, OnStaged>,
 					"The first Event type must be OnStaged hook");
-				Events::IBlazeEvent<EventContractOnStaged, Hash>::template invoke<StagingEvent>();
+				Events::ICoriumEvent<EventContractOnStaged, Hash>::template invoke<StagingEvent>();
 			}
 			static_cast<Derived*>(this)->template stageC<F>(std::forward<F>(u_Func));
 		}
@@ -83,7 +83,7 @@ namespace Blaze::TaskEngine {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<StagingAllEvent, OnAllStaged>,
 					"The second Event type must be OnAllStaged hook");
-				Events::IBlazeEvent<EventContractOnAllStaged, Hash>::template invoke<StagingAllEvent, size_t>(sizeof...(Args));
+				Events::ICoriumEvent<EventContractOnAllStaged, Hash>::template invoke<StagingAllEvent, size_t>(sizeof...(Args));
 			}
 			static_cast<Derived*>(this)-> template stageAllC<Args...>(std::forward<Args>(u_Func)...);
 		}
@@ -92,7 +92,7 @@ namespace Blaze::TaskEngine {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<LaunchEvent, OnLaunch>,
 					"The third Event type must be OnLaunch hook");
-				Events::IBlazeEvent<EventContractOnLaunch, Hash>:: template invoke<LaunchEvent>();
+				Events::ICoriumEvent<EventContractOnLaunch, Hash>:: template invoke<LaunchEvent>();
 			}
 			static_cast<Derived*>(this)->launchC();
 		}

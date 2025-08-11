@@ -1,7 +1,7 @@
 ﻿/*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,9 +20,9 @@
 */
 
 #pragma once
-#include "Blaze.h"
+#include "Corium.h"
 
-namespace Blaze::Platform {
+namespace Corium::Platform {
 	constexpr size_t INVALID_HANDLE = 0xFFFFFFFFFFFFFFFF;
 
 	inline size_t generateApiThreadID() noexcept {
@@ -39,7 +39,7 @@ namespace Blaze::Platform {
 	using ProcessorIdx = DWORD;
 
 	// [Size in bytes]: 48
-	alignas(64) struct BLAZE NativeThreadAttributes {
+	alignas(64) struct CORIUM NativeThreadAttributes {
 		AffinityMask m_Mask;
 		bool m_IsDetached;
 		int m_ThreadPriority;
@@ -102,7 +102,7 @@ namespace Blaze::Platform {
 	};
 
 	//[Size in Bytes]: 88
-	alignas(128) struct BLAZE NativeThreadOptions {
+	alignas(128) struct CORIUM NativeThreadOptions {
 		std::function<void()> m_StartPoint;
 		const char* m_ThreadName;
 
@@ -145,9 +145,9 @@ namespace Blaze::Platform {
 	};
 
 	// [Size in bytes]: 48
-	alignas(64) struct BLAZE CPUThreadHandle final{
+	alignas(64) struct CORIUM CPUThreadHandle final{
 	private:
-		size_t m_BlazeThreadID;
+		size_t m_CoriumThreadID;
 		const char* m_ThreadName;
 		bool m_IsRunning;
 		bool m_IsClosed;
@@ -167,8 +167,8 @@ namespace Blaze::Platform {
 		CPUThreadHandle(const CPUThreadHandle&) = delete;
 		CPUThreadHandle& operator=(const CPUThreadHandle&) = delete;
 
-		[[nodiscard]] size_t getBlazeID() const noexcept {
-			return m_BlazeThreadID;
+		[[nodiscard]] size_t getCoriumID() const noexcept {
+			return m_CoriumThreadID;
 		}
 
 		[[nodiscard]] const char* getThreadName() const noexcept {
@@ -257,7 +257,7 @@ namespace Blaze::Platform {
 
 		static void nullHandle(CPUThreadHandle& handle) {
 			handle.m_ThreadName = nullptr;
-			handle.m_BlazeThreadID = -1;
+			handle.m_CoriumThreadID = -1;
 			handle.m_IsClosed = true;
 			handle.m_CurrentThreadPriority = 0;
 			handle.m_ExitCode = 1000;

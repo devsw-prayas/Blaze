@@ -1,7 +1,7 @@
 ﻿/*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,9 +20,9 @@
 */
 
 #pragma once
-#include "Blaze.h"
+#include "Corium.h"
 
-namespace Blaze::Memory {
+namespace Corium::Memory {
 	template<typename T>
 	class SharedPointer {
 		//STUB TODO
@@ -44,7 +44,7 @@ namespace Blaze::Memory {
 	};
 
 	template<typename T, typename Derived>
-	class BLAZE IAllocator {
+	class CORIUM IAllocator {
 		static_assert(std::is_base_of_v<IAllocator, Derived>, "Derived is not a subclass of IAllocator");
 	public:
 		T* allocate(size_t v_size) noexcept{

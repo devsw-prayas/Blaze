@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,11 +20,11 @@
 */
 
 #pragma once
-#include "Blaze.h"
-#include "BlazeMemory.h"
-#include "BlazeUtils.h"
+#include "Corium.h"
+#include "CoriumMemory.h"
+#include "CoriumUtils.h"
 
-namespace Blaze::Traits {
+namespace Corium::Traits {
 	template<typename D, typename F, typename ...Args>
 	concept HasVariadicSubmitC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, Args&&...u_Args) {
 		{ p_D-> template submitC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...) }

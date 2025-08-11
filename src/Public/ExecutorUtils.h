@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,17 +20,17 @@
 */
 
 #pragma once
-#include "Blaze.h"
-#include "BlazeMemory.h"
-#include "BlazeUtils.h"
+#include "Corium.h"
+#include "CoriumMemory.h"
+#include "CoriumUtils.h"
 #include "ThreadPlatform.h"
 
-namespace Blaze::Executors::Utils {
+namespace Corium::Executors::Utils {
 	using WorkerID = size_t;
 
 	struct Worker {
 		bool m_IsScheduled;
-		Blaze::Utils::WorkerState m_WorkerState;
+		Corium::Utils::WorkerState m_WorkerState;
 
 		//TODO Task Storage and retrieval
 	};
@@ -40,7 +40,7 @@ namespace Blaze::Executors::Utils {
 		//sTODO Scheduled nature
 	};
 
-	struct BLAZE WorkerHandle {
+	struct CORIUM WorkerHandle {
 		WorkerID m_WorkerID;
 		Platform::ThreadHandle m_UnderlyingHandle;
 		Memory::SharedPointer<Worker> m_Worker;

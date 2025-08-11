@@ -1,7 +1,7 @@
 ﻿/*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,36 +20,36 @@
 */
 
 #pragma once
-#include "Blaze.h"
-#include "BlazeEvent.h"
-#include "BlazeMemory.h"
-#include "BlazeTraits.h"
-#include "BlazeUtils.h"
+#include "Corium.h"
+#include "CoriumEvent.h"
+#include "CoriumMemory.h"
+#include "CoriumTraits.h"
+#include "CoriumUtils.h"
 
-namespace Blaze::WorkSteal {
+namespace Corium::WorkSteal {
 	struct EventContractOnFork final {};
 	struct EventContractOnJoin final {};
 	struct EventContractOnCompute final {};
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 	template<typename D, typename E = void, size_t Hash = Events::DEFAULT_HASH>
 		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
 #else
 	template<typename D, size_t Hash = Events::DEFAULT_HASH>
 #endif
-	class BLAZE IWorkStealLoad {
+	class CORIUM IWorkStealLoad {
 		using Derived = D;
 
 		static_assert(std::is_final_v<D>, "Concrete implementations must be final");
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
+#if ENABLE_EVENT_EMITTERS_CORIUM
 		using EventContract = E;
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 4,
 			"At least 3 event hook types must be provided in the EventContract");
 
-		using OnFork = Events::IBlazeEvent<EventContractOnFork, Hash>;
-		using OnCompute = Events::IBlazeEvent<EventContractOnCompute, Hash>;
-		using OnJoin = Events::IBlazeEvent<EventContractOnJoin, Hash>;
+		using OnFork = Events::ICoriumEvent<EventContractOnFork, Hash>;
+		using OnCompute = Events::ICoriumEvent<EventContractOnCompute, Hash>;
+		using OnJoin = Events::ICoriumEvent<EventContractOnJoin, Hash>;
 
 		using ForkEvent = std::tuple_element_t<0, typename EventContract::Contract>;
 		using JoinEvent = std::tuple_element_t<1, typename EventContract::Contract>;
@@ -78,7 +78,7 @@ namespace Blaze::WorkSteal {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCompute, ComputeEvent>,
 					"The third Event type must be a OnCompute Hook");
-				Events::IBlazeEvent<EventContractOnCompute, Hash>::template invoke<ComputeEvent>();
+				Events::ICoriumEvent<EventContractOnCompute, Hash>::template invoke<ComputeEvent>();
 			}
 
 			return static_cast<Derived*>(this)->computeC();
@@ -88,7 +88,7 @@ namespace Blaze::WorkSteal {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFork, ForkEvent>,
 					"The first Event type must be a OnFork Hook");
-				Events::IBlazeEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
+				Events::ICoriumEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
 			}
 
 			return static_cast<Derived*>(this)->forkC(std::move(u_subTask));
@@ -98,7 +98,7 @@ namespace Blaze::WorkSteal {
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnJoin, JoinEvent>,
 					"The second Event type must be a OnJoin Hook");
-				Events::IBlazeEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
+				Events::ICoriumEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
 			}
 			static_cast<Derived*>(this)->join(handle);
 		}

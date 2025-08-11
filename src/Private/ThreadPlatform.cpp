@@ -1,12 +1,12 @@
-#include "Blaze.h"
+#include "Corium.h"
 #include "ThreadPlatform.h"
-namespace Blaze::Platform {
+namespace Corium::Platform {
 	ThreadHandle NativeThread::createThread(NativeThreadAttributes& ro_Attr, NativeThreadOptions& ro_Options) {
 		//Setting up internal thread object and opaque handle
 		CPUThreadHandle threadHandle;
 		threadHandle.m_ThreadName = ro_Options.m_ThreadName;
-		threadHandle.m_BlazeThreadID = generateApiThreadID();
-		ThreadHandle opaqueHandle{ threadHandle.m_BlazeThreadID };
+		threadHandle.m_CoriumThreadID = generateApiThreadID();
+		ThreadHandle opaqueHandle{ threadHandle.m_CoriumThreadID };
 		threadHandle.m_IsClosed = false;
 
 #if defined(_WIN32)
@@ -144,7 +144,7 @@ namespace Blaze::Platform {
 	bool NativeThread::detachThread(ThreadHandle& ro_Handle) {
 		if (!ro_Handle.isValid()) return false;
 		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
-			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 
 		if (itr != m_Handles.end()) {
@@ -166,7 +166,7 @@ namespace Blaze::Platform {
 	bool NativeThread::setPriority(const ThreadHandle& ro_Handle, Priority v_NewPriority) {
 		if (!ro_Handle.isValid()) return false;
 		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
-			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 		if (itr == m_Handles.end()) return false;
 
@@ -221,7 +221,7 @@ namespace Blaze::Platform {
 	size_t NativeThread::suspendThread(const ThreadHandle& ro_Handle) {
 		if (!ro_Handle.isValid()) return false;
 		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
-			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 #if defined(_WIN32)
 		if (itr != m_Handles.end()) {
@@ -238,7 +238,7 @@ namespace Blaze::Platform {
 	size_t NativeThread::resumeThread(const ThreadHandle& ro_Handle) {
 		if (!ro_Handle.isValid()) return false;
 		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
-			return ro_Handle.m_HandleID == ro_InternalHandle.getBlazeID();
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 #if defined(_WIN32)
 		if (itr != m_Handles.end()) {

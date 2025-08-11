@@ -1,7 +1,7 @@
 ﻿/*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -20,9 +20,9 @@
 */
 
 #pragma once
-#include "Blaze.h"
+#include "Corium.h"
 
-namespace Blaze::Events {
+namespace Corium::Events {
 	constexpr size_t DEFAULT_HASH = 0xF00D; // From a food lover!
 
 	template<typename T,typename = void>
@@ -32,19 +32,19 @@ namespace Blaze::Events {
 	struct HasContract<T, std::void_t<typename T::Contract>> : std::true_type {};
 
 	template<typename ContractTag, size_t Hash = DEFAULT_HASH>
-	class BLAZE IBlazeEvent {
+	class CORIUM ICoriumEvent {
 	public:
 		using Contract = ContractTag;
 		template<typename Derived, typename...Args>
 		static void invoke(Args&&... u_Args) {
-			static_assert(std::is_base_of_v<IBlazeEvent, Derived>,
-				"Derived must be a subclass of IBlazeEvent");
+			static_assert(std::is_base_of_v<ICoriumEvent, Derived>,
+				"Derived must be a subclass of ICoriumEvent");
 			Derived::template invoke<Args...>(std::forward<Args>(u_Args)...);
 		}
 	};
 
 	template<size_t Hash = DEFAULT_HASH ,typename...Args>
-	struct BLAZE EventEmitterPack final{
+	struct CORIUM EventEmitterPack final{
 		using EventPack = std::tuple<Args...>;
 		constexpr size_t Count = sizeof...(Args);
 	private:
@@ -54,11 +54,11 @@ namespace Blaze::Events {
 		static consteval bool iterate(std::index_sequence<I...>) {
 			static_assert(std::conjunction_v<HasContract<std::tuple_element_t<I, EventPack>>...>, 
 				"All event types must declare a Contract");
-			return ((...&& std::is_base_of_v<IBlazeEvent<typename std::tuple_element_t<I, EventPack>::Contract, Hash>, 
+			return ((...&& std::is_base_of_v<ICoriumEvent<typename std::tuple_element_t<I, EventPack>::Contract, Hash>, 
 				std::tuple_element_t<I, EventPack>>));
 		}
 	public:
 		static_assert(sizeof...(Args) > 0, "EventEmitterPack must contain at least one event types");
-		static_assert(iterate(Indices{}), "All events must be derived from IBlazeEvent");
+		static_assert(iterate(Indices{}), "All events must be derived from ICoriumEvent");
 	};
 }
