@@ -71,29 +71,35 @@ namespace Corium::TaskEngine {
 		template<typename F>
 		void stage(F&& u_Func) {
 			if constexpr (!std::is_void_v<EventContract>) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 				static_assert(std::is_base_of_v<StagingEvent, OnStaged>,
 					"The first Event type must be OnStaged hook");
 				Events::ICoriumEvent<EventContractOnStaged, Hash>::template invoke<StagingEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->template stageC<F>(std::forward<F>(u_Func));
 		}
 
 		template<typename...Args>
 		void stageAll(Args&&...u_Func) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<StagingAllEvent, OnAllStaged>,
 					"The second Event type must be OnAllStaged hook");
 				Events::ICoriumEvent<EventContractOnAllStaged, Hash>::template invoke<StagingAllEvent, size_t>(sizeof...(Args));
 			}
+#endif
 			static_cast<Derived*>(this)-> template stageAllC<Args...>(std::forward<Args>(u_Func)...);
 		}
 
 		void launch() {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<LaunchEvent, OnLaunch>,
 					"The third Event type must be OnLaunch hook");
 				Events::ICoriumEvent<EventContractOnLaunch, Hash>:: template invoke<LaunchEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->launchC();
 		}
 

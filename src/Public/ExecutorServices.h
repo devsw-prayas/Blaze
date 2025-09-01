@@ -119,81 +119,97 @@ namespace Corium::Executors::Services {
 
 		template<typename F, typename ...Args> requires(Traits::HasVariadicSubmitC<Derived, F, Args...>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> submit(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
 				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template submitC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_args)...);
 		}
 
 		template<typename F> requires(Traits::HasSubmitC<Derived, F>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> submit(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
 				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template submitC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicFutureC<Derived, F, Args...>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> future(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
 				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template futureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_args)...);
 		}
 
 		template<typename F> requires(Traits::HasFutureC<Derived, F>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> future(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
 				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template futureC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicRunC<Derived, F, Args...>)
 			void run(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
 				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->template runC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasRunC<Derived, F>)
 			void run(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
 				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->template runC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicCallC<Derived, F, Args...>)
 			[[nodiscard]] decltype(auto) call(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth Event type must be a OnCall Hook");
 				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template callC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasCallC<Derived, F>)
 			[[nodiscard]] decltype(auto) call(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth type must be a OnCall Hook");
 				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template callC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
@@ -278,121 +294,145 @@ namespace Corium::Executors::Services {
 	public:
 		template<typename F, typename...Args> requires(Traits::HasVariadicSubmitC<Derived, F, Args...>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> submit(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
 				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template submitC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
 		template< typename F, typename T, typename...Args > requires(Traits::HasVariadicScheduleRunC<Derived, F, T, Args...> && Traits::IsDurationV<T>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRun(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration, Args&&...u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRun, ScheduleRunEvent>,
 					"The fifth Event type must be a OnScheduleRun Hook");
 				Events::ICoriumEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template scheduleRunC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasSubmitC<Derived, F>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> submit(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
 				Events::ICoriumEvent<EventContractOnSubmit, Hash>::template invoke<SubmitEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template submitC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
 		template<typename F, typename T> requires(Traits::HasScheduleRunC<Derived, F, T> && Traits::IsDurationV<T>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRun(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRun, ScheduleRunEvent>,
 					"The fifth Event type must be a OnScheduleRun Hook");
 				Events::ICoriumEvent<EventContractOnScheduleRun, Hash>::template invoke<ScheduleRunEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template scheduleRunC<F>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration));
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicRunC<Derived, F, Args...>)
 			void run(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
 				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->template runC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasRunC<Derived, F>)
 			void run(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnRun, RunEvent>,
 					"The third Event type must be a OnRun Hook");
 				Events::ICoriumEvent<EventContractOnRun, Hash>::template invoke<RunEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->template runC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicFutureC<Derived, F, Args...>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> future(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
 				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template futureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F, typename T, typename...Args> requires(Traits::HasVariadicScheduleFutureC<D, F, T, Args...> && Traits::IsDurationV<T>)
 		[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleFuture(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleFuture, ScheduleFutureEvent>,
 					"The sixth Event type must be a OnScheduleFuture Hook");
 				Events::ICoriumEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template scheduleFutureC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasFutureC<Derived, F>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> future(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFuture, FutureEvent>,
 					"The second Event type must be a OnFuture Hook");
 				Events::ICoriumEvent<EventContractOnFuture, Hash>::template invoke<FutureEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template futureC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
 		template<typename F, typename T> requires(Traits::HasScheduleFutureC<Derived, F, T> && Traits::IsDurationV<T>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleFuture(F&& u_Func, const Utils::TaskOptions& r_Options, T&& u_Duration) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleFuture, ScheduleFutureEvent>,
 					"The sixth Event type must be a OnScheduleFuture Hook");
 				Events::ICoriumEvent<EventContractOnScheduleFuture, Hash>::template invoke<ScheduleFutureEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template scheduleFutureC<F>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration));
 		}
 
 		template<typename F, typename...Args> requires(Traits::HasVariadicCallC<Derived, F, Args...>)
 			[[nodiscard]] decltype(auto) call(F&& u_Func, const Utils::TaskOptions& r_Options, Args&&... u_Args) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth Event type must be a OnCall Hook");
 				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template callC<F, Args...>(std::forward<F>(u_Func), r_Options, std::forward<Args>(u_Args)...);
 		}
 
 		template<typename F> requires(Traits::HasCallC<Derived, F>)
 			[[nodiscard]] decltype(auto) call(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCall, CallEvent>,
 					"The fourth type must be a OnCall Hook");
 				Events::ICoriumEvent<EventContractOnCall, Hash>::template invoke<CallEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template callC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
@@ -410,11 +450,13 @@ namespace Corium::Executors::Services {
 
 		template<typename F> requires(Traits::HasScheduleRepeatableC<Derived, F>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> scheduleRepeatable(F&& u_Func, const Utils::TaskOptions& r_Options) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnScheduleRepeatable, ScheduleRepeatableEvent>,
 					"The seventh Event type must be a OnScheduleRepeatable Hook");
 				Events::ICoriumEvent<EventContractOnScheduleRepeatable, Hash>::template invoke<ScheduleRepeatableEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this)->template scheduleRepeatableC<F>(std::forward<F>(u_Func), r_Options);
 		}
 
@@ -467,11 +509,13 @@ namespace Corium::Executors::Services {
 		Memory::SharedPointer<Utils::IHandle> invoke(const T& r_Workload) {
 			static_assert(std::is_final_v<T> && !std::is_base_of_v<WorkSteal::IWorkStealLoad<T, E, Hash>, T>,
 				"The task submitted must be a subclass of IWorkStealLoad");
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<InvokeEvent, EventContractOnInvoke>,
 					"The first Event type must be OnInvoke hook");
 				Events::ICoriumEvent<EventContractOnInvoke, Hash>::template invoke<InvokeEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this) ->template invokeC<T>(r_Workload);
 		}
 
@@ -479,20 +523,24 @@ namespace Corium::Executors::Services {
 		Memory::SharedPointer<Utils::IHandle> fork(const T&& u_Workload) {
 			static_assert(std::is_final_v<T> && !std::is_base_of_v<WorkSteal::IWorkStealLoad<T, E, Hash>, T>,
 				"The task submitted must be a subclass of IWorkStealLoad");
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<ForkEvent, EventContractOnFork>,
 					"The second Event type must be OnFork hook");
 				Events::ICoriumEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
 			}
+#endif
 			return static_cast<Derived*>(this) ->template forkC<T>(u_Workload);
 		}
 
 		void join(Memory::SharedPointer<Utils::IHandle> ss_Handle) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v<JoinEvent, EventContractOnJoin>,
 					"The third Event type must be OnJoin hook");
 				Events::ICoriumEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->joinC(ss_Handle);
 		}
 

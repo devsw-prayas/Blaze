@@ -1,10 +1,10 @@
 #pragma once
-#include "Blaze.h"
-#include "BlazeEvent.h"
+
+#include "CoriumEvent.h"
 #include "Executors.h"
 
 
-namespace Blaze::Composable {
+namespace Corium::Composable {
 
 	enum class Compose : uint8_t {
 		TRANSFORM, INTERMEDIATE, REDUCTION
@@ -18,9 +18,9 @@ namespace Blaze::Composable {
 		//TODO intrusive list
 	};
 
-#if ENABLE_EVENT_EMITTERS_BLAZE
-	template<typename A, typename E = void, size_t Hash = Events::DEFAULT_HASH>
-		requires std::disjunction_v<Events::HasContract<E>, std::is_void<E>>
+#if ENABLE_EVENT_EMITTERS_CORIUM
+	template<typename A, typename E = void, size_t Hash = Corium::Events::DEFAULT_HASH>
+		requires std::disjunction_v<Corium::Events::HasContract<E>, std::is_void<E>>
 #else
 	template<typename A>
 #endif

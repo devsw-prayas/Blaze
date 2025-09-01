@@ -22,6 +22,16 @@
 #pragma once
 #include "Corium.h"
 
+#if defined(_WIN32)
+#include <Windows.h>
+#elif defined(__linux__)
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <time.h>
+#include <sched.h>
+#endif
+
 namespace Corium::Platform {
 	constexpr size_t INVALID_HANDLE = 0xFFFFFFFFFFFFFFFF;
 

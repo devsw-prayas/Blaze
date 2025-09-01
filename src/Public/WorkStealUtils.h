@@ -75,31 +75,35 @@ namespace Corium::WorkSteal {
 
 	public:
 		decltype(auto) compute() requires(Traits::hasComputeC<Derived>) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnCompute, ComputeEvent>,
 					"The third Event type must be a OnCompute Hook");
 				Events::ICoriumEvent<EventContractOnCompute, Hash>::template invoke<ComputeEvent>();
 			}
-
+#endif
 			return static_cast<Derived*>(this)->computeC();
 		}
 
 		Memory::SharedPointer<Utils::IHandle> fork(Derived&& u_subTask) requires(Traits::hasForkC<Derived>) {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnFork, ForkEvent>,
 					"The first Event type must be a OnFork Hook");
 				Events::ICoriumEvent<EventContractOnFork, Hash>::template invoke<ForkEvent>();
 			}
-
+#endif
 			return static_cast<Derived*>(this)->forkC(std::move(u_subTask));
 		}
 
 		void join(Memory::SharedPointer<Utils::IHandle> handle) requires Traits::hasJoinC<Derived> {
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnJoin, JoinEvent>,
 					"The second Event type must be a OnJoin Hook");
 				Events::ICoriumEvent<EventContractOnJoin, Hash>::template invoke<JoinEvent>();
 			}
+#endif
 			static_cast<Derived*>(this)->join(handle);
 		}
 

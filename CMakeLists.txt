@@ -19,7 +19,7 @@ add_library(Corium SHARED
 	src/Public/WorkStealUtils.h
 	src/Public/CoriumTraits.h
 	src/Public/ExecutorUtils.h
-	src/Public/Memory.h
+	src/Public/Memory.h src/Private/Memory.cpp
 	src/Public/ThreadFactory.h
 	src/Public/ThreadLocalStorage.h
 	src/Public/ComposableServices.h
@@ -35,4 +35,4 @@ set_target_properties(Corium PROPERTIES FOLDER "Base")
 target_precompile_headers(Corium PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/Public/Corium.h)
 
 # Compile options
-add_compile_definitions(ENABLE_EVENT_EMITTERS_BLAZE = 0)
+add_compile_definitions(ENABLE_EVENT_EMITTERS_CORIUM = 1)

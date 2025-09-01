@@ -33,15 +33,5 @@ void CORIUM Init();
 #include <optional>
 #include <chrono>
 
-#if defined(_WIN32)
-#include <Windows.h>
-#elif defined(__linux__)
-#include <pthread.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <sched.h>
-#endif
-
 
 

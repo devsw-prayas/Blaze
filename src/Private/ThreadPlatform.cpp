@@ -1,5 +1,6 @@
 #include "Corium.h"
 #include "ThreadPlatform.h"
+
 namespace Corium::Platform {
 	ThreadHandle NativeThread::createThread(NativeThreadAttributes& ro_Attr, NativeThreadOptions& ro_Options) {
 		//Setting up internal thread object and opaque handle
