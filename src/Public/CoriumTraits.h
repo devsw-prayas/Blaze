@@ -50,25 +50,25 @@ namespace Corium::Traits {
 	};
 
 	template<typename D, typename F, typename T, typename ...Args>
-	concept HasVariadicScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T&& u_Duration, Args&&...u_Args) {
+	concept HasVariadicScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T && u_Duration, Args&&...u_Args) {
 		{ p_D-> template scheduleRunC<F, T, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...) }
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
 	template<typename D, typename F, typename T>
-	concept HasScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T&& u_Duration) {
+	concept HasScheduleRunC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T && u_Duration) {
 		{ p_D-> template scheduleRunC<F, T>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration)) }
 		->std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
 	template<typename D, typename F, typename T, typename ...Args>
-	concept HasVariadicScheduleFutureC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T&& u_Duration, Args&&...u_Args) {
+	concept HasVariadicScheduleFutureC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T && u_Duration, Args&&...u_Args) {
 		{ p_D-> template scheduleFutureC<F, T, Args...>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration), std::forward<Args>(u_Args)...) }
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
 
 	template<typename D, typename F, typename T>
-	concept HasScheduleFutureC = requires(D * p_D, F && u_Func,  const Utils::TaskOptions & r_Options, T&& u_Duration) {
+	concept HasScheduleFutureC = requires(D * p_D, F && u_Func, const Utils::TaskOptions & r_Options, T && u_Duration) {
 		{ p_D-> template scheduleFutureC<F, T>(std::forward<F>(u_Func), r_Options, std::forward<T>(u_Duration)) }
 		-> std::same_as<Memory::SharedPointer<Utils::IHandle>>;
 	};
@@ -137,4 +137,13 @@ namespace Corium::Traits {
 
 	template<typename T>
 	inline constexpr bool IsDurationV = IsDuration<T>::value;
+
+	template<typename T>
+	struct IsTimePoint : std::false_type {};
+
+	template<typename C, typename D>
+	struct IsTimePoint <std::chrono::time_point<C, D>> : std::true_type {};
+
+	template<typename T>
+	inline constexpr bool IsTimePointV = IsTimePoint<T>::value;
 }
