@@ -21,6 +21,8 @@
 
 #pragma once
 #include "Corium.h"
+#include "CoriumAtomics.h"
+#include "CoriumTraits.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -50,6 +52,8 @@ namespace Corium::Platform {
 	using AffinityMask = unsigned long long;
 	using ProcessorIdx = DWORD;
 
+	// Launch-time attributes for thread creation.
+	// Only used during createThread(); immutable once the thread is started.
 	// [Size in bytes]: 48
 	alignas(64) struct CORIUM NativeThreadAttributes {
 		AffinityMask m_Mask;
@@ -113,6 +117,9 @@ namespace Corium::Platform {
 		}
 	};
 
+	// Launch options supplied to createThread().
+	// Defines entry function, thread name, stack size, and launch state.
+	// Mutable only before thread start; consumed and frozen at creation.
 	//[Size in Bytes]: 88
 	alignas(128) struct CORIUM NativeThreadOptions {
 		std::function<void()> m_StartPoint;
@@ -156,8 +163,11 @@ namespace Corium::Platform {
 		}
 	};
 
+	// Internal record for a native thread.
+	// Stores Corium ID, system handle/ID, state flags, and metadata.
+	// Managed only by NativeThread; never exposed directly.
 	// [Size in bytes]: 48
-	alignas(64) struct CORIUM CPUThreadHandle final{
+	alignas(64) struct CORIUM CPUThreadHandle final {
 	private:
 		size_t m_CoriumThreadID;
 		const char* m_ThreadName;
@@ -213,6 +223,8 @@ namespace Corium::Platform {
 		friend class NativeThread;
 	};
 
+	// Public opaque thread identifier.
+	// Wraps a Corium-assigned ID; validity checked against NativeThread’s table.
 	// [Size in bytes]: 8
 	class ThreadHandle {
 		size_t m_HandleID;
@@ -226,13 +238,27 @@ namespace Corium::Platform {
 		}
 		friend class NativeThread;
 	};
-
+	// Context object passed into the thread launch trampoline.
+	// Holds the user function and TLS initializer to run at start.
 	struct TrampolineContext {
 		std::function<void()> m_Func;
 		std::function<void(std::function<void()> v_Callable)> m_TlsInit;
 	};
 
+	struct ParkHandle {
+	private:
+		size_t m_Id;
+		alignas(4) std::atomic<int> m_ParkingAddress;
+		int* operator()() {
+			return reinterpret_cast<int*>(&m_ParkingAddress);
+		}
+	public:
+		ParkHandle() : m_Id(0), m_ParkingAddress(0) {}
+		friend class NativeThread;
+	};
 
+	// Cross-platform thread priority levels (mapped to Win32 constants).
+	// Used as input to setPriority(); not portable across all schedulers.
 	enum class Priority : int8_t {
 		IDLE = THREAD_PRIORITY_IDLE,
 		LOWEST = THREAD_PRIORITY_LOWEST,
@@ -243,12 +269,16 @@ namespace Corium::Platform {
 		TIME_CRITICAL = THREAD_PRIORITY_TIME_CRITICAL
 	};
 
+	// Thread-local storage for the current thread’s public data and operations
+	// Populated during thread startup in the trampoline.
 	namespace this_platform_thread {
 		static thread_local ThreadHandle t_Handle;
+		static thread_local ParkHandle t_ParkingPermit;
 	}
 
+	// Platform-native thread management API.
+	// Manages CPUThreadHandle records, creation, join/detach, and control ops.
 	class NativeThread final {
-
 		static std::vector<CPUThreadHandle> m_Handles;
 
 		static DWORD WINAPI launch(PVOID p_Params) {
@@ -267,7 +297,8 @@ namespace Corium::Platform {
 			return nullptr;
 		}
 
-		static void nullHandle(CPUThreadHandle& handle) {
+	public:
+		static void initHandle(CPUThreadHandle& handle) {
 			handle.m_ThreadName = nullptr;
 			handle.m_CoriumThreadID = -1;
 			handle.m_IsClosed = true;
@@ -279,25 +310,36 @@ namespace Corium::Platform {
 			handle.m_ThreadID = 0;
 		}
 
-	public:
 		static ThreadHandle createThread(NativeThreadAttributes& ro_Attr, NativeThreadOptions& ro_Options);
-
 		static bool detachThread(ThreadHandle& ro_Handle);
-
 		static bool setPriority(const ThreadHandle& ro_Handle, Priority v_NewPriority);
-
-		static bool closeHandle(CPUThreadHandle& ro_Handle);
-
-		static CPUThreadHandle&& duplicate(const ThreadHandle& ro_Handle);
-
+		static bool closeHandle(const ThreadHandle& ro_Handle);
+		static bool duplicate(const ThreadHandle& ro_Handle, ThreadHandle& ro_DuplicateHandle);
 		static ProcessorIdx getCurrentProcessorNumber();
-
-		static size_t getHardwareConcurrency();	
-
+		static size_t getHardwareConcurrency();
 		static size_t suspendThread(const ThreadHandle& ro_Handle);
-
 		static size_t resumeThread(const ThreadHandle& ro_Handle);
-
 		static size_t joinThread(const ThreadHandle& ro_Handle);
+		static bool terminateThread(const ThreadHandle& ro_Handle);
+
+		static size_t getThreadID(const ThreadHandle& ro_Handle);
+		static size_t getCurrentThreadID();
+		static bool isAlive(const ThreadHandle& ro_Handle);
+		static std::string getName(const ThreadHandle& ro_Handle);
+
+		template<typename T> requires Traits::IsDurationV<T>
+		static void waitOnAddressFor(const ParkHandle& ro_Permit, T&& u_Duration);
+		static void waitOnAddress(const ParkHandle& ro_Permit);
+
+		static void wakeOnAddress(ParkHandle& ro_Permit);
+		static void wakeAllOnAddress(ParkHandle& ro_Permit);
+
+		/*
+		static void park();
+		template<typename T> requires Traits::IsDurationV<T>
+		static void parkFor(T&& u_Duration);
+
+		static void unpark(ParkHandle& ro_Permit);
+		*/
 	};
 }

@@ -42,8 +42,13 @@ namespace Corium::Platform {
 			}
 
 		//TLS pre launch init
-		auto l_TlsInit = [opaqueHandle](const std::function<void()>& v_callable) {
+		auto l_TlsInit = [opaqueHandle, &threadHandle](const std::function<void()>& v_callable) {
 			this_platform_thread::t_Handle = opaqueHandle;
+			this_platform_thread::t_ParkingPermit.m_Id = threadHandle.m_CoriumThreadID;
+#if defined(__linux__)
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
+			pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, nullptr);
+#endif
 			v_callable();
 			};
 
@@ -118,7 +123,7 @@ namespace Corium::Platform {
 		pthread_setname_np(thread, ro_Options.m_ThreadName);
 
 		//Post launch init
-		threadHandle.m_ThreadHandle = thread;
+		threadHandle.m_ThreadObject = thread;
 		threadHandle.m_ThreadID = reinterpret_cast<uint64_t>(thread);
 
 		//CPU affinity
@@ -144,7 +149,7 @@ namespace Corium::Platform {
 
 	bool NativeThread::detachThread(ThreadHandle& ro_Handle) {
 		if (!ro_Handle.isValid()) return false;
-		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 
@@ -155,7 +160,7 @@ namespace Corium::Platform {
 			ro_Handle.m_HandleID = INVALID_HANDLE;
 			return true;
 #elif defined(__linux__)
-			pthread_detach(itr->m_ThreadHandle);
+			pthread_detach(itr->m_ThreadObject);
 			itr = m_Handles.erase(itr);
 			ro_Handle.m_HandleID = INVALID_HANDLE;
 			return true;
@@ -166,7 +171,7 @@ namespace Corium::Platform {
 
 	bool NativeThread::setPriority(const ThreadHandle& ro_Handle, Priority v_NewPriority) {
 		if (!ro_Handle.isValid()) return false;
-		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 		if (itr == m_Handles.end()) return false;
@@ -178,19 +183,22 @@ namespace Corium::Platform {
 #endif
 	}
 
-	bool NativeThread::closeHandle(CPUThreadHandle& ro_Handle) {
-		if (!ro_Handle.m_IsValid) return false;
+	bool NativeThread::closeHandle(const ThreadHandle& ro_Handle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (!ro_Handle.isValid() || itr->isHandleClosed()) return false;
 #if defined(_WIN32)
-		if (CloseHandle(ro_Handle.m_ThreadHandle)) {
-			ro_Handle.m_IsValid = false;
-			ro_Handle.m_IsClosed = true;
+		if (CloseHandle(itr->m_ThreadHandle)) {
+			itr->m_IsValid = false;
+			itr->m_IsClosed = true;
 			return true;
 		}
 		return false;
 #elif defined(__linux__)
-		if (pthread_detach(ro_Handle.m_ThreadHandle) == 0) {
-			ro_Handle.m_IsValid = false;
-			ro_Handle.m_IsClosed = true;
+		if (pthread_detach(itr->m_ThreadObject) == 0) {
+			itr->m_IsValid = false;
+			itr->m_IsClosed = true;
 			return true;
 		}
 		return false;
@@ -221,7 +229,7 @@ namespace Corium::Platform {
 
 	size_t NativeThread::suspendThread(const ThreadHandle& ro_Handle) {
 		if (!ro_Handle.isValid()) return false;
-		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 #if defined(_WIN32)
@@ -238,12 +246,12 @@ namespace Corium::Platform {
 
 	size_t NativeThread::resumeThread(const ThreadHandle& ro_Handle) {
 		if (!ro_Handle.isValid()) return false;
-		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
 			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
 			});
 #if defined(_WIN32)
 		if (itr != m_Handles.end()) {
-			itr->m_IsRunning = false;
+			itr->m_IsRunning = true;
 			return ResumeThread(itr->m_ThreadHandle);
 		}
 		return -1;
@@ -251,4 +259,144 @@ namespace Corium::Platform {
 		return -1;
 #endif
 	}
+
+	bool NativeThread::duplicate(const ThreadHandle& ro_Handle, ThreadHandle& ro_Duplicate) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (itr == m_Handles.end() || itr->isHandleClosed()) return false;
+
+		CPUThreadHandle duplicate;
+		initHandle(duplicate);
+
+		duplicate.m_IsRunning = itr->m_IsRunning;
+		duplicate.m_IsValid = itr->m_IsValid;
+		duplicate.m_CoriumThreadID = generateApiThreadID();
+		duplicate.m_IsClosed = itr->m_IsClosed;
+		duplicate.m_ThreadName = itr->m_ThreadName;
+
+#if defined(_WIN32)
+		HANDLE kDuplicate = nullptr;
+		BOOL success = DuplicateHandle(GetCurrentProcess(), itr->m_ThreadHandle, GetCurrentProcess(), &kDuplicate, 0, FALSE, DUPLICATE_SAME_ACCESS);
+		if (!success) return false;
+
+		duplicate.m_CurrentThreadPriority = itr->m_CurrentThreadPriority;
+		duplicate.m_ExitCode = itr->m_ExitCode;
+		duplicate.m_ThreadHandle = kDuplicate;
+		duplicate.m_ThreadID = itr->m_ThreadID;
+
+		ro_Duplicate.m_HandleID = duplicate.m_CoriumThreadID;
+
+		m_Handles.push_back(std::move(duplicate));
+		return true;
+
+#elif defined(__linux__)
+		return false; //No duplication in linux
+#endif
+	}
+
+	size_t NativeThread::joinThread(const ThreadHandle& ro_Handle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (itr == m_Handles.end() || itr->isHandleClosed()) return 0;
+#if defined(_WIN32)
+		WaitForSingleObject(itr->m_ThreadHandle, INFINITE);
+		DWORD exitCode;
+		GetExitCodeThread(itr->m_ThreadHandle, &exitCode);
+		return exitCode;
+#elif defined(__linux__)
+		return pthread_join(itr->m_ThreadObject, NULL);
+#endif
+	}
+
+	bool NativeThread::terminateThread(const ThreadHandle& ro_Handle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (itr == m_Handles.end() || itr->isHandleClosed()) return false;
+#if defined(_WIN32)
+		BOOL termination = TerminateThread(itr->m_ThreadHandle, 0);
+		itr->m_IsRunning = !termination;
+		return termination;
+#elif defined(__linux__)
+		int cancel = pthread_cancel(itr->threadObject);
+		itr->m_IsRunning = !cancel;
+		return cancel == 0;
+#endif
+	}
+
+	size_t NativeThread::getThreadID(const ThreadHandle& ro_Handle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (itr == m_Handles.end() || itr->isHandleClosed()) return 0;
+		return itr->getCoriumID();
+	}
+
+	size_t NativeThread::getCurrentThreadID() {
+		return getThreadID(this_platform_thread::t_Handle);
+	}
+
+	bool NativeThread::isAlive(const ThreadHandle& ro_Handle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (itr == m_Handles.end() || itr->isHandleClosed()) return false;
+		return itr->isRunning();
+	}
+
+	std::string NativeThread::getName(const ThreadHandle& ro_Handle) {
+		auto itr = std::find_if(m_Handles.begin(), m_Handles.end(), [&ro_Handle](const CPUThreadHandle& ro_InternalHandle) {
+			return ro_Handle.m_HandleID == ro_InternalHandle.getCoriumID();
+			});
+		if (itr == m_Handles.end() || itr->isHandleClosed()) return "";
+		return itr->getThreadName();
+	}
+
+	template <typename T> requires Traits::IsDurationV<T>
+	void NativeThread::waitOnAddressFor(const ParkHandle& ro_Permit, T&& u_Duration) {
+		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::forward<T>(u_Duration)).count();
+#if defined(_WIN32)
+		DWORD timeout = ms < 0 ? 1 : static_cast<DWORD>(ms);
+		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+		WaitOnAddress(&const_cast<ParkHandle&>(ro_Permit).m_ParkingAddress, &expected, sizeof(int), timeout);
+#elif defined(__linux__)
+		auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::forward<T>(u_Duration)).count();
+		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+		struct timespec ts {
+			.tv_sec = static_cast<time_t>(ns / 1000000000),
+				.tv_nsec = static_cast<long>(ns % 1000000000)
+		};
+		futexWait(const_cast<std::atomic<int>*>(&ro_Permit.m_ParkingAddress), expected, ts);
+#endif
+	}
+
+	void NativeThread::waitOnAddress(const ParkHandle& ro_Permit) {
+#if defined(_WIN32)
+		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+		WaitOnAddress(&const_cast<ParkHandle&>(ro_Permit).m_ParkingAddress, &expected, sizeof(int), INFINITE);
+#elif defined(__linux__)
+		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+		futexWait(const_cast<std::atomic<int>*>(&ro_Permit.m_ParkingAddress), expected);
+#endif
+	}
+
+	void NativeThread::wakeAllOnAddress(ParkHandle& ro_Permit) {
+#if defined(_WIN32)
+		WakeByAddressAll(&ro_Permit.m_ParkingAddress);
+#elif defined(__linux__)
+		futexWake(&ro_Permit.m_ParkingAddress, INT_MAX);
+#endif
+	}
+
+	void NativeThread::wakeOnAddress(ParkHandle& ro_Permit) {
+#if defined(_WIN32)
+		WakeByAddressSingle(&ro_Permit.m_ParkingAddress);
+#elif defined(__linux__)
+		futexWake(&ro_Permit.m_ParkingAddress, 1);
+#endif
+	}
+
+
 }

@@ -123,11 +123,19 @@ namespace Corium::Memory {
 
 	inline Memory CORIUM reserve(const size_t v_Size);
 
-	inline bool commit(Memory& ro_Memory, const size_t v_BlockSize, const size_t v_BlockOffset);
+	inline bool CORIUM commit(Memory& ro_Memory, const size_t v_BlockSize, const size_t v_BlockOffset);
 
-	inline Memory allocate(const size_t v_Size);
+	inline Memory CORIUM allocate(const size_t v_Size);
 
-	inline bool decommit(Memory& ro_Memory, const size_t v_BlockSize, const size_t v_BlockOffset);
+	inline bool CORIUM decommit(Memory& ro_Memory, const size_t v_BlockSize, const size_t v_BlockOffset);
 
-	inline bool release(Memory& ro_Memory);
+	inline bool CORIUM release(Memory& ro_Memory);
+
+	inline void* CORIUM heapAlloc(size_t v_Bytes);
+
+	template<typename T, typename ...Args>
+	bool CORIUM emplaceHeap(void* p_Heap, Args&&...u_Args);
+
+	template<typename T>
+	inline bool CORIUM heapFree(void* p_Heap);
 }

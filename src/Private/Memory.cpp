@@ -117,4 +117,39 @@ namespace Corium::Memory {
 		return false;
 #endif
 	}
+
+
+	void* heapAlloc(size_t v_Bytes) {
+		void* mem = nullptr;
+#if defined(_WIN32)
+		LPVOID heap = HeapAlloc(GetProcessHeap(), 0, v_Bytes);
+		if (!heap) return mem;
+		mem = heap;
+#else
+		mem = malloc(v_Bytes);
+		mem = (mem) ? mem : nullptr;
+#endif
+		return mem;
+	}
+
+	template <typename T, typename... Args>
+	bool emplaceHeap(void* p_Heap, Args&&...u_Args) {
+		if (!p_Heap) return false;
+		::new (p_Heap) T(std::forward<Args>(u_Args)...);
+		return true;
+	}
+
+	template<typename T>
+	bool heapFree(void* p_Heap) {
+		if (!p_Heap) return false;
+		reinterpret_cast<T*>(p_Heap)->~T();
+#if defined(_WIN32)
+		return HeapFree(GetProcessHeap(), 0, p_Heap);
+#else
+		::free(p_Heap);
+		return true;
+#endif
+	}
+
+
 }

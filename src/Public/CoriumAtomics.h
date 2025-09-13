@@ -1,9 +1,11 @@
 #pragma once
+#include "ThreadPlatform.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <immintrin.h>
 #elif defined(__linux__)
 #include <pthread.h>
 #include <unistd.h>
@@ -23,7 +25,6 @@
 #endif
 
 #endif
-
 
 #if defined(_WIN32)
 #ifndef READ_FENCE
@@ -49,17 +50,18 @@
 
 #endif
 
+#ifndef PAUSE
+#define PAUSE _mm_pause();
+#endif
 
 namespace Corium::Atomics {
+#if defined()__linux)
+	inline int CORIUM futexWait(std::atomic<int>* addr, int expected, const struct timespec* timeout = nullptr) {
+		return syscall(SYS_futex, reinterpret_cast<int*>(addr), FUTEX_WAIT, expected, timeout, nullptr, 0);
+	}
 
-	template<typename  T>
-	class Atomic final {
-		
-	};
-
-	template<typename T, typename A, size_t Alignment>
-	class EnhancedAtomic final {
-		using Item = T;
-		using Allocator = A;
-	};
+	inline int CORIUM futexWake(std::atomic<int>* addr, int count) {
+		return syscall(SYS_futex, reinterpret_cast<int*>(addr), FUTEX_WAKE, count, nullptr, nullptr, 0);
+	}
+#endif
 }

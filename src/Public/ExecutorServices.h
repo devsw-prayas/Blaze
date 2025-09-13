@@ -234,10 +234,10 @@ namespace Corium::Executors::Services {
 #endif
 	class CORIUM IScheduledThreadExecutorService : public IExecutor<D>, public IExecutorVirtual {
 		using Derived = D;
-		using EventContract = E;
 		static_assert(!std::is_final_v<D>, "A class extending an executor service must be final");
 
 #if ENABLE_EVENT_EMITTERS_CORIUM
+		using EventContract = std::conditional_t<!std::is_void_v<E>, E, void>;
 		static_assert(!std::is_void_v<EventContract>&& EventContract::Count >= 7, "At least 7 event hooks must be present in the EventContract");
 		using SubmitEvent = std::tuple_element_t<0, typename EventContract::EventPack>;
 		using FutureEvent = std::tuple_element_t<1, typename EventContract::EventPack>;
@@ -318,7 +318,7 @@ namespace Corium::Executors::Services {
 
 		template<typename F> requires(Traits::HasSubmitC<Derived, F>)
 			[[nodiscard]] Memory::SharedPointer<Utils::IHandle> submit(F&& u_Func, const Utils::TaskOptions& r_Options) {
-#if defined(ENABLE_EVENT_EMITTERS_CORIUM
+#if defined(ENABLE_EVENT_EMITTERS_CORIUM)
 			if constexpr (!std::is_void_v<EventContract>) {
 				static_assert(std::is_base_of_v <OnSubmit, SubmitEvent>,
 					"The first Event type must be a OnSubmit Hook");
@@ -477,11 +477,11 @@ namespace Corium::Executors::Services {
 #endif
 	class CORIUM IWorkStealerService : IExecutor<D> {
 		using Derived = D;
-		using EventContract = E;
-		static_assert(!std::is_final_v<Derived> && !std::is_base_of_v<IWorkStealerService, Derived>,
+		static_assert(std::is_final_v<Derived> && std::is_base_of_v<IWorkStealerService, Derived>,
 			"The Derived class must be final and should extend IWorkStealerService");
 
 #if ENABLE_EVENT_EMITTERS_CORIUM
+		using EventContract = std::conditional_t<!std::is_void_v<E>, E, void>;
 		using ForkEvent = std::tuple_element_t<0, typename EventContract::Contract>;
 		using JoinEvent = std::tuple_element_t<1, typename EventContract::Contract>;
 		using InvokeEvent = std::tuple_element_t <2, typename EventContract::Contract>;

@@ -146,4 +146,10 @@ namespace Corium::Traits {
 
 	template<typename T>
 	inline constexpr bool IsTimePointV = IsTimePoint<T>::value;
+
+	template<typename T>
+	struct IsPredicate : std::is_invocable_r<bool, T> {};
+
+	template<typename T>
+	inline constexpr bool IsPredicateV = IsPredicate<T>::value;
 }
