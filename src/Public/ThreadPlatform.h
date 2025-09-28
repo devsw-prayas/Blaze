@@ -26,6 +26,7 @@
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#pragma comment(lib, "synchronization.lib")
 #define NOMINMAX
 #include <Windows.h>
 #elif defined(__linux__)
@@ -37,6 +38,7 @@
 #endif
 
 namespace Corium::Platform {
+	class NativeThread;
 	constexpr size_t INVALID_HANDLE = 0xFFFFFFFFFFFFFFFF;
 
 	inline size_t generateApiThreadID() noexcept {
@@ -55,7 +57,7 @@ namespace Corium::Platform {
 	// Launch-time attributes for thread creation.
 	// Only used during createThread(); immutable once the thread is started.
 	// [Size in bytes]: 48
-	alignas(64) struct CORIUM NativeThreadAttributes {
+	struct CORIUM alignas(64) NativeThreadAttributes {
 		AffinityMask m_Mask;
 		bool m_IsDetached;
 		int m_ThreadPriority;
@@ -93,6 +95,12 @@ namespace Corium::Platform {
 			m_SupportsGroup = true;
 		}
 
+		void groupAffinity(size_t v_Mask) {
+			m_Mask = v_Mask;
+			m_Affinity.Mask = v_Mask;
+			m_SupportsGroup = true;
+		}
+
 		void setIdealProcessor(ProcessorIdx v_ProcIdx) {
 			m_IdealProcessor = v_ProcIdx;
 			m_SupportsIdealProcessor = true;
@@ -121,7 +129,7 @@ namespace Corium::Platform {
 	// Defines entry function, thread name, stack size, and launch state.
 	// Mutable only before thread start; consumed and frozen at creation.
 	//[Size in Bytes]: 88
-	alignas(128) struct CORIUM NativeThreadOptions {
+	struct CORIUM alignas(128) NativeThreadOptions {
 		std::function<void()> m_StartPoint;
 		const char* m_ThreadName;
 
@@ -167,7 +175,7 @@ namespace Corium::Platform {
 	// Stores Corium ID, system handle/ID, state flags, and metadata.
 	// Managed only by NativeThread; never exposed directly.
 	// [Size in bytes]: 48
-	alignas(64) struct CORIUM CPUThreadHandle final {
+	struct CORIUM alignas(64) CPUThreadHandle final {
 	private:
 		size_t m_CoriumThreadID;
 		const char* m_ThreadName;
@@ -188,6 +196,9 @@ namespace Corium::Platform {
 	public:
 		CPUThreadHandle(const CPUThreadHandle&) = delete;
 		CPUThreadHandle& operator=(const CPUThreadHandle&) = delete;
+
+		CPUThreadHandle(CPUThreadHandle&&) noexcept = default;
+		CPUThreadHandle& operator=(CPUThreadHandle&&) noexcept = default;
 
 		[[nodiscard]] size_t getCoriumID() const noexcept {
 			return m_CoriumThreadID;
@@ -278,7 +289,7 @@ namespace Corium::Platform {
 
 	// Platform-native thread management API.
 	// Manages CPUThreadHandle records, creation, join/detach, and control ops.
-	class NativeThread final {
+	class CORIUM NativeThread final {
 		static std::vector<CPUThreadHandle> m_Handles;
 
 		static DWORD WINAPI launch(PVOID p_Params) {
@@ -328,18 +339,34 @@ namespace Corium::Platform {
 		static std::string getName(const ThreadHandle& ro_Handle);
 
 		template<typename T> requires Traits::IsDurationV<T>
-		static void waitOnAddressFor(const ParkHandle& ro_Permit, T&& u_Duration);
+		static void waitOnAddressFor(const ParkHandle& ro_Permit, T&& u_Duration) {
+			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::forward<T>(u_Duration)).count();
+#if defined(_WIN32)
+			DWORD timeout = ms < 0 ? 1 : static_cast<DWORD>(ms);
+			int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+			WaitOnAddress(&const_cast<ParkHandle&>(ro_Permit).m_ParkingAddress, &expected, sizeof(int), timeout);
+#elif defined(__linux__)
+			auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::forward<T>(u_Duration)).count();
+			int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+			struct timespec ts {
+				.tv_sec = static_cast<time_t>(ns / 1000000000),
+					.tv_nsec = static_cast<long>(ns % 1000000000)
+			};
+			futexWait(const_cast<std::atomic<int>*>(&ro_Permit.m_ParkingAddress), expected, ts);
+#endif
+		}
 		static void waitOnAddress(const ParkHandle& ro_Permit);
 
 		static void wakeOnAddress(ParkHandle& ro_Permit);
 		static void wakeAllOnAddress(ParkHandle& ro_Permit);
 
-		/*
 		static void park();
+
 		template<typename T> requires Traits::IsDurationV<T>
-		static void parkFor(T&& u_Duration);
+		static void parkFor(T&& u_Duration) {
+			waitOnAddress(this_platform_thread::t_ParkingPermit, std::forward<T>(u_Duration));
+		}
 
 		static void unpark(ParkHandle& ro_Permit);
-		*/
 	};
 }

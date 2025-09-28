@@ -42,6 +42,9 @@ namespace Corium::Utils{
 		IHandle(const IHandle&) = delete;
 		IHandle& operator=(const IHandle&) = delete;
 
+        IHandle(IHandle&&) noexcept = default;
+        IHandle& operator=(IHandle&&) noexcept = default;
+
         [[nodiscard]] virtual TaskState getState() const noexcept = 0;
         [[nodiscard]] virtual size_t getTaskID() const noexcept= 0;
         [[nodiscard]] virtual bool cancelTask() noexcept = 0;
@@ -49,7 +52,7 @@ namespace Corium::Utils{
         template<typename T, typename Derived>
         T result() noexcept{
             static_assert(std::is_base_of_v<IHandle, Derived>, "Derived must be a subclass of IHandle");
-            return static_cast<Derived*>(this)->template result<T>();
+            return static_cast<Derived*>(this)->template resultC<T>();
         }
 
         [[nodiscard]] virtual std::exception_ptr getException() const noexcept= 0;

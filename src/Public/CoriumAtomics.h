@@ -1,5 +1,4 @@
 #pragma once
-#include "ThreadPlatform.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -55,7 +54,7 @@
 #endif
 
 namespace Corium::Atomics {
-#if defined()__linux)
+#if defined(__linux__)
 	inline int CORIUM futexWait(std::atomic<int>* addr, int expected, const struct timespec* timeout = nullptr) {
 		return syscall(SYS_futex, reinterpret_cast<int*>(addr), FUTEX_WAIT, expected, timeout, nullptr, 0);
 	}

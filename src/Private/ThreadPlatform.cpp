@@ -2,6 +2,8 @@
 #include "ThreadPlatform.h"
 
 namespace Corium::Platform {
+	std::vector<CPUThreadHandle> NativeThread::m_Handles{};
+
 	ThreadHandle NativeThread::createThread(NativeThreadAttributes& ro_Attr, NativeThreadOptions& ro_Options) {
 		//Setting up internal thread object and opaque handle
 		CPUThreadHandle threadHandle;
@@ -354,24 +356,6 @@ namespace Corium::Platform {
 		return itr->getThreadName();
 	}
 
-	template <typename T> requires Traits::IsDurationV<T>
-	void NativeThread::waitOnAddressFor(const ParkHandle& ro_Permit, T&& u_Duration) {
-		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::forward<T>(u_Duration)).count();
-#if defined(_WIN32)
-		DWORD timeout = ms < 0 ? 1 : static_cast<DWORD>(ms);
-		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
-		WaitOnAddress(&const_cast<ParkHandle&>(ro_Permit).m_ParkingAddress, &expected, sizeof(int), timeout);
-#elif defined(__linux__)
-		auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::forward<T>(u_Duration)).count();
-		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
-		struct timespec ts {
-			.tv_sec = static_cast<time_t>(ns / 1000000000),
-				.tv_nsec = static_cast<long>(ns % 1000000000)
-		};
-		futexWait(const_cast<std::atomic<int>*>(&ro_Permit.m_ParkingAddress), expected, ts);
-#endif
-	}
-
 	void NativeThread::waitOnAddress(const ParkHandle& ro_Permit) {
 #if defined(_WIN32)
 		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
@@ -398,5 +382,18 @@ namespace Corium::Platform {
 #endif
 	}
 
+	void NativeThread::park() {
+#if defined(_WIN32)
+		int expected = this_platform_thread::t_ParkingPermit.m_ParkingAddress.load(std::memory_order_relaxed);
+		WaitOnAddress(&this_platform_thread::t_ParkingPermit.m_ParkingAddress, &expected, sizeof(int), INFINITE);
+#elif defined(__linux__)
+		int expected =this_platform_thread::t_ParkingPermit.m_ParkingAddress.load(std::memory_order_relaxed);
+		futexWait(const_cast<std::atomic<int>*>(&this_platform_thread::t_ParkingPermit.m_ParkingAddress), expected);
+#endif
+	}
+
+	void NativeThread::unpark(ParkHandle& ro_Permit) {
+		wakeAllOnAddress(ro_Permit); //Wrapper on wakeOnAddress
+	}
 
 }

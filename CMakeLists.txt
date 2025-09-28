@@ -7,24 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable folders in IDEs like Visual Studio
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-add_library(Corium SHARED 
-	src/Public/Corium.h src/Private/Corium.cpp
-	src/Public/CoriumMemory.h
-	src/Public/CoriumUtils.h
-	src/Public/CoriumEvent.h
-	src/Public/Executors.h
-	src/Public/ExecutorServices.h
-	src/Public/CoriumFunctional.h	
-	src/Public/TaskEngine.h
-	src/Public/WorkStealUtils.h
-	src/Public/CoriumTraits.h
-	src/Public/ExecutorUtils.h
-	src/Public/Memory.h src/Private/Memory.cpp
-	src/Public/ThreadFactory.h
-	src/Public/ThreadLocalStorage.h
-	src/Public/ComposableServices.h
-	src/Public/ThreadPlatform.h src/Private/ThreadPlatform.cpp
-)
+file(GLOB_RECURSE CORIUM_PUBLIC "src/Public/*.h")
+file(GLOB_RECURSE CORIUM_PRIVATE "src/Private/*.cpp")
+
+add_library(Corium SHARED ${CORIUM_PUBLIC} ${CORIUM_PRIVATE})
 
 target_include_directories(Corium PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Public

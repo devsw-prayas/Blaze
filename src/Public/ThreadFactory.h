@@ -36,7 +36,6 @@ namespace Corium::Factory {
 		IThreadFactory(IThreadFactory&&) noexcept = delete;
 		IThreadFactory&& operator=(IThreadFactory&&) = delete;
 
-		virtual Platform::ThreadHandle createThread(Platform::NativeThreadAttributes v_Attr,
-			Platform::NativeThreadOptions v_Options) = 0;
+		virtual Platform::ThreadHandle createThread(std::function<void()>&&) = 0;
 	};
 }

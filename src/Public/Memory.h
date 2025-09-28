@@ -131,7 +131,7 @@ namespace Corium::Memory {
 
 	inline bool CORIUM release(Memory& ro_Memory);
 
-	inline void* CORIUM heapAlloc(size_t v_Bytes);
+	inline CORIUM void* heapAlloc(size_t v_Bytes);
 
 	template<typename T, typename ...Args>
 	bool CORIUM emplaceHeap(void* p_Heap, Args&&...u_Args);
