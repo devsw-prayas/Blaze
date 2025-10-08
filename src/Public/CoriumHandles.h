@@ -4,7 +4,7 @@
 namespace Corium::Utils {
 	struct CORIUM alignas(64) ActionHandle final : IHandle{
 		std::atomic<TaskState> m_State;
-		std::atomic<std::exception_ptr> m_Exception;
+		std::exception_ptr m_Exception;
 		std::atomic<size_t> m_TaskID;
 
 		explicit ActionHandle(size_t v_TaskID) noexcept
@@ -26,7 +26,7 @@ namespace Corium::Utils {
 	template<typename T>
 	struct CORIUM alignas(64) TaskHandle final : IHandle{
 		std::atomic<TaskState> m_State;
-		std::atomic<std::exception_ptr> m_Exception;
+		std::exception_ptr m_Exception;
 		std::atomic<size_t> m_TaskID;
 		T m_Result;
 

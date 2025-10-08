@@ -20,26 +20,15 @@
 */
 
 #pragma once
+#include "Corium.h"
 #include "CoriumAtomics.h"
 #include "CoriumConditions.h"
 #include "CoriumLocks.h"
 #include "ThreadPlatform.h"
 
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
-#elif defined(__linux__)
-#include <pthread.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <sched.h>
-#endif
-
 namespace Corium::Sync::Conditions {
 	template<typename L, size_t SpinLimit = 400> requires std::is_base_of_v<Locks::Lock, L>
-	class SpinPredicateCondition final : public Condition {
+	class CORIUM SpinPredicateCondition final : public Condition {
 		Platform::ParkHandle m_Permit;
 		Locks::Lock& m_Lock;
 
@@ -95,8 +84,7 @@ namespace Corium::Sync::Conditions {
 		bool tryAwaitUntilC(F&& u_Predicate, T&& u_TimePoint) noexcept {
 			auto&& bound = std::forward<F>(u_Predicate);
 			auto deadline = static_cast<std::chrono::steady_clock::time_point>(std::forward<T>(u_TimePoint));
-			while (true)
-			{
+			while (true) {
 				if (bound()) return true;
 				m_Lock.unlock<L>();
 				auto now = std::chrono::steady_clock::now();
@@ -115,10 +103,12 @@ namespace Corium::Sync::Conditions {
 		}
 
 		void signalC() {
+			m_Permit.increment(std::memory_order_seq_cst);
 			Platform::NativeThread::wakeOnAddress(m_Permit);
 		}
 
 		void signalAllC() {
+			m_Permit.increment(std::memory_order_seq_cst);
 			Platform::NativeThread::wakeAllOnAddress(m_Permit);
 		}
 
@@ -130,6 +120,66 @@ namespace Corium::Sync::Conditions {
 		~SpinPredicateCondition() = default;
 	};
 
-	template<typename L> requires std::is_base_of_v<Locks::Lock, L>
-	class MCSPredicateCondition final : Condition {};
+	struct MCSNode final {
+		MCSNode* m_NextNode;
+		Platform::ParkHandle* m_Permit;
+		std::atomic<bool> m_Waiting;
+	};
+
+	namespace this_thread {
+		inline thread_local MCSNode t_ThisNode{};
+	}
+
+	template<size_t SpinLimit = 400>
+	class MCSCondition final : Condition {
+		std::atomic<MCSNode*> m_Head;
+		std::atomic<MCSNode*> m_Tail;
+
+	public:
+		MCSCondition() :m_Head(nullptr), m_Tail(nullptr) {}
+
+		void awaitC() noexcept {
+			this_thread::t_ThisNode.m_NextNode = nullptr;
+			this_thread::t_ThisNode.m_Waiting = true;
+			this_thread::t_ThisNode.m_Permit = &Platform::this_platform_thread::t_ParkingPermit;
+
+			if (auto* node = m_Tail.exchange(&this_thread::t_ThisNode)) {
+				node->m_NextNode = &this_thread::t_ThisNode;
+			} else {
+				m_Head = &this_thread::t_ThisNode;
+				m_Tail = &this_thread::t_ThisNode;
+			}
+			while (this_thread::t_ThisNode.m_Waiting) {
+				for (int i = 0; i < SpinLimit; i++) PAUSE
+
+					Platform::NativeThread::waitOnAddress(*this_thread::t_ThisNode.m_Permit);
+			}
+
+			if (auto* next = this_thread::t_ThisNode.m_NextNode) {
+				m_Head.store(next, std::memory_order_seq_cst);
+				next->m_Waiting = false;
+				Platform::NativeThread::wakeOnAddress(*next->m_Permit);
+			} else if (m_Tail == &this_thread::t_ThisNode) {
+				MCSNode* node = &this_thread::t_ThisNode;
+				if (!m_Tail.compare_exchange_strong(node, nullptr)) {
+					while (!(next = this_thread::t_ThisNode.m_NextNode)) {
+						PAUSE
+					}
+					m_Head.store(next, std::memory_order_seq_cst);
+					next->m_Waiting = false;
+					Platform::NativeThread::wakeOnAddress(*next->m_Permit);
+				} else m_Head.store(nullptr, std::memory_order_seq_cst);
+			}
+		}
+
+		void signalC() const {
+			if (auto* head = m_Head.load(std::memory_order_acquire)) {
+				head->m_Waiting = false;
+				Platform::NativeThread::wakeOnAddress(*head->m_Permit);
+			}
+		}
+	};
+
+	template<typename L, size_t SpinLimit = 400> requires std::is_base_of_v<Locks::Lock, L>
+	class SpinMCSHybridCondition final : Condition{/*TODO Hybrid */};
 }

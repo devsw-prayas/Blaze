@@ -10,6 +10,12 @@ namespace Corium::Sync::Conditions {
 		Condition& operator=(const Condition&) = delete;
 		Condition& operator=(Condition&&) noexcept = delete;
 
+		template<typename D>
+		void await() noexcept
+			requires std::is_base_of_v<Condition, D> {
+			static_cast<D*>(this)->awaitC();
+		}
+
 		template<typename D, typename F>
 		void await(F&& u_Predicate) noexcept
 		requires std::conjunction_v<std::is_base_of<Condition, D>, Traits::IsPredicate<F>>{

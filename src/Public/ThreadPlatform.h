@@ -265,6 +265,9 @@ namespace Corium::Platform {
 		}
 	public:
 		ParkHandle() : m_Id(0), m_ParkingAddress(0) {}
+		void increment(std::memory_order v_Ordering) {
+			m_ParkingAddress.fetch_add(1, v_Ordering);
+		}
 		friend class NativeThread;
 	};
 

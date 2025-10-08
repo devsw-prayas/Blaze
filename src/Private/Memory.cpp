@@ -1,6 +1,17 @@
 #include "Corium.h"
 #include "Memory.h"
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+#elif defined(__linux__)
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <time.h>
+#include <sched.h>
+#endif
 
 namespace Corium::Memory {
 	Memory CORIUM reserve(const size_t v_Size) {
@@ -120,5 +131,25 @@ namespace Corium::Memory {
 #endif
 		return mem;
 	}
+
+	template <typename T, typename... Args>
+	bool emplaceHeap(void* p_Heap, Args&&...u_Args) {
+		if (!p_Heap) return false;
+		::new (p_Heap) T(std::forward<Args>(u_Args)...);
+		return true;
+	}
+
+	template<typename T>
+	bool heapFree(void* p_Heap) {
+		if (!p_Heap) return false;
+		reinterpret_cast<T*>(p_Heap)->~T();
+#if defined(_WIN32)
+		return HeapFree(GetProcessHeap(), 0, p_Heap);
+#else
+		::free(p_Heap);
+		return true;
+#endif
+	}
+
 
 }
