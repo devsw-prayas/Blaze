@@ -35,6 +35,11 @@ namespace Corium::Utils{
         INITIALIZING, SUSPENDED, RUNNING, TERMINATED
     };
 
+    uint64_t rdtsc() noexcept;
+    uint64_t splitMix64(uint64_t v_Input) noexcept;
+    uint64_t hash();
+
+
     struct CORIUM IHandle{
 		IHandle() = default;
 		virtual ~IHandle() = default;

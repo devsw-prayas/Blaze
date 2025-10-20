@@ -358,10 +358,10 @@ namespace Corium::Platform {
 
 	void NativeThread::waitOnAddress(const ParkHandle& ro_Permit) {
 #if defined(_WIN32)
-		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_acquire);
 		WaitOnAddress(&const_cast<ParkHandle&>(ro_Permit).m_ParkingAddress, &expected, sizeof(int), INFINITE);
 #elif defined(__linux__)
-		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+		int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_acquire);
 		futexWait(const_cast<std::atomic<int>*>(&ro_Permit.m_ParkingAddress), expected);
 #endif
 	}

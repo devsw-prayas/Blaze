@@ -346,11 +346,11 @@ namespace Corium::Platform {
 			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::forward<T>(u_Duration)).count();
 #if defined(_WIN32)
 			DWORD timeout = ms < 0 ? 1 : static_cast<DWORD>(ms);
-			int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+			int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_acquire);
 			WaitOnAddress(&const_cast<ParkHandle&>(ro_Permit).m_ParkingAddress, &expected, sizeof(int), timeout);
 #elif defined(__linux__)
 			auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::forward<T>(u_Duration)).count();
-			int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_relaxed);
+			int expected = ro_Permit.m_ParkingAddress.load(std::memory_order_acquire);
 			struct timespec ts {
 				.tv_sec = static_cast<time_t>(ns / 1000000000),
 					.tv_nsec = static_cast<long>(ns % 1000000000)
