@@ -1,75 +1,115 @@
-﻿/*
-* Copyright (c) 2025 StormWeaver
-*
-* This file is part of the Corium Multithreading API
-*
-* Licensed under the MIT License. You may obtain a copy of the License at
-* https://opensource.org/licenses/MIT
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND...
-*/
-
 #pragma once
-#include "Corium.h"
+#include <Corium.h>
 
 namespace Corium::Memory {
+
+	using Bytes = size_t;
+
+	struct CORIUM alignas(32) VirtualSegment final {
+		void* m_Memory;
+		Bytes v_TotalSize;
+		Bytes v_CommittedSize;
+
+		VirtualSegment(const VirtualSegment&) = default;
+		VirtualSegment& operator=(const VirtualSegment&) = default;
+
+		VirtualSegment(VirtualSegment&&) noexcept = default;
+		VirtualSegment& operator=(VirtualSegment&&) noexcept = default;
+
+		VirtualSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0) :
+			m_Memory(p_Memory), v_TotalSize(v_TSize), v_CommittedSize(v_CSize) {}
+
+		constexpr bool isValid() const noexcept {
+			return m_Memory != nullptr && v_TotalSize != 0;
+		}
+
+		~VirtualSegment() = default;
+	};
+
+	static constexpr CORIUM VirtualSegment INVALID_SEGMENT{};
+
+	namespace Literals {
+		constexpr Bytes CORIUM operator""_KB(unsigned long long v_KB) {
+			return v_KB * 1000ULL;
+		}
+
+		constexpr Bytes CORIUM operator""_KiB(unsigned long long v_KiB) {
+			return v_KiB * 1024ULL;
+		}
+
+		constexpr Bytes CORIUM operator""_MB(unsigned long long v_MB) {
+			return v_MB * 1000ULL * 1000ULL;
+		}
+
+		constexpr Bytes CORIUM operator""_MiB(unsigned long long v_MiB) {
+			return v_MiB * 1024ULL * 1024ULL;
+		}
+
+		constexpr Bytes CORIUM operator""_GB(unsigned long long v_GB) {
+			return v_GB * 1000ULL * 1000ULL * 1000ULL;
+		}
+
+		constexpr Bytes CORIUM operator""_GiB(unsigned long long v_GiB) {
+			return v_GiB * 1024ULL * 1024ULL * 1024ULL;
+		}
+	}
+
+	using namespace Literals;
+	constexpr Bytes PAGE_FILE = 4_KiB;
+
+	[[nodiscard]] ForceInline constexpr Bytes alignToPage(unsigned long long v_Bytes) {
+		return (v_Bytes + PAGE_FILE - 1) / PAGE_FILE * PAGE_FILE;
+	}
+
+	constexpr Bytes KILO_BYTE = 1_KB;
+	constexpr Bytes MEGA_BYTE = 1_MB;
+	constexpr Bytes GIGA_BYTE = 1_GB;
+
+	constexpr Bytes KIBI_BYTE = 1_KiB;
+	constexpr Bytes MEBI_BYTE = 1_MiB;
+	constexpr Bytes GIBI_BYTE = 1_GiB;
+
+	enum class MemoryOperation : std::uint8_t {
+		Reserve, Commit, Decommit, Free
+	};
+
+	class CORIUM VirtualMemory final {
+		[[nodiscard]]
+		static VirtualSegment virtualAlloc(
+			VirtualSegment& segment,
+			Bytes v_Size,
+			MemoryOperation v_Operation
+		);
+
+		[[nodiscard]]
+		static bool virtualFree(
+			VirtualSegment& segment,
+			Bytes v_Size,
+			MemoryOperation v_Operation
+		);
+
+		[[nodiscard]]
+		static bool lockMem(const VirtualSegment& segment);
+
+		[[nodiscard]]
+		static bool unlockMem(const VirtualSegment& segment);
+	};																	
+
 	template<typename T>
-	class SharedPointer {
-		//STUB TODO
+	struct SharedPtr final {
+		
 	};
 
 	template<typename T>
-	class UniquePointer {
-		//STUB TODO
+	struct WeakPtr final {
+		
 	};
 
 	template<typename T>
-	class WeakPointer{
-		//STUB TODO
+	struct UniquePtr final{
+		
 	};
 
-	template<typename T>
-	class HazardPointer {
-		//STUB TODO
-	};
 
-	template<typename T, typename Derived>
-	class CORIUM IAllocator {
-		static_assert(std::is_base_of_v<IAllocator, Derived>, "Derived is not a subclass of IAllocator");
-	public:
-		T* allocate(size_t v_size) noexcept{
-			return static_cast<Derived*>(this)->allocate(v_size);
-		}
 
-		void deallocate(T* p_memory) noexcept{
-			static_cast<Derived*>(this)->deallocate(p_memory);
-		}
-
-		template<typename...Args>
-		void construct(T* p_block, Args&&...args) noexcept{
-			static_cast<Derived*>(this)->template construct<Args...>(p_block, std::forward<Args>(args)...);
-		}
-
-		void destroy(T* p_block) noexcept{
-			static_cast<Derived*>(this)->destroy(p_block);
-		}
-
-		void* rawAllocate(size_t v_size) noexcept{
-			return static_cast<Derived*>(this)->rawAllocate(v_size);
-		}
-
-		void rawDeallocate(void* p_memory) noexcept{
-			static_cast<Derived*>(this)->rawDeallocate(p_memory);
-		}
-	};
 }

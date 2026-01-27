@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2025 StormWeaver
 *
-* This file is part of the Blaze Multithreading API
+* This file is part of the Corium Multithreading API
 *
 * Licensed under the MIT License. You may obtain a copy of the License at
 * https://opensource.org/licenses/MIT
@@ -21,9 +21,19 @@
 
 #pragma once
 #ifndef CORIUM
+#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(CORIUM_SHARED)
 #define CORIUM __declspec(dllexport)
+#else
+#define CORIUM __declspec(dllimport)
 #endif
-void CORIUM Init();
+
+#elif defined(__GNUC__) || defined(__clang__ )
+#define CORIUM __attribute__((visibility("default")))
+#else
+#define CORIUM
+#endif
+#endif
 
 #include <type_traits>
 #include <functional>
@@ -32,6 +42,22 @@ void CORIUM Init();
 #include <array>
 #include <optional>
 #include <chrono>
+#include <atomic>
+#include <cstdint>
 
+#if defined(_MSC_VER)
+    #define ForceInline __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+    #define ForceInline inline __attribute__((always_inline))
+#else
+    #define ForceInline inline
+#endif
 
-
+#if defined(_MSC_VER)
+#define Unreachable() __assume(0)
+#elif defined(__GNUC__) || defined(__clang__)
+#define Unreachable() __builtin_unreachable()
+#else
+#include <cstdlib>
+#define Unreachable() std::abort()
+#endif
