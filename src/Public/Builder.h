@@ -2,54 +2,35 @@
 #include <Corium.h>
 
 #include "CoriumMemory.h"
+#include "Inductor.h"
+#include <functional>
 
-namespace Corium::Builder {
-	enum class ParamMemState : uint8_t {
-		UNINITIALIZED, UPDATING, FROZEN
-	};
-
-	struct CORIUM TaskMemoryDesc final {
-		TaskMemoryDesc() :
-			m_InputMemBuffer(nullptr), m_OutputMemBuffer(nullptr),
-			m_InputBufferSize(0), m_OutputBufferSize(0),
-			m_MaxInputsSizeBuffer(nullptr), m_MaxInputsAlignmentBuffer(nullptr),
-			m_MaxOutputsSizeBuffer(nullptr), m_MaxOutputsAlignmentBuffer(nullptr),
-			m_MaxInputs(0), m_MaxOutputs(0), m_MemState(ParamMemState::UNINITIALIZED) {
-		}
-
-		~TaskMemoryDesc() = default;
-
-		TaskMemoryDesc(const TaskMemoryDesc&) = delete;
-		TaskMemoryDesc& operator=(const TaskMemoryDesc&) = delete;
-
-		TaskMemoryDesc(TaskMemoryDesc&&) noexcept = default;
-		TaskMemoryDesc& operator=(TaskMemoryDesc&&) noexcept = default;
-	private:
-		size_t m_InputBufferSize;
-		size_t m_OutputBufferSize;
-
-		Memory::UniquePtr<void> m_MaxInputsSizeBuffer;
-		Memory::UniquePtr<void> m_MaxInputsAlignmentBuffer;
-
-		Memory::UniquePtr<void> m_MaxOutputsSizeBuffer;
-		Memory::UniquePtr<void> m_MaxOutputsAlignmentBuffer;
-
-		size_t m_MaxInputs;
-		size_t m_MaxOutputs;
-
-		ParamMemState m_MemState;
-	};
-
+namespace Corium::Execution::Builder {
 	struct TaskMemory final {
+		TaskMemory() {}
+		~TaskMemory() = default;
+
+		TaskMemory(const TaskMemory&) = delete;
+		TaskMemory& operator=(const TaskMemory&) = delete;
+
+		TaskMemory(TaskMemory&&) noexcept = default;
+		TaskMemory& operator=(TaskMemory&&) noexcept = default;
 	private:
 		Memory::UniquePtr<void> m_InputMemBuffer;
 		Memory::UniquePtr<void> m_OutputMemBuffer;
 	};
 
 	struct CORIUM TaskFrame final {
+		TaskFrame() {}
+		~TaskFrame() = default;
+		TaskFrame(const TaskFrame&) = default;
+		TaskFrame& operator=(const TaskFrame&) = delete;
+
+		TaskFrame(TaskFrame&&) noexcept = default;
+		TaskFrame& operator=(TaskFrame&&) noexcept = delete;
 
 	private:
-		const Memory::WeakPtr<TaskMemoryDesc> m_MemDesc;
+		const Memory::WeakPtr<Inductor::TaskMemoryDesc> m_MemDesc;
 		friend struct TaskMemoryDesc;
 	};
 
