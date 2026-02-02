@@ -1,3 +1,23 @@
+/*
+* Copyright (c) 2025 StormWeaver
+*
+* This file is part of the Corium Multithreading API
+*
+* Licensed under the MIT License. You may obtain a copy of the License at
+* https://opensource.org/licenses/MIT
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND...
+*/
 #pragma once
 #include <intrin.h>
 
@@ -554,12 +574,12 @@ namespace Corium::Intrinsic {
 #ifndef AtomicCompareExchange32
 #define AtomicCompareExchange32
 #if defined(_MSC_VER)
-#define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memorder, failure_memorder) \
+#define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         _InterlockedCompareExchange((p_Ptr), (desired), *(expected))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_compare_exchange_n)
-#define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memorder, failure_memorder) \
-        __atomic_compare_exchange_n((p_Ptr), (expected), (desired), (weak), (success_memorder), (failure_memorder))
+#define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
+        __atomic_compare_exchange_n((p_Ptr), (expected), (desired), (weak), (success_memOrder), (failure_memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_compare_exchange_n"
 #endif
@@ -631,12 +651,12 @@ namespace Corium::Intrinsic {
 #ifndef AtomicCompareExchange64
 #define AtomicCompareExchange64
 #if defined(_MSC_VER)
-#define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memorder, failure_memorder) \
+#define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         _InterlockedCompareExchange64((p_Ptr), (desired), *(expected))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_compare_exchange_n)
-#define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memorder, failure_memorder) \
-        __atomic_compare_exchange_n((p_Ptr), (expected), (desired), (weak), (success_memorder), (failure_memorder))
+#define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
+        __atomic_compare_exchange_n((p_Ptr), (expected), (desired), (weak), (success_memOrder), (failure_memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_compare_exchange_n"
 #endif
@@ -718,12 +738,12 @@ namespace Corium::Intrinsic {
 #ifndef AtomicFetchAdd32
 #define AtomicFetchAdd32
 #if defined(_MSC_VER)
-#define AtomicFetchAdd32(p_Ptr, v_Value, memorder) \
+#define AtomicFetchAdd32(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_fetch_add)
-#define AtomicFetchAdd32(p_Ptr, v_Value, memorder) \
-        __atomic_fetch_add((p_Ptr), (v_Value), (memorder))
+#define AtomicFetchAdd32(p_Ptr, v_Value, memOrder) \
+        __atomic_fetch_add((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_fetch_add"
 #endif
@@ -755,12 +775,12 @@ namespace Corium::Intrinsic {
 #ifndef AtomicFetchAdd64
 #define AtomicFetchAdd64
 #if defined(_MSC_VER)
-#define AtomicFetchAdd64(p_Ptr, v_Value, memorder) \
+#define AtomicFetchAdd64(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd64((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_fetch_add)
-#define AtomicFetchAdd64(p_Ptr, v_Value, memorder) \
-        __atomic_fetch_add((p_Ptr), (v_Value), (memorder))
+#define AtomicFetchAdd64(p_Ptr, v_Value, memOrder) \
+        __atomic_fetch_add((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_fetch_add"
 #endif
@@ -1059,8 +1079,8 @@ namespace Corium::Intrinsic {
         _InterlockedAnd((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_fetch_and)
-#define AtomicFetchAnd(p_Ptr, v_Value, memorder) \
-        __atomic_fetch_and((p_Ptr), (v_Value), (memorder))
+#define AtomicFetchAnd(p_Ptr, v_Value, memOrder) \
+        __atomic_fetch_and((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_fetch_and"
 #endif
@@ -1107,8 +1127,8 @@ namespace Corium::Intrinsic {
         _InterlockedOr((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_fetch_or)
-#define AtomicFetchOr(p_Ptr, v_Value, memorder) \
-        __atomic_fetch_or((p_Ptr), (v_Value), (memorder))
+#define AtomicFetchOr(p_Ptr, v_Value, memOrder) \
+        __atomic_fetch_or((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_fetch_or"
 #endif
@@ -1155,8 +1175,8 @@ namespace Corium::Intrinsic {
         _InterlockedXor((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_fetch_xor)
-#define AtomicFetchXor(p_Ptr, v_Value, memorder) \
-        __atomic_fetch_xor((p_Ptr), (v_Value), (memorder))
+#define AtomicFetchXor(p_Ptr, v_Value, memOrder) \
+        __atomic_fetch_xor((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_fetch_xor"
 #endif
@@ -1203,8 +1223,8 @@ namespace Corium::Intrinsic {
         _InterlockedNand((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_fetch_nand)
-#define AtomicFetchNand(p_Ptr, v_Value, memorder) \
-        __atomic_fetch_nand((p_Ptr), (v_Value), (memorder))
+#define AtomicFetchNand(p_Ptr, v_Value, memOrder) \
+        __atomic_fetch_nand((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_fetch_nand"
 #endif
@@ -1251,8 +1271,8 @@ namespace Corium::Intrinsic {
         _InterlockedMin((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_min_fetch)
-#define AtomicMinFetchLong(p_Ptr, v_Value, memorder) \
-        __atomic_min_fetch((p_Ptr), (v_Value), (memorder))
+#define AtomicMinFetchLong(p_Ptr, v_Value, memOrder) \
+        __atomic_min_fetch((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_min_fetch"
 #endif
@@ -1299,8 +1319,8 @@ namespace Corium::Intrinsic {
         _InterlockedMax((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_max_fetch)
-#define AtomicMaxFetchLong(p_Ptr, v_Value, memorder) \
-        __atomic_max_fetch((p_Ptr), (v_Value), (memorder))
+#define AtomicMaxFetchLong(p_Ptr, v_Value, memOrder) \
+        __atomic_max_fetch((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_max_fetch"
 #endif
@@ -1345,8 +1365,8 @@ namespace Corium::Intrinsic {
         _InterlockedUMin((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_min_fetch)
-#define AtomicMinFetchULong(p_Ptr, v_Value, memorder) \
-        __atomic_min_fetch((p_Ptr), (v_Value), (memorder))
+#define AtomicMinFetchULong(p_Ptr, v_Value, memOrder) \
+        __atomic_min_fetch((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_min_fetch"
 #endif
@@ -1391,8 +1411,8 @@ namespace Corium::Intrinsic {
         _InterlockedUMax((p_Ptr), (v_Value))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_max_fetch)
-#define AtomicMaxFetchULong(p_Ptr, v_Value, memorder) \
-        __atomic_max_fetch((p_Ptr), (v_Value), (memorder))
+#define AtomicMaxFetchULong(p_Ptr, v_Value, memOrder) \
+        __atomic_max_fetch((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_max_fetch"
 #endif
@@ -1437,8 +1457,8 @@ namespace Corium::Intrinsic {
         _InterlockedBitTestAndSet((p_Ptr), (bit))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_test_and_set)
-#define AtomicTestAndSet(p_Ptr, bit, memorder) \
-        __atomic_test_and_set((p_Ptr), (memorder))
+#define AtomicTestAndSet(p_Ptr, bit, memOrder) \
+        __atomic_test_and_set((p_Ptr), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_test_and_set"
 #endif
@@ -1482,8 +1502,8 @@ namespace Corium::Intrinsic {
         _InterlockedBitTestAndReset((p_Ptr), (bit))
 #elif defined(__clang__) || defined(__GNUC__)
 #if __has_builtin(__atomic_clear)
-#define AtomicClear(p_Ptr, bit, memorder) \
-        __atomic_clear((p_Ptr), (memorder))
+#define AtomicClear(p_Ptr, bit, memOrder) \
+        __atomic_clear((p_Ptr), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_clear"
 #endif
