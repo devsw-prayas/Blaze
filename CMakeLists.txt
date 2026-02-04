@@ -23,10 +23,8 @@
 
     # Compile options
 target_compile_definitions(Corium PRIVATE
-    CORIUM_SHARED
-    SHARED_GLOB_MEM=250
-    RUNTIME_MEM=250
-    TRANSIENT_MEM=250
+    CORIUM_SHARED,
+    CORIUM_VA_ALLOCATION=32756
 )
 
 

@@ -3,7 +3,6 @@
 
 #include "CoriumMemory.h"
 #include "Inductor.h"
-#include <functional>
 
 namespace Corium::Execution::Builder {
 	struct TaskMemory final {
@@ -15,6 +14,7 @@ namespace Corium::Execution::Builder {
 
 		TaskMemory(TaskMemory&&) noexcept = default;
 		TaskMemory& operator=(TaskMemory&&) noexcept = default;
+
 	private:
 		Memory::UniquePtr<void> m_InputMemBuffer;
 		Memory::UniquePtr<void> m_OutputMemBuffer;
@@ -35,7 +35,6 @@ namespace Corium::Execution::Builder {
 	};
 
 	class CORIUM TaskBuilder final {
-
 		friend struct TaskMemoryDesc;
 	};
-}
+} // namespace Corium::Execution::Builder

@@ -1,13 +1,16 @@
 #include "Corium.h"
 
+#include <CoriumMemory.h>
 #define ALLOW_SYSCALL
 #include <CoriumSyscalls.h>
-#include <CoriumMemory.h>
 
 namespace Corium::Memory {
 	VirtualSegment VirtualMemory::virtualAlloc(VirtualSegment& segment, Bytes v_Size, MemoryOperation v_Operation) {
+#if defined(CORIYM_DEBUG)
+		CORIUM_ASSERT(v_Size > 0);
+#endif
 		v_Size = alignToPage(v_Size);
-#if defined(_WIN32)
+#if defined(_WIN32)											   
 		switch (v_Operation) {
 		case MemoryOperation::Reserve:
 		{
@@ -62,10 +65,11 @@ namespace Corium::Memory {
 	Bytes v_Size,
 	MemoryOperation v_Operation
 	) {
-		if (!segment.isValid())
-			return false;
-
-		v_Size = alignPage(v_Size);
+		if (!segment.isValid()) return false;
+#if defined(CORIYM_DEBUG)
+		CORIUM_ASSERT(v_Size > 0);
+#endif
+		v_Size = alignToPage(v_Size);
 
 #if defined(_WIN32)
 
@@ -157,6 +161,35 @@ namespace Corium::Memory {
 #elif defined(__linux__)
 		return munlock(segment.m_Memory, segment.v_CommittedSize) == 0;
 
+#else
+		Unreachable();
+#endif
+	}
+
+	MemState VirtualMemory::queryPage(const VirtualSegment& segment, Bytes v_Offset) {
+#if defined(CORIUM_DEBUG)
+		CORIUM_ASSERT(v_Offset < segment.v_TotalSize);
+#endif
+#if defined (_WIN32)
+		MEMORY_BASIC_INFORMATION memInfo;
+		void* offsetMem = static_cast<std::byte*>(segment.m_Memory) + v_Offset;
+		VirtualQuery(offsetMem, &memInfo, sizeof(MEMORY_BASIC_INFORMATION));
+		switch (memInfo.State) {
+		case MEM_RESERVE:
+			return MemState::Reserved;
+		case MEM_COMMIT:
+			return MemState::Committed;
+		case MEM_FREE:
+			return MemState::Freed;
+		default:
+			Unreachable();
+		}
+#elif defined(__linux__)
+#if defined(CORIUM_DEBUG)
+		Unreachable(); // TODO: /proc/self/maps + mincore
+#else
+		return MemState::Freed;
+#endif
 #else
 		Unreachable();
 #endif

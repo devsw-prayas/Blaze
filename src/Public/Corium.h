@@ -42,8 +42,12 @@
 #include <array>
 #include <optional>
 #include <chrono>
-#include <atomic>
 #include <cstdint>
+#include <CoriumAssert.h>
+
+#if defined(_INCLUDED_INTRIN_H)
+#error "intrin.h leaked into Core public headers"
+#endif
 
 #if defined(_MSC_VER)
     #define ForceInline __forceinline

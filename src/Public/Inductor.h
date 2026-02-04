@@ -4,6 +4,10 @@
 #include "CoriumTraits.h"
 #include <CoriumMemory.h>
 
+#if defined(_INCLUDED_INTRIN_H)
+#error "intrin.h leaked into Core public headers"
+#endif
+
 namespace Corium::Execution::Inductor {
 
 	using TaskBitFlag = size_t;
@@ -12,11 +16,9 @@ namespace Corium::Execution::Inductor {
 		UNINITIALIZED, UPDATING, FROZEN
 	};
 
-	struct CORIUM TaskMemoryDesc final {
+	struct CORIUM alignas(64) TaskMemoryDesc final {
 		TaskMemoryDesc() :
 			m_InputBufferSize(0), m_OutputBufferSize(0),
-			m_MaxInputsSizeBuffer(nullptr), m_MaxInputsAlignmentBuffer(nullptr),
-			m_MaxOutputsSizeBuffer(nullptr), m_MaxOutputsAlignmentBuffer(nullptr),
 			m_MaxInputs(0), m_MaxOutputs(0), m_MemState(ParamMemState::UNINITIALIZED) {
 		}
 
@@ -28,8 +30,8 @@ namespace Corium::Execution::Inductor {
 		TaskMemoryDesc(TaskMemoryDesc&&) noexcept = default;
 		TaskMemoryDesc& operator=(TaskMemoryDesc&&) noexcept = default;
 	private:
-		size_t m_InputBufferSize;
-		size_t m_OutputBufferSize;
+		uint32_t m_InputBufferSize;
+		uint32_t m_OutputBufferSize;
 
 		Memory::UniquePtr<void> m_MaxInputsSizeBuffer;
 		Memory::UniquePtr<void> m_MaxInputsAlignmentBuffer;
@@ -37,8 +39,8 @@ namespace Corium::Execution::Inductor {
 		Memory::UniquePtr<void> m_MaxOutputsSizeBuffer;
 		Memory::UniquePtr<void> m_MaxOutputsAlignmentBuffer;
 
-		size_t m_MaxInputs;
-		size_t m_MaxOutputs;
+		uint32_t m_MaxInputs;
+		uint32_t m_MaxOutputs;
 
 		ParamMemState m_MemState;
 	};
@@ -57,9 +59,9 @@ namespace Corium::Execution::Inductor {
 		TaskDesc(TaskDesc&&) noexcept = default;
 		TaskDesc& operator=(TaskDesc&&) noexcept = default;
 	private:
+		Memory::UniquePtr<TaskMemoryDesc> m_MemDesc;
 		TaskDescState m_State;
 		TaskBitFlag m_Flag;
-		Memory::UniquePtr<TaskMemoryDesc> m_MemDesc;
 
 		friend struct TaskMemoryDesc;
 
