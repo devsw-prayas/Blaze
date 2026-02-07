@@ -21,6 +21,10 @@
 #pragma once
 #include <intrin.h>
 
+// I'm not touching this file until something fucking breaks like 30,000 lines later
+// fuck u future me
+// Please don't modify this file, too many things gonna break too fast
+ 
 namespace Corium::Intrinsic {
 	enum class CompilerFrontend : uint8_t
 	{
@@ -39,7 +43,7 @@ namespace Corium::Intrinsic {
 #error Unsupported compiler frontend
 #endif
 
-	ForceInline CORIUM [[maybe_unused]] CompilerFrontend frontend() {
+	ForceInline CORIUM constexpr [[maybe_unused]] CompilerFrontend frontend() {
 		return kCompilerFrontend;
 	}
 
@@ -56,10 +60,11 @@ namespace Corium::Intrinsic {
 #error "Unsupported compiler backend"
 #endif
 
-	ForceInline CORIUM [[maybe_unused]] CompilerBackend backend() {
+	ForceInline CORIUM constexpr [[maybe_unused]] CompilerBackend backend() {
 		return kCompilerBackend;
 	}
 
+	// Don't want some random compiler screaming cause some constant vanished in linux
 #if !defined(__clang__) && !defined(__GNUC__)
 #define __ATOMIC_RELAXED 0
 #define __ATOMIC_RELAXED 0
@@ -68,6 +73,8 @@ namespace Corium::Intrinsic {
 #define __ATOMIC_ACQ_REL 0
 #define __ATOMIC_SEQ_CST 0
 #endif
+
+	// Section containing hardware fences.
 
 	// ============================================================================
 	// FullFence
@@ -156,6 +163,8 @@ namespace Corium::Intrinsic {
 			Unreachable();
 		}
 	}
+
+	// (Why is this even necessary?) Compiler hint fences
 
 	// ============================================================================
 	// RWCompileBarrier
@@ -262,6 +271,8 @@ namespace Corium::Intrinsic {
 			"Unsupported atomic nature: atomic type must not be volatile-qualified."
 			);
 	};
+
+	// Moving on to a wall of macros, fuck!!
 
 	// ============================================================================
 	// AtomicLoad

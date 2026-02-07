@@ -21,6 +21,9 @@
 #pragma once
 #include <CoriumTraits.h>
 
+// Do not touch this enum values, or there will be some very nasty consequences during frontend
+// decomposition
+
 namespace Corium::Backend::Traits {
 	enum class TaskBits : uint64_t {
 		// ─────────────────────────────────────────────

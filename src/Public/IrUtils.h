@@ -20,12 +20,10 @@
 */
 #pragma once
 #include <Corium.h>
-
-#if defined(_INCLUDED_INTRIN_H)
-#error "intrin.h leaked into Core public headers"
-#endif
-
 namespace Corium::IntermediateRepresentation {
+
+    // My ass had an itch, so i added IR, deal with it bish!
+
     template <size_t Rank>
     struct TensorStrideHelper;
 

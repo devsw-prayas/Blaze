@@ -22,6 +22,9 @@
 #include <Corium.h>
 #include <CoriumMemory.h>
 
+// I assume Corium is happy with 32GB of RAM
+// It's an assumption, so assume it.
+
 /**
 ==============================================================================
 					CORIUM VIRTUAL ADDRESS SPACE (32 GiB)
@@ -122,6 +125,9 @@ NOTES:
 */
 
 namespace Corium::Memory::Internal {
+
+	// 3 million different VA slices, what the fuck?!
+
 	using namespace Corium::Memory::Literals;
 	inline constexpr Bytes g_TotalVA = CORIUM_VA_ALLOCATION * 1_MiB;
 
@@ -234,11 +240,15 @@ namespace Corium::Memory::Internal {
 	// Initialization
 	// -------------------------------------------------------------------------
 
+	// Prevents the 67th cyclic dependecy
+
 	struct alignas(64) TaskMemoryHeader final {};
 	struct alignas(64) TaskMemoryDescHeader final {};
 	struct alignas(64) TaskContextHeader final {};
 	struct alignas(64) TaskSliceContextHeader final {};
 	struct alignas(64) GPUContextHeader final {};
+
+	// Call this, or ur life be fucked hard
 
 	ForceInline bool init() {
 
@@ -352,6 +362,8 @@ namespace Corium::Memory::Internal {
 		// -----------------------------------------------------------------------------
 		// Lock all guard regions (NO ACCESS)
 		// -----------------------------------------------------------------------------
+
+		// Only if there was a for loop
 
 		// Top-level guards
 		lockGuard(g_UpperNullGuard);
