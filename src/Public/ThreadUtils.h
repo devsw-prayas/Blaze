@@ -74,11 +74,11 @@ namespace Corium::Core {
 	void CORIUM isPreSuspended(ThreadLaunchDesc& ro_Desc, bool v_Permission);
 	void CORIUM validate(ThreadLaunchDesc& ro_Desc);
 
-	ForceInline static bool isFrozen(const ThreadAttrDesc& ro_Desc) {
+	CORIUM_FORCEINLINE static bool isFrozen(const ThreadAttrDesc& ro_Desc) {
 		return ro_Desc.m_State == DescriptorState::FROZEN;
 	}
 
-	ForceInline static void promoteMutable(ThreadAttrDesc& r_Desc) {
+	CORIUM_FORCEINLINE static void promoteMutable(ThreadAttrDesc& r_Desc) {
 		if (r_Desc.m_State == DescriptorState::UNINITIALIZED)
 			r_Desc.m_State = DescriptorState::MUTABLE;
 	}

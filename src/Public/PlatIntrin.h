@@ -24,7 +24,7 @@
 // I'm not touching this file until something fucking breaks like 30,000 lines later
 // fuck u future me
 // Please don't modify this file, too many things gonna break too fast
- 
+
 namespace Corium::Intrinsic {
 	enum class CompilerFrontend : uint8_t
 	{
@@ -33,17 +33,17 @@ namespace Corium::Intrinsic {
 		CompilerFrontend_Gcc = 3
 	};
 
-#if defined(__clang__)
-	[[maybe_unused]] constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Clang;
-#elif defined(__GNUC__)
-	[[maybe_unused]] constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Gcc;
-#elif defined(_MSC_VER)
-	[[maybe_unused]] constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Msvc;
+#if CORIUM_COMPILER_CLANG
+	CORIUM_MAYBE_UNUSED constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Clang;
+#elif CORIUM_COMPILER_GCC
+	CORIUM_MAYBE_UNUSED constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Gcc;
+#elif CORIUM_COMPILER_MSVC
+	CORIUM_MAYBE_UNUSED constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Msvc;
 #else
 #error Unsupported compiler frontend
 #endif
 
-	ForceInline CORIUM constexpr [[maybe_unused]] CompilerFrontend frontend() {
+	CORIUM_FORCEINLINE CORIUM constexpr CORIUM_MAYBE_UNUSED CompilerFrontend frontend() {
 		return kCompilerFrontend;
 	}
 
@@ -52,22 +52,22 @@ namespace Corium::Intrinsic {
 		CompilerBackend_Gcc = 2
 	};
 
-#if defined(__clang__) || defined(__GNUC__)
-	[[maybe_unused]] constexpr CompilerBackend kCompilerBackend = Corium::Intrinsic::CompilerBackend::CompilerBackend_Gcc;
-#elif defined(_MSC_VER)
-	[[maybe_unused]] constexpr CompilerBackend kCompilerBackend = Corium::Intrinsic::CompilerBackend::CompilerBackend_Msvc;
+#if CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
+	CORIUM_MAYBE_UNUSED constexpr CompilerBackend kCompilerBackend = Corium::Intrinsic::CompilerBackend::CompilerBackend_Gcc;
+#elif CORIUM_COMPILER_MSVC
+	CORIUM_MAYBE_UNUSED constexpr CompilerBackend kCompilerBackend = Corium::Intrinsic::CompilerBackend::CompilerBackend_Msvc;
 #else
 #error "Unsupported compiler backend"
 #endif
 
-	ForceInline CORIUM constexpr [[maybe_unused]] CompilerBackend backend() {
+	CORIUM_FORCEINLINE CORIUM constexpr CORIUM_MAYBE_UNUSED CompilerBackend backend() {
 		return kCompilerBackend;
 	}
 
 	// Don't want some random compiler screaming cause some constant vanished in linux
-#if !defined(__clang__) && !defined(__GNUC__)
+#if !CORIUM_COMPILER_CLANG && !CORIUM_COMPILER_GCC
 #define __ATOMIC_RELAXED 0
-#define __ATOMIC_RELAXED 0
+#define __ATOMIC_CONSUME 0
 #define __ATOMIC_RELEASE 0
 #define __ATOMIC_ACQUIRE 0
 #define __ATOMIC_ACQ_REL 0
@@ -88,21 +88,21 @@ namespace Corium::Intrinsic {
 	// global phase transitions, device boundaries, or shutdown paths.
 	// ============================================================================
 
-	ForceInline CORIUM void FullFence() {
+	CORIUM_FORCEINLINE CORIUM void FullFence() {
 		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _mm_mfence();
 		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
 			__atomic_thread_fence(__ATOMIC_SEQ_CST);
 #else
-			static_assert(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
+			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
 #endif
 #else
-			static_assert(false, "__has_builtin not available");
+			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 		} else {
-			static_assert(false, "Unsupported full fence in this environment");
-			Unreachable();
+			CORIUM_STATIC_ASSERT(false, "Unsupported full fence in this environment");
+			CORIUM_UNREACHABLE();
 		}
 	}
 
@@ -117,21 +117,21 @@ namespace Corium::Intrinsic {
 	// Intended for explicit consumption of published data.
 	// ============================================================================
 
-	ForceInline	CORIUM void LoadFence() {
+	CORIUM_FORCEINLINE	CORIUM void LoadFence() {
 		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _mm_lfence();
 		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
 			__atomic_thread_fence(__ATOMIC_ACQUIRE);
 #else
-			static_assert(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
+			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
 #endif
 #else
-			static_assert(false, "__has_builtin not available");
+			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 		} else {
-			static_assert(false, "Unsupported load fence in this environment");
-			Unreachable();
+			CORIUM_STATIC_ASSERT(false, "Unsupported load fence in this environment");
+			CORIUM_UNREACHABLE();
 		}
 	}
 
@@ -146,21 +146,21 @@ namespace Corium::Intrinsic {
 	// Commonly used when publishing data followed by a visibility flag.
 	// ============================================================================
 
-	ForceInline CORIUM void StoreFence() {
+	CORIUM_FORCEINLINE CORIUM void StoreFence() {
 		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _mm_sfence();
 		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
 			__atomic_thread_fence(__ATOMIC_RELEASE);
 #else
-			static_assert(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
+			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
 #endif
 #else
-			static_assert(false, "__has_builtin not available");
+			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 		} else {
-			static_assert(false, "Unsupported store fence in this environment");
-			Unreachable();
+			CORIUM_STATIC_ASSERT(false, "Unsupported store fence in this environment");
+			CORIUM_UNREACHABLE();
 		}
 	}
 
@@ -177,21 +177,21 @@ namespace Corium::Intrinsic {
 	// Does NOT provide inter-thread synchronization.
 	// ============================================================================
 
-	ForceInline CORIUM void RWCompileBarrier() {
+	CORIUM_FORCEINLINE CORIUM void RWCompileBarrier() {
 		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _ReadWriteBarrier();
 		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
 			__atomic_signal_fence(__ATOMIC_SEQ_CST);
 # else
-			static_assert(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
+			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-			static_assert(false, "__has_builtin not available");
+			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 		} else {
-			static_assert(false, "Unsupported read write barrier in this environment");
-			Unreachable();
+			CORIUM_STATIC_ASSERT(false, "Unsupported read write barrier in this environment");
+			CORIUM_UNREACHABLE();
 		}
 	}
 
@@ -206,21 +206,21 @@ namespace Corium::Intrinsic {
 	// Intended for rare, read-only ordering constraints.
 	// ============================================================================
 
-	ForceInline CORIUM void RCompileBarrier() {
+	CORIUM_FORCEINLINE CORIUM void RCompileBarrier() {
 		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _ReadBarrier();
 		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
 			__atomic_signal_fence(__ATOMIC_ACQUIRE);
 #else
-			static_assert(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
+			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-			static_assert(false, "__has_builtin not available");
+			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 		} else {
-			static_assert(false, "Unsupported read barrier in this environment");
-			Unreachable();
+			CORIUM_STATIC_ASSERT(false, "Unsupported read barrier in this environment");
+			CORIUM_UNREACHABLE();
 		}
 	}
 
@@ -235,7 +235,7 @@ namespace Corium::Intrinsic {
 	// Commonly used before publishing shared state.
 	// ============================================================================
 
-	ForceInline CORIUM void WCompileBarrier() {
+	CORIUM_FORCEINLINE CORIUM void WCompileBarrier() {
 		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) {
 			_WriteBarrier();
 		} else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
@@ -243,33 +243,33 @@ namespace Corium::Intrinsic {
 #if __has_builtin(__atomic_signal_fence)
 			__atomic_signal_fence(__ATOMIC_RELEASE);
 #else
-			static_assert(false, "__atomic_signal_fence not supported by this compiler");
+			CORIUM_STATIC_ASSERT(false, "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-			static_assert(false, "__has_builtin not available");
+			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 		} else {
-			static_assert(false, "Unsupported write barrier in this environment");
+			CORIUM_STATIC_ASSERT(false, "Unsupported write barrier in this environment");
 		}
 	}
 
 	template<typename T>
 	struct ValidAtomicParameter final {
 		using Type = T;
-		static_assert(
+		CORIUM_STATIC_ASSERT(
 			std::is_trivially_copyable_v<Type>,
 			"Unsupported atomic nature: type must be trivially copyable."
-			);
+		);
 
-		static_assert(
+		CORIUM_STATIC_ASSERT(
 			!std::is_const_v<Type>,
 			"Unsupported atomic nature: atomic type must not be const-qualified."
-			);
+		);
 
-		static_assert(
+		CORIUM_STATIC_ASSERT(
 			!std::is_volatile_v<Type>,
 			"Unsupported atomic nature: atomic type must not be volatile-qualified."
-			);
+		);
 	};
 
 	// Moving on to a wall of macros, fuck!!
@@ -287,10 +287,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicLoad_Relaxed
 #define AtomicLoad_Relaxed
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicLoad_Relaxed(p_Ptr) \
     (*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_load_n)
 #define AtomicLoad_Relaxed(p_Ptr) \
 	(__atomic_load_n((p_Ptr), __ATOMIC_RELAXED))
@@ -306,11 +306,11 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicLoad_Acquire
 #define AtomicLoad_Acquire
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicLoad_Acquire(p_Ptr) \
     (*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr))
 
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 
 #if __has_builtin(__atomic_load_n)
 #define AtomicLoad_Acquire(p_Ptr) \
@@ -327,11 +327,11 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicLoad_Consume
 #define AtomicLoad_Consume
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 	/* CONSUME collapses to ACQUIRE */
 #define AtomicLoad_Consume(p_Ptr) \
     (*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_load_n)
 	/* CONSUME collapses to ACQUIRE */
 #define AtomicLoad_Consume(p_Ptr)                                      \
@@ -348,7 +348,7 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicLoad_SeqCst
 #define AtomicLoad_SeqCst
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 	/*
 	 * MSVC x64 has no standalone seq_cst load.
 	 * Volatile load + full fence is the strongest representable form.
@@ -359,7 +359,7 @@ namespace Corium::Intrinsic {
         _mm_mfence();                                                   \
         return _v;                                                      \
     }())
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_load_n)
 #define AtomicLoad_SeqCst(p_Ptr) \
     (__atomic_load_n((p_Ptr), __ATOMIC_SEQ_CST))
@@ -384,14 +384,13 @@ namespace Corium::Intrinsic {
 	// Overwrites the previous value.
 	// ============================================================================
 
-
 #ifndef AtomicStore_Relaxed
 #define AtomicStore_Relaxed
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 
 #define AtomicStore_Relaxed(p_Ptr, v_Value)		  \
 		(*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr) = (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_store_n)
 #define AtomicStore_Relaxed(p_Ptr, v_Value)			 \
 	__atomic_store_n(p_Ptr, v_Value, __ATOMIC_RELAXED)
@@ -407,11 +406,11 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicStore_Release
 #define AtomicStore_Release
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 
 #define AtomicStore_Release(p_Ptr, v_Value)		  \
 	(*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr) = (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_store_n)
 #define AtomicStore_Release(p_Ptr, v_Value)			 \
 	__atomic_store_n(p_Ptr, v_Value, __ATOMIC_RELEASE)
@@ -427,7 +426,7 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicStore_SeqCst
 #define AtomicStore_SeqCst
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 /*
 * MSVC x64 has no standalone seq_cst store.
 * Volatile store + full fence is the strongest representable form.
@@ -437,7 +436,7 @@ namespace Corium::Intrinsic {
 		*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr) = v_Value;			 \
 		_mm_mfence();                                                   \
 		}())
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_store_n)
 #define AtomicStore_SeqCst(p_Ptr, v_Value)			 \
 	__atomic_store_n(p_Ptr, v_Value, __ATOMIC_SEQ_CST)
@@ -463,10 +462,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicExchange32_Relaxed
 #define AtomicExchange32_Relaxed
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicExchange32_Relaxed(p_Ptr, v_Value) \
-		_InterlockedExchange((p_Ptr, (v_Value)))
-#elif defined(__clang__) || defined(__GNUC__)
+		_InterlockedExchange((p_Ptr), (v_Value))
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_exchange_n)
 #define AtomicExchange32_Relaxed(p_Ptr, v_Value) \
 		__atomic_exchange_n((p_Ptr), (v_Value), __ATOMIC_RELAXED)
@@ -481,10 +480,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicExchange64_Relaxed
 #define AtomicExchange64_Relaxed
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicExchange64_Relaxed(p_Ptr, v_Value) \
-		_InterlockedExchange64((p_Ptr, (v_Value)))
-#elif defined(__clang__) || defined(__GNUC__)
+		_InterlockedExchange64((p_Ptr), (v_Value))
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_exchange_n)
 #define AtomicExchange64_Relaxed(p_Ptr, v_Value) \
 		__atomic_exchange_n((p_Ptr), (v_Value), __ATOMIC_RELAXED)
@@ -499,10 +498,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicExchange32_AcqRel
 #define AtomicExchange32_AcqRel
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicExchange32_AcqRel(p_Ptr, v_Value) \
-		_InterlockedExchange((p_Ptr, (v_Value)))
-#elif defined(__clang__) || defined(__GNUC__)
+		_InterlockedExchange((p_Ptr), (v_Value))
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_exchange_n)
 #define AtomicExchange32_AcqRel(p_Ptr, v_Value) \
 		__atomic_exchange_n((p_Ptr), (v_Value), __ATOMIC_ACQ_REL)
@@ -517,10 +516,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicExchange64_AcqRel
 #define AtomicExchange64_AcqRel
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicExchange64_AcqRel(p_Ptr, v_Value) \
-		_InterlockedExchange64((p_Ptr, (v_Value)))
-#elif defined(__clang__) || defined(__GNUC__)
+		_InterlockedExchange64((p_Ptr), (v_Value))
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_exchange_n)
 #define AtomicExchange64_AcqRel(p_Ptr, v_Value) \
 		__atomic_exchange_n((p_Ptr), (v_Value), __ATOMIC_ACQ_REL)
@@ -535,10 +534,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicExchange32_SeqCst
 #define AtomicExchange32_SeqCst
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicExchange32_SeqCst(p_Ptr, v_Value) \
-		_InterlockedExchange((p_Ptr, (v_Value)))
-#elif defined(__clang__) || defined(__GNUC__)
+		_InterlockedExchange((p_Ptr), (v_Value))
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_exchange_n)
 #define AtomicExchange32_SeqCst(p_Ptr, v_Value) \
 		__atomic_exchange_n((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
@@ -553,10 +552,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicExchange64_SeqCst
 #define AtomicExchange64_SeqCst
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicExchange64_SeqCst(p_Ptr, v_Value) \
-		_InterlockedExchange64((p_Ptr, (v_Value)))
-#elif defined(__clang__) || defined(__GNUC__)
+		_InterlockedExchange64((p_Ptr), (v_Value))
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_exchange_n)
 #define AtomicExchange64_SeqCst(p_Ptr, v_Value) \
 		__atomic_exchange_n((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
@@ -581,13 +580,12 @@ namespace Corium::Intrinsic {
 	// Fundamental primitive for lock-free algorithms.
 	// ============================================================================
 
-
 #ifndef AtomicCompareExchange32
 #define AtomicCompareExchange32
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         _InterlockedCompareExchange((p_Ptr), (desired), *(expected))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_compare_exchange_n)
 #define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         __atomic_compare_exchange_n((p_Ptr), (expected), (desired), (weak), (success_memOrder), (failure_memOrder))
@@ -661,10 +659,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicCompareExchange64
 #define AtomicCompareExchange64
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         _InterlockedCompareExchange64((p_Ptr), (desired), *(expected))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_compare_exchange_n)
 #define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         __atomic_compare_exchange_n((p_Ptr), (expected), (desired), (weak), (success_memOrder), (failure_memOrder))
@@ -748,10 +746,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicFetchAdd32
 #define AtomicFetchAdd32
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicFetchAdd32(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_add)
 #define AtomicFetchAdd32(p_Ptr, v_Value, memOrder) \
         __atomic_fetch_add((p_Ptr), (v_Value), (memOrder))
@@ -785,10 +783,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicFetchAdd64
 #define AtomicFetchAdd64
-#if defined(_MSC_VER)
+#if CORIUM_COMPILER_MSVC
 #define AtomicFetchAdd64(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd64((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_add)
 #define AtomicFetchAdd64(p_Ptr, v_Value, memOrder) \
         __atomic_fetch_add((p_Ptr), (v_Value), (memOrder))
@@ -832,13 +830,13 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicAddFetch32
 #define AtomicAddFetch32
-#if defined(_MSC_VER)
-#define AtomicAddFetch32(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicAddFetch32(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd((p_Ptr), (v_Value)) + (v_Value)
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_add_fetch)
-#define AtomicAddFetch32(p_Ptr, v_Value) \
-        __atomic_add_fetch((p_Ptr), (v_Value), __ATOMIC_RELAXED)
+#define AtomicAddFetch32(p_Ptr, v_Value, memOrder) \
+        __atomic_add_fetch((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_add_fetch"
 #endif
@@ -849,7 +847,7 @@ namespace Corium::Intrinsic {
 
 // 1. Success: RELAXED
 #define AtomicAddFetch32_Relaxed(p_Ptr, v_Value) \
-        AtomicAddFetch32((p_Ptr), (v_Value))
+        AtomicAddFetch32((p_Ptr), (v_Value), __ATOMIC_RELAXED)
 
 // 2. Success: ACQUIRE
 #define AtomicAddFetch32_Acquire(p_Ptr, v_Value) \
@@ -869,13 +867,13 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicAddFetch64
 #define AtomicAddFetch64
-#if defined(_MSC_VER)
-#define AtomicAddFetch64(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicAddFetch64(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd64((p_Ptr), (v_Value)) + (v_Value)
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_add_fetch)
-#define AtomicAddFetch64(p_Ptr, v_Value) \
-        __atomic_add_fetch((p_Ptr), (v_Value), __ATOMIC_RELAXED)
+#define AtomicAddFetch64(p_Ptr, v_Value, memOrder) \
+        __atomic_add_fetch((p_Ptr), (v_Value), (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_add_fetch"
 #endif
@@ -886,7 +884,7 @@ namespace Corium::Intrinsic {
 
 // 1. Success: RELAXED
 #define AtomicAddFetch64_Relaxed(p_Ptr, v_Value) \
-        AtomicAddFetch64((p_Ptr), (v_Value))
+        AtomicAddFetch64((p_Ptr), (v_Value), __ATOMIC_RELAXED)
 
 // 2. Success: ACQUIRE
 #define AtomicAddFetch64_Acquire(p_Ptr, v_Value) \
@@ -916,13 +914,13 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicIncrement32
 #define AtomicIncrement32
-#if defined(_MSC_VER)
-#define AtomicIncrement32(p_Ptr) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicIncrement32(p_Ptr, memOrder) \
         _InterlockedIncrement((p_Ptr))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_add)
-#define AtomicIncrement32(p_Ptr) \
-        __atomic_add_fetch((p_Ptr), 1, __ATOMIC_RELAXED)
+#define AtomicIncrement32(p_Ptr, memOrder) \
+        __atomic_add_fetch((p_Ptr), 1, (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_add_fetch"
 #endif
@@ -933,7 +931,7 @@ namespace Corium::Intrinsic {
 
 // 1. Success: RELAXED
 #define AtomicIncrement32_Relaxed(p_Ptr) \
-        AtomicIncrement32((p_Ptr))
+        AtomicIncrement32((p_Ptr), __ATOMIC_RELAXED)
 
 // 2. Success: ACQUIRE
 #define AtomicIncrement32_Acquire(p_Ptr) \
@@ -953,13 +951,13 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicDecrement32
 #define AtomicDecrement32
-#if defined(_MSC_VER)
-#define AtomicDecrement32(p_Ptr) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicDecrement32(p_Ptr, memOrder) \
         _InterlockedDecrement((p_Ptr))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_sub)
-#define AtomicDecrement32(p_Ptr) \
-        __atomic_sub_fetch((p_Ptr), 1, __ATOMIC_RELAXED)
+#define AtomicDecrement32(p_Ptr, memOrder) \
+        __atomic_sub_fetch((p_Ptr), 1, (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_sub_fetch"
 #endif
@@ -970,7 +968,7 @@ namespace Corium::Intrinsic {
 
 // 1. Success: RELAXED
 #define AtomicDecrement32_Relaxed(p_Ptr) \
-        AtomicDecrement32((p_Ptr))
+        AtomicDecrement32((p_Ptr), __ATOMIC_RELAXED)
 
 // 2. Success: ACQUIRE
 #define AtomicDecrement32_Acquire(p_Ptr) \
@@ -990,13 +988,13 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicIncrement64
 #define AtomicIncrement64
-#if defined(_MSC_VER)
-#define AtomicIncrement64(p_Ptr) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicIncrement64(p_Ptr, memOrder) \
         _InterlockedIncrement64((p_Ptr))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_add)
-#define AtomicIncrement64(p_Ptr) \
-        __atomic_add_fetch((p_Ptr), 1, __ATOMIC_RELAXED)
+#define AtomicIncrement64(p_Ptr, memOrder) \
+        __atomic_add_fetch((p_Ptr), 1, (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_add_fetch"
 #endif
@@ -1007,7 +1005,7 @@ namespace Corium::Intrinsic {
 
 // 1. Success: RELAXED
 #define AtomicIncrement64_Relaxed(p_Ptr) \
-        AtomicIncrement64((p_Ptr))
+        AtomicIncrement64((p_Ptr), __ATOMIC_RELAXED)
 
 // 2. Success: ACQUIRE
 #define AtomicIncrement64_Acquire(p_Ptr) \
@@ -1037,13 +1035,13 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicDecrement64
 #define AtomicDecrement64
-#if defined(_MSC_VER)
-#define AtomicDecrement64(p_Ptr) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicDecrement64(p_Ptr, memOrder) \
         _InterlockedDecrement64((p_Ptr))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_sub)
-#define AtomicDecrement64(p_Ptr) \
-        __atomic_sub_fetch((p_Ptr), 1, __ATOMIC_RELAXED)
+#define AtomicDecrement64(p_Ptr, memOrder) \
+        __atomic_sub_fetch((p_Ptr), 1, (memOrder))
 #else
 #error "Missing builtin GNU intrinsic: __atomic_sub_fetch"
 #endif
@@ -1054,7 +1052,7 @@ namespace Corium::Intrinsic {
 
 // 1. Success: RELAXED
 #define AtomicDecrement64_Relaxed(p_Ptr) \
-        AtomicDecrement64((p_Ptr))
+        AtomicDecrement64((p_Ptr), __ATOMIC_RELAXED)
 
 // 2. Success: ACQUIRE
 #define AtomicDecrement64_Acquire(p_Ptr) \
@@ -1085,10 +1083,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicFetchAnd
 #define AtomicFetchAnd
-#if defined(_MSC_VER)
-#define AtomicFetchAnd(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicFetchAnd(p_Ptr, v_Value, memOrder) \
         _InterlockedAnd((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_and)
 #define AtomicFetchAnd(p_Ptr, v_Value, memOrder) \
         __atomic_fetch_and((p_Ptr), (v_Value), (memOrder))
@@ -1133,10 +1131,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicFetchOr
 #define AtomicFetchOr
-#if defined(_MSC_VER)
-#define AtomicFetchOr(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicFetchOr(p_Ptr, v_Value, memOrder) \
         _InterlockedOr((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_or)
 #define AtomicFetchOr(p_Ptr, v_Value, memOrder) \
         __atomic_fetch_or((p_Ptr), (v_Value), (memOrder))
@@ -1181,10 +1179,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicFetchXor
 #define AtomicFetchXor
-#if defined(_MSC_VER)
-#define AtomicFetchXor(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicFetchXor(p_Ptr, v_Value, memOrder) \
         _InterlockedXor((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_xor)
 #define AtomicFetchXor(p_Ptr, v_Value, memOrder) \
         __atomic_fetch_xor((p_Ptr), (v_Value), (memOrder))
@@ -1229,10 +1227,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicFetchNand
 #define AtomicFetchNand
-#if defined(_MSC_VER)
-#define AtomicFetchNand(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicFetchNand(p_Ptr, v_Value, memOrder) \
         _InterlockedNand((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_fetch_nand)
 #define AtomicFetchNand(p_Ptr, v_Value, memOrder) \
         __atomic_fetch_nand((p_Ptr), (v_Value), (memOrder))
@@ -1277,10 +1275,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicMinFetchLong
 #define AtomicMinFetchLong
-#if defined(_MSC_VER)
-#define AtomicMinFetchLong(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicMinFetchLong(p_Ptr, v_Value, memOrder) \
         _InterlockedMin((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_min_fetch)
 #define AtomicMinFetchLong(p_Ptr, v_Value, memOrder) \
         __atomic_min_fetch((p_Ptr), (v_Value), (memOrder))
@@ -1325,10 +1323,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicMaxFetchLong
 #define AtomicMaxFetchLong
-#if defined(_MSC_VER)
-#define AtomicMaxFetchLong(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicMaxFetchLong(p_Ptr, v_Value, memOrder) \
         _InterlockedMax((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_max_fetch)
 #define AtomicMaxFetchLong(p_Ptr, v_Value, memOrder) \
         __atomic_max_fetch((p_Ptr), (v_Value), (memOrder))
@@ -1371,10 +1369,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicMinFetchULong
 #define AtomicMinFetchULong
-#if defined(_MSC_VER)
-#define AtomicMinFetchULong(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicMinFetchULong(p_Ptr, v_Value, memOrder) \
         _InterlockedUMin((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_min_fetch)
 #define AtomicMinFetchULong(p_Ptr, v_Value, memOrder) \
         __atomic_min_fetch((p_Ptr), (v_Value), (memOrder))
@@ -1417,10 +1415,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicMaxFetchULong
 #define AtomicMaxFetchULong
-#if defined(_MSC_VER)
-#define AtomicMaxFetchULong(p_Ptr, v_Value) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicMaxFetchULong(p_Ptr, v_Value, memOrder) \
         _InterlockedUMax((p_Ptr), (v_Value))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_max_fetch)
 #define AtomicMaxFetchULong(p_Ptr, v_Value, memOrder) \
         __atomic_max_fetch((p_Ptr), (v_Value), (memOrder))
@@ -1463,10 +1461,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicTestAndSet
 #define AtomicTestAndSet
-#if defined(_MSC_VER)
-#define AtomicTestAndSet(p_Ptr, bit) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicTestAndSet(p_Ptr, bit, memOrder) \
         _InterlockedBitTestAndSet((p_Ptr), (bit))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_test_and_set)
 #define AtomicTestAndSet(p_Ptr, bit, memOrder) \
         __atomic_test_and_set((p_Ptr), (memOrder))
@@ -1508,10 +1506,10 @@ namespace Corium::Intrinsic {
 
 #ifndef AtomicClear
 #define AtomicClear
-#if defined(_MSC_VER)
-#define AtomicClear(p_Ptr, bit) \
+#if CORIUM_COMPILER_MSVC
+#define AtomicClear(p_Ptr, bit, memOrder) \
         _InterlockedBitTestAndReset((p_Ptr), (bit))
-#elif defined(__clang__) || defined(__GNUC__)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
 #if __has_builtin(__atomic_clear)
 #define AtomicClear(p_Ptr, bit, memOrder) \
         __atomic_clear((p_Ptr), (memOrder))

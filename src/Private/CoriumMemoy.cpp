@@ -56,7 +56,7 @@ namespace Corium::Memory {
 		}
 
 #else
-		Unreachable();
+		CORIUM_UNREACHABLE();
 #endif
 	}
 
@@ -132,7 +132,7 @@ namespace Corium::Memory {
 		}
 
 #else
-		Unreachable();
+		CORIUM_UNREACHABLE();
 #endif
 	}
 
@@ -147,7 +147,7 @@ namespace Corium::Memory {
 		return mlock(segment.m_Memory, segment.v_CommittedSize) == 0;
 
 #else
-		Unreachable();
+		CORIUM_UNREACHABLE();
 #endif
 	}
 
@@ -162,7 +162,7 @@ namespace Corium::Memory {
 		return munlock(segment.m_Memory, segment.v_CommittedSize) == 0;
 
 #else
-		Unreachable();
+		CORIUM_UNREACHABLE();
 #endif
 	}
 
@@ -182,16 +182,16 @@ namespace Corium::Memory {
 		case MEM_FREE:
 			return MemState::Freed;
 		default:
-			Unreachable();
+			CORIUM_UNREACHABLE();
 		}
 #elif defined(__linux__)
 #if defined(CORIUM_DEBUG)
-		Unreachable(); // TODO: /proc/self/maps + mincore
+		CORIUM_UNREACHABLE(); // TODO: /proc/self/maps + mincore
 #else
 		return MemState::Freed;
 #endif
 #else
-		Unreachable();
+		CORIUM_UNREACHABLE();
 #endif
 	}
 }

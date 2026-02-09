@@ -35,7 +35,7 @@ namespace Corium::Memory {
 		VirtualSegment(VirtualSegment&&) noexcept = default;
 		VirtualSegment& operator=(VirtualSegment&&) noexcept = default;
 
-		VirtualSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0) :
+		constexpr VirtualSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0) :
 			m_Memory(p_Memory), v_TotalSize(v_TSize), v_CommittedSize(v_CSize) {
 		}
 
@@ -77,7 +77,7 @@ namespace Corium::Memory {
 	using namespace Literals;
 	constexpr Bytes PAGE_SIZE = 4_KiB;
 
-	[[nodiscard]] ForceInline constexpr Bytes alignToPage(unsigned long long v_Bytes) {
+	[[nodiscard]] CORIUM_FORCEINLINE constexpr Bytes alignToPage(unsigned long long v_Bytes) {
 		return (v_Bytes + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
 	}
 
@@ -204,7 +204,7 @@ namespace Corium::Memory {
 			}
 
 			[[nodiscard]]
-			ForceInline constexpr Bytes remaining() const noexcept {
+			CORIUM_FORCEINLINE constexpr Bytes remaining() const noexcept {
 				return static_cast<Bytes>(m_End - m_Cursor);
 			}
 
@@ -213,7 +213,7 @@ namespace Corium::Memory {
 			uint8_t* m_End;
 		};
 
-		ForceInline VirtualSegment segmentFromRegion(const VARegion& r_Region) noexcept {
+		CORIUM_FORCEINLINE VirtualSegment segmentFromRegion(const VARegion& r_Region) noexcept {
 #if defined(CORIUM_DEBUG)
 			if (!r_Region.isValid()) {
 				Unreachable();
@@ -226,7 +226,7 @@ namespace Corium::Memory {
 			return segment;
 		}
 
-		ForceInline bool lockGuard(const VARegion& r_Guard) noexcept {
+		CORIUM_FORCEINLINE bool lockGuard(const VARegion& r_Guard) noexcept {
 			return VirtualMemory::lockMem(segmentFromRegion(r_Guard));
 		}
 

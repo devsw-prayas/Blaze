@@ -1,0 +1,71 @@
+/*
+* Copyright (c) 2025 StormWeaver
+*
+* This file is part of the Corium Multithreading API
+*
+* Licensed under the MIT License. You may obtain a copy of the License at
+* https://opensource.org/licenses/MIT
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND...
+*/
+#pragma once
+#include <Corium.h>
+#include <CoriumCompiler.h>
+
+#if defined(_DEBUG) || defined(DEBUG)
+#define CORIUM_BUILD_DEBUG 1
+#define CORIUM_BUILD_RELEASE 0
+#else
+#define CORIUM_BUILD_DEBUG 0
+#define CORIUM_BUILD_RELEASE 1
+#endif
+
+#if CORIUM_BUILD_DEBUG
+
+#define CORIUM_ASSERT(expr)                                     \
+        do {                                                   \
+            if (!(expr)) {                                    \
+                CORIUM_DEBUG_BREAK();                              \
+                CORIUM_TRAP();                                     \
+            }                                                  \
+        } while (0)
+
+#else
+
+#define CORIUM_ASSERT(expr) do { (void)sizeof(expr); } while (0)
+
+#endif
+
+#if CORIUM_BUILD_DEBUG
+#define CORIUM_ASSUME(expr) CORIUM_ASSERT(expr)
+#else
+#if CORIUM_COMPILER_MSVC
+#define CORIUM_ASSUME(expr) __assume(expr)
+#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
+#define CORIUM_ASSUME(expr) do { if (!(expr)) __builtin_unreachable(); } while (0)
+#else
+#define CORIUM_ASSUME(expr) do { } while (0)
+#endif
+#endif
+
+#if CORIUM_BUILD_DEBUG
+#define CORIUM_DEBUG_ASSERT(expr) CORIUM_ASSERT(expr)
+#define CORIUM_DEBUG_ASSUME(expr) CORIUM_ASSUME(expr)
+#else
+#define CORIUM_DEBUG_ASSERT(expr) do {} while (0)
+#define CORIUM_DEBUG_ASSUME(expr) do {} while (0)
+#endif
+
+#define CORIUM_STATIC_ASSERT(expr, msg) static_assert(expr, msg)
+
+#define CORIUM_UNUSED(x) (void)(x)

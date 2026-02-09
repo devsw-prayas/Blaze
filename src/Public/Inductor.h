@@ -4,10 +4,6 @@
 #include "CoriumTraits.h"
 #include <CoriumMemory.h>
 
-#if defined(_INCLUDED_INTRIN_H)
-#error "intrin.h leaked into Core public headers"
-#endif
-
 namespace Corium::Execution::Inductor {
 
 	using TaskBitFlag = size_t;

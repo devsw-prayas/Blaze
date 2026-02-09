@@ -250,7 +250,7 @@ namespace Corium::Memory::Internal {
 
 	// Call this, or ur life be fucked hard
 
-	ForceInline bool init() {
+	CORIUM_FORCEINLINE bool init() {
 
 		g_GlobalMemoryHeaderMemory = VirtualMemory::virtualAlloc(g_GlobalMemoryHeaderMemory,g_TotalVA,
 				MemoryOperation::Reserve);

@@ -43,25 +43,4 @@
 #include <optional>
 #include <chrono>
 #include <cstdint>
-#include <CoriumAssert.h>
-
-#if defined(_INCLUDED_INTRIN_H)
-#error "intrin.h leaked into Core public headers"
-#endif
-
-#if defined(_MSC_VER)
-    #define ForceInline __forceinline
-#elif defined(__GNUC__) || defined(__clang__)
-    #define ForceInline inline __attribute__((always_inline))
-#else
-    #define ForceInline inline
-#endif
-
-#if defined(_MSC_VER)
-#define Unreachable() __assume(0)
-#elif defined(__GNUC__) || defined(__clang__)
-#define Unreachable() __builtin_unreachable()
-#else
-#include <cstdlib>
-#define Unreachable() std::abort()
-#endif
+#include <CoriumDiagnostics.h>

@@ -21,9 +21,6 @@
 #pragma once
 #include <Corium.h>
 
-#if defined(_INCLUDED_INTRIN_H)
-#error "intrin.h leaked into Core public headers"
-#endif
 
 namespace Corium::Backend::Traits {
 	using Flag = bool;
