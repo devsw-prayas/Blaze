@@ -26,43 +26,14 @@
 // Please don't modify this file, too many things gonna break too fast
 
 namespace Corium::Intrinsic {
-	enum class CompilerFrontend : uint8_t
-	{
-		CompilerFrontend_Msvc = 1,
-		CompilerFrontend_Clang = 2,
-		CompilerFrontend_Gcc = 3
-	};
+#define CORIUM_MEMORY_ORDER_RELAXED   0
+#define CORIUM_MEMORY_ORDER_CONSUME   1  // treated as ACQUIRE on MSVC
+#define CORIUM_MEMORY_ORDER_ACQUIRE   2
+#define CORIUM_MEMORY_ORDER_RELEASE   3
+#define CORIUM_MEMORY_ORDER_ACQ_REL   4
+#define CORIUM_MEMORY_ORDER_SEQ_CST   5
 
-#if CORIUM_COMPILER_CLANG
-	CORIUM_MAYBE_UNUSED constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Clang;
-#elif CORIUM_COMPILER_GCC
-	CORIUM_MAYBE_UNUSED constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Gcc;
-#elif CORIUM_COMPILER_MSVC
-	CORIUM_MAYBE_UNUSED constexpr CompilerFrontend kCompilerFrontend = CompilerFrontend::CompilerFrontend_Msvc;
-#else
-#error Unsupported compiler frontend
-#endif
 
-	CORIUM_FORCEINLINE CORIUM constexpr CORIUM_MAYBE_UNUSED CompilerFrontend frontend() {
-		return kCompilerFrontend;
-	}
-
-	enum class CompilerBackend : uint8_t {
-		CompilerBackend_Msvc = 1,
-		CompilerBackend_Gcc = 2
-	};
-
-#if CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
-	CORIUM_MAYBE_UNUSED constexpr CompilerBackend kCompilerBackend = Corium::Intrinsic::CompilerBackend::CompilerBackend_Gcc;
-#elif CORIUM_COMPILER_MSVC
-	CORIUM_MAYBE_UNUSED constexpr CompilerBackend kCompilerBackend = Corium::Intrinsic::CompilerBackend::CompilerBackend_Msvc;
-#else
-#error "Unsupported compiler backend"
-#endif
-
-	CORIUM_FORCEINLINE CORIUM constexpr CORIUM_MAYBE_UNUSED CompilerBackend backend() {
-		return kCompilerBackend;
-	}
 
 	// Don't want some random compiler screaming cause some constant vanished in linux
 #if !CORIUM_COMPILER_CLANG && !CORIUM_COMPILER_GCC
@@ -89,21 +60,23 @@ namespace Corium::Intrinsic {
 	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM void FullFence() {
-		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _mm_mfence();
-		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
+#if CORIUM_COMPILER_MSVC
+		_mm_mfence();
+#elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
-			__atomic_thread_fence(__ATOMIC_SEQ_CST);
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 #else
-			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
+		CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
 #endif
 #else
-			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+		CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
-		} else {
-			CORIUM_STATIC_ASSERT(false, "Unsupported full fence in this environment");
-			CORIUM_UNREACHABLE();
-		}
+#else
+
+		CORIUM_STATIC_ASSERT(false, "Unsupported full fence in this environment");
+		CORIUM_UNREACHABLE();
+#endif
 	}
 
 	// ============================================================================
@@ -118,21 +91,22 @@ namespace Corium::Intrinsic {
 	// ============================================================================
 
 	CORIUM_FORCEINLINE	CORIUM void LoadFence() {
-		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _mm_lfence();
-		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
+#if CORIUM_COMPILER_MSVC
+		_mm_lfence();
+#elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
-			__atomic_thread_fence(__ATOMIC_ACQUIRE);
+		__atomic_thread_fence(__ATOMIC_ACQUIRE);
 #else
-			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
+		CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
 #endif
 #else
-			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+		CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
-		} else {
-			CORIUM_STATIC_ASSERT(false, "Unsupported load fence in this environment");
-			CORIUM_UNREACHABLE();
-		}
+#else
+		CORIUM_STATIC_ASSERT(false, "Unsupported load fence in this environment");
+		CORIUM_UNREACHABLE();
+#endif
 	}
 
 	// ============================================================================
@@ -147,143 +121,147 @@ namespace Corium::Intrinsic {
 	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM void StoreFence() {
-		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _mm_sfence();
-		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
+#if CORIUM_COMPILER_MSVC
+		_mm_sfence();
+#elif  CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
-			__atomic_thread_fence(__ATOMIC_RELEASE);
+		__atomic_thread_fence(__ATOMIC_RELEASE);
 #else
-			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
+		CORIUM_STATIC_ASSERT(__has_builtin(__atomic_thread_fence), "__atomic_thread_fence not supported by this compiler");
 #endif
 #else
-			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+		CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
-		} else {
-			CORIUM_STATIC_ASSERT(false, "Unsupported store fence in this environment");
-			CORIUM_UNREACHABLE();
-		}
+#else
+		CORIUM_STATIC_ASSERT(false, "Unsupported store fence in this environment");
+		CORIUM_UNREACHABLE();
+#endif
 	}
 
-	// (Why is this even necessary?) Compiler hint fences
+// (Why is this even necessary?) Compiler hint fences
 
-	// ============================================================================
-	// RWCompileBarrier
-	//
-	// Compiler-only barrier for both loads and stores.
-	//
-	// Prevents the compiler from reordering memory operations across
-	// this point, without emitting any CPU instructions.
-	//
-	// Does NOT provide inter-thread synchronization.
-	// ============================================================================
+// ============================================================================
+// RWCompileBarrier
+//
+// Compiler-only barrier for both loads and stores.
+//
+// Prevents the compiler from reordering memory operations across
+// this point, without emitting any CPU instructions.
+//
+// Does NOT provide inter-thread synchronization.
+// ============================================================================
 
-	CORIUM_FORCEINLINE CORIUM void RWCompileBarrier() {
-		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _ReadWriteBarrier();
-		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
+CORIUM_FORCEINLINE CORIUM void RWCompileBarrier() {
+#if CORIUM_COMPILER_MSVC
+	_ReadWriteBarrier();
+#elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
-			__atomic_signal_fence(__ATOMIC_SEQ_CST);
+	__atomic_signal_fence(__ATOMIC_SEQ_CST);
 # else
-			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
+	CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+	CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
-		} else {
-			CORIUM_STATIC_ASSERT(false, "Unsupported read write barrier in this environment");
-			CORIUM_UNREACHABLE();
-		}
-	}
+#else
+	CORIUM_STATIC_ASSERT(false, "Unsupported read write barrier in this environment");
+	CORIUM_UNREACHABLE();
+#endif
+}
 
-	// ============================================================================
-	// RCompileBarrier
-	//
-	// Compiler-only barrier for load operations.
-	//
-	// Prevents reordering of reads across this point while allowing
-	// stores to move freely.
-	//
-	// Intended for rare, read-only ordering constraints.
-	// ============================================================================
+// ============================================================================
+// RCompileBarrier
+//
+// Compiler-only barrier for load operations.
+//
+// Prevents reordering of reads across this point while allowing
+// stores to move freely.
+//
+// Intended for rare, read-only ordering constraints.
+// ============================================================================
 
-	CORIUM_FORCEINLINE CORIUM void RCompileBarrier() {
-		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) _ReadBarrier();
-		else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
+CORIUM_FORCEINLINE CORIUM void RCompileBarrier() {
+#if CORIUM_COMPILER_MSVC
+	_ReadBarrier();
+#elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
-			__atomic_signal_fence(__ATOMIC_ACQUIRE);
+	__atomic_signal_fence(__ATOMIC_ACQUIRE);
 #else
-			CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
+	CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+	CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
-		} else {
-			CORIUM_STATIC_ASSERT(false, "Unsupported read barrier in this environment");
-			CORIUM_UNREACHABLE();
-		}
-	}
+#else
+	CORIUM_STATIC_ASSERT(false, "Unsupported read barrier in this environment");
+	CORIUM_UNREACHABLE();
+#endif
+}
 
-	// ============================================================================
-	// WCompileBarrier
-	//
-	// Compiler-only barrier for store operations.
-	//
-	// Prevents reordering of writes across this point while allowing
-	// loads to move freely.
-	//
-	// Commonly used before publishing shared state.
-	// ============================================================================
+// ============================================================================
+// WCompileBarrier
+//
+// Compiler-only barrier for store operations.
+//
+// Prevents reordering of writes across this point while allowing
+// loads to move freely.
+//
+// Commonly used before publishing shared state.
+// ============================================================================
 
-	CORIUM_FORCEINLINE CORIUM void WCompileBarrier() {
-		if constexpr (backend() == CompilerBackend::CompilerBackend_Msvc) {
-			_WriteBarrier();
-		} else if constexpr (backend() == CompilerBackend::CompilerBackend_Gcc) {
+CORIUM_FORCEINLINE CORIUM void WCompileBarrier() {
+#if CORIUM_COMPILER_MSVC
+	_WriteBarrier();
+#elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
-			__atomic_signal_fence(__ATOMIC_RELEASE);
+	__atomic_signal_fence(__ATOMIC_RELEASE);
 #else
-			CORIUM_STATIC_ASSERT(false, "__atomic_signal_fence not supported by this compiler");
+	CORIUM_STATIC_ASSERT(false, "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-			CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+	CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
-		} else {
-			CORIUM_STATIC_ASSERT(false, "Unsupported write barrier in this environment");
-		}
-	}
+#else
+	CORIUM_STATIC_ASSERT(false, "Unsupported write barrier in this environment");
+	CORIUM_UNREACHABLE();
+#endif
+}
 
-	template<typename T>
-	struct ValidAtomicParameter final {
-		using Type = T;
-		CORIUM_STATIC_ASSERT(
-			std::is_trivially_copyable_v<Type>,
-			"Unsupported atomic nature: type must be trivially copyable."
-		);
+template<typename T>
+struct ValidAtomicParameter final {
+	using Type = T;
+	CORIUM_STATIC_ASSERT(
+		std::is_trivially_copyable_v<Type>,
+		"Unsupported atomic nature: type must be trivially copyable."
+	);
 
-		CORIUM_STATIC_ASSERT(
-			!std::is_const_v<Type>,
-			"Unsupported atomic nature: atomic type must not be const-qualified."
-		);
+	CORIUM_STATIC_ASSERT(
+		!std::is_const_v<Type>,
+		"Unsupported atomic nature: atomic type must not be const-qualified."
+	);
 
-		CORIUM_STATIC_ASSERT(
-			!std::is_volatile_v<Type>,
-			"Unsupported atomic nature: atomic type must not be volatile-qualified."
-		);
-	};
+	CORIUM_STATIC_ASSERT(
+		!std::is_volatile_v<Type>,
+		"Unsupported atomic nature: atomic type must not be volatile-qualified."
+	);
+};
 
-	// Moving on to a wall of macros, fuck!!
+// Moving on to a wall of macros, fuck!!
 
-	// ============================================================================
-	// AtomicLoad
-	//
-	// Atomically reads the value stored at the target address.
-	//
-	// Guarantees that the value is read as a single, indivisible operation
-	// even in the presence of concurrent writers.
-	//
-	// Does not modify the stored value.
-	// ============================================================================
+// ============================================================================
+// AtomicLoad
+//
+// Atomically reads the value stored at the target address.
+//
+// Guarantees that the value is read as a single, indivisible operation
+// even in the presence of concurrent writers.
+//
+// Does not modify the stored value.
+// ============================================================================
 
 #ifndef AtomicLoad_Relaxed
 #define AtomicLoad_Relaxed

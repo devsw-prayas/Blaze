@@ -80,6 +80,8 @@ namespace Corium::Execution::Inductor {
 
 		static bool cook(const TaskDesc& ro_Desc);
 
+		static bool reset(const TaskDesc& ro_Desc);
+
 		friend struct TaskDesc;
 	};
 }

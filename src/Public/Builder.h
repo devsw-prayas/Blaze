@@ -35,6 +35,6 @@ namespace Corium::Execution::Builder {
 	};
 
 	class CORIUM TaskBuilder final {
-		friend struct TaskMemoryDesc;
+
 	};
 } // namespace Corium::Execution::Builder
