@@ -22,7 +22,7 @@
 #include <Corium.h>
 
 namespace Corium::Memory::Allocators {
-	enum class CORIUM AllocationTrait : std::uint8_t {
+	enum class CORIUM_RUNTIME_API AllocationTrait : std::uint8_t {
 		Scratch,
 		Task,
 		Executor,
@@ -30,13 +30,43 @@ namespace Corium::Memory::Allocators {
 		Unknown
 	};
 
-	template <typename T, typename = void> struct CORIUM ResolveAllocation final {
+	template <typename T, typename = void> struct CORIUM_RUNTIME_API ResolveAllocation final {
 		static constexpr AllocationTrait trait = AllocationTrait::Unknown;
 	};
 
-	struct CORIUM AllocationHeader final {};
+	struct alignas(64) CORIUM_RUNTIME_API AllocationHeader final {
+		void* m_Block;
+		size_t m_Size;
+		size_t m_Alignment;
+		AllocationTrait m_Trait;
 
-	template <typename Derived> class CORIUM IAllocator {
+		AllocationHeader(void* p_Block, size_t v_Size, size_t v_Alignment, AllocationTrait v_Trait) :
+			m_Block(p_Block), m_Size(v_Size), m_Alignment(v_Alignment), m_Trait(v_Trait) {
+		}
+
+		~AllocationHeader() = default;
+		AllocationHeader(const AllocationTrait&) = delete;
+		AllocationHeader& operator=(const AllocationHeader&) = delete;
+
+		AllocationHeader(AllocationHeader&&) noexcept = default;
+		AllocationHeader& operator=(AllocationHeader&&) noexcept = default;
+
+		template<typename T>
+		T* as() const noexcept {
+			return static_cast<T*>(m_Block);
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<AllocationHeader>,
+						 "AllocationHeader must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<AllocationHeader>,
+						 "AllocationHeader must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<AllocationHeader>,
+						 "AllocationHeader must be trivially move assignable");
+
+	template <typename D> 
+	class CORIUM_RUNTIME_API IAllocator {
+		using derived_ = D;
 		IAllocator() = default;
 		~IAllocator() = default;
 
@@ -46,8 +76,12 @@ namespace Corium::Memory::Allocators {
 		IAllocator(IAllocator&&) noexcept = default;
 		IAllocator& operator=(IAllocator&&) noexcept = default;
 
-		template <typename T> AllocationHeader allocate() {
-			AllocationHeader header;
+		AllocationHeader allocate(size_t v_Size) {
+			return static_cast<derived_*>(this)->allocate(v_Size);
+		}
+
+		bool deallocate(AllocationHeader& ro_Header) {
+			return static_cast<derived_*>(this)->deallocate(ro_Header);
 		}
 	};
 } // namespace Corium::Memory::Allocators

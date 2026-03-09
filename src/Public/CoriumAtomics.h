@@ -2,7 +2,7 @@
 #include "PlatIntrin.h"
 
 namespace Corium::Core::Atomics {
-	enum class CORIUM MemoryOrder : std::uint8_t {
+	enum class CORIUM_RUNTIME_API MemoryOrder : std::uint8_t {
 		RELAXED = CORIUM_MEMORY_ORDER_RELAXED,
 		CONSUME = CORIUM_MEMORY_ORDER_CONSUME,
 		ACQUIRE = CORIUM_MEMORY_ORDER_ACQUIRE,

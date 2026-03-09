@@ -12,7 +12,7 @@ namespace Corium::Execution::Inductor {
 		UNINITIALIZED, UPDATING, FROZEN
 	};
 
-	struct CORIUM alignas(64) TaskMemoryDesc final {
+	struct CORIUM_RUNTIME_API alignas(64) TaskMemoryDesc final {
 		TaskMemoryDesc() :
 			m_InputBufferSize(0), m_OutputBufferSize(0),
 			m_MaxInputs(0), m_MaxOutputs(0), m_MemState(ParamMemState::UNINITIALIZED) {
@@ -63,7 +63,7 @@ namespace Corium::Execution::Inductor {
 
 	};
 
-	class CORIUM TaskInductor final {
+	class CORIUM_RUNTIME_API TaskInductor final {
 		static bool init(const TaskDesc& ro_Desc);
 
 		template<typename Mutator, bool Permissions>

@@ -59,7 +59,7 @@ namespace Corium::Intrinsic {
 	// global phase transitions, device boundaries, or shutdown paths.
 	// ============================================================================
 
-	CORIUM_FORCEINLINE CORIUM void FullFence() {
+	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void FullFence() {
 #if CORIUM_COMPILER_MSVC
 		_mm_mfence();
 #elif CORIUM_COMPILER_GCC
@@ -90,7 +90,7 @@ namespace Corium::Intrinsic {
 	// Intended for explicit consumption of published data.
 	// ============================================================================
 
-	CORIUM_FORCEINLINE	CORIUM void LoadFence() {
+	CORIUM_FORCEINLINE	CORIUM_RUNTIME_API void LoadFence() {
 #if CORIUM_COMPILER_MSVC
 		_mm_lfence();
 #elif CORIUM_COMPILER_GCC
@@ -120,7 +120,7 @@ namespace Corium::Intrinsic {
 	// Commonly used when publishing data followed by a visibility flag.
 	// ============================================================================
 
-	CORIUM_FORCEINLINE CORIUM void StoreFence() {
+	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void StoreFence() {
 #if CORIUM_COMPILER_MSVC
 		_mm_sfence();
 #elif  CORIUM_COMPILER_GCC
@@ -152,7 +152,7 @@ namespace Corium::Intrinsic {
 // Does NOT provide inter-thread synchronization.
 // ============================================================================
 
-CORIUM_FORCEINLINE CORIUM void RWCompileBarrier() {
+CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RWCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
 	_ReadWriteBarrier();
 #elif CORIUM_COMPILER_GCC
@@ -182,7 +182,7 @@ CORIUM_FORCEINLINE CORIUM void RWCompileBarrier() {
 // Intended for rare, read-only ordering constraints.
 // ============================================================================
 
-CORIUM_FORCEINLINE CORIUM void RCompileBarrier() {
+CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
 	_ReadBarrier();
 #elif CORIUM_COMPILER_GCC
@@ -212,7 +212,7 @@ CORIUM_FORCEINLINE CORIUM void RCompileBarrier() {
 // Commonly used before publishing shared state.
 // ============================================================================
 
-CORIUM_FORCEINLINE CORIUM void WCompileBarrier() {
+CORIUM_FORCEINLINE CORIUM_RUNTIME_API void WCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
 	_WriteBarrier();
 #elif CORIUM_COMPILER_GCC

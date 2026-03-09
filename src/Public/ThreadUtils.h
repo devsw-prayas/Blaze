@@ -31,7 +31,7 @@ namespace Corium::Core {
 
 	enum class DescriptorState : uint8_t { UNINITIALIZED, MUTABLE, FROZEN };
 
-	struct CORIUM alignas(64) ThreadAttrDesc final {
+	struct CORIUM_RUNTIME_API alignas(64) ThreadAttrDesc final {
 		AffinityMask m_Mask;
 		ProcessorIdx m_IdealProcessor;
 		ThreadPriority m_ThreadPriority;
@@ -49,15 +49,15 @@ namespace Corium::Core {
 		ThreadAttrDesc& operator=(ThreadAttrDesc&&) noexcept = default;
 	};
 
-	void CORIUM init(ThreadAttrDesc& ro_Desc);
-	void CORIUM setAffinity(ThreadAttrDesc& ro_Desc, AffinityMask v_Mask);
-	void CORIUM shouldSupportIdealProcessor(ThreadAttrDesc& ro_Desc, bool v_Permission);
-	void CORIUM setIdealProcessor(ThreadAttrDesc& ro_Desc, ProcessorIdx v_Idx);
-	void CORIUM canDetach(ThreadAttrDesc& ro_Desc, bool v_Permission);
-	void CORIUM vaGuardEnabled(ThreadAttrDesc& ro_Desc, bool v_Permission);
-	bool CORIUM validate(ThreadAttrDesc& ro_Desc);
+	void CORIUM_RUNTIME_API init(ThreadAttrDesc& ro_Desc);
+	void CORIUM_RUNTIME_API setAffinity(ThreadAttrDesc& ro_Desc, AffinityMask v_Mask);
+	void CORIUM_RUNTIME_API shouldSupportIdealProcessor(ThreadAttrDesc& ro_Desc, bool v_Permission);
+	void CORIUM_RUNTIME_API setIdealProcessor(ThreadAttrDesc& ro_Desc, ProcessorIdx v_Idx);
+	void CORIUM_RUNTIME_API canDetach(ThreadAttrDesc& ro_Desc, bool v_Permission);
+	void CORIUM_RUNTIME_API vaGuardEnabled(ThreadAttrDesc& ro_Desc, bool v_Permission);
+	bool CORIUM_RUNTIME_API validate(ThreadAttrDesc& ro_Desc);
 
-	struct CORIUM alignas(64) ThreadLaunchDesc final {
+	struct CORIUM_RUNTIME_API alignas(64) ThreadLaunchDesc final {
 		Utils::ClosureFunction<Allocator, void()> m_StartPoint;
 		size_t m_VaSize;
 		const char* m_Name;
@@ -65,14 +65,14 @@ namespace Corium::Core {
 		bool m_IsPreSuspended;
 	};
 
-	void CORIUM init(ThreadLaunchDesc& ro_Desc);
-	void CORIUM
+	void CORIUM_RUNTIME_API init(ThreadLaunchDesc& ro_Desc);
+	void CORIUM_RUNTIME_API
 		attachLaunchAddr(ThreadLaunchDesc& ro_Desc,
 						 Utils::ClosureFunction<Allocator, void()> v_Closure);
-	void CORIUM setVaSize(ThreadLaunchDesc& ro_Desc, size_t v_VaSize);
-	void CORIUM setName(ThreadLaunchDesc& ro_Desc, const char* p_Name);
-	void CORIUM isPreSuspended(ThreadLaunchDesc& ro_Desc, bool v_Permission);
-	void CORIUM validate(ThreadLaunchDesc& ro_Desc);
+	void CORIUM_RUNTIME_API setVaSize(ThreadLaunchDesc& ro_Desc, size_t v_VaSize);
+	void CORIUM_RUNTIME_API setName(ThreadLaunchDesc& ro_Desc, const char* p_Name);
+	void CORIUM_RUNTIME_API isPreSuspended(ThreadLaunchDesc& ro_Desc, bool v_Permission);
+	void CORIUM_RUNTIME_API validate(ThreadLaunchDesc& ro_Desc);
 
 	CORIUM_FORCEINLINE static bool isFrozen(const ThreadAttrDesc& ro_Desc) {
 		return ro_Desc.m_State == DescriptorState::FROZEN;

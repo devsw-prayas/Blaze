@@ -24,7 +24,7 @@
 namespace Corium::Memory {
 	using Bytes = size_t;
 
-	struct CORIUM alignas(32) VirtualSegment final {
+	struct CORIUM_RUNTIME_API alignas(32) VirtualSegment final {
 		void* m_Memory;
 		Bytes v_TotalSize;
 		Bytes v_CommittedSize;
@@ -49,27 +49,27 @@ namespace Corium::Memory {
 	inline constexpr VirtualSegment INVALID_SEGMENT{};
 
 	namespace Literals {
-		constexpr Bytes CORIUM operator""_KB(unsigned long long v_KB) {
+		constexpr Bytes CORIUM_RUNTIME_API operator""_KB(unsigned long long v_KB) {
 			return v_KB * 1000ULL;
 		}
 
-		constexpr Bytes CORIUM operator""_KiB(unsigned long long v_KiB) {
+		constexpr Bytes CORIUM_RUNTIME_API operator""_KiB(unsigned long long v_KiB) {
 			return v_KiB * 1024ULL;
 		}
 
-		constexpr Bytes CORIUM operator""_MB(unsigned long long v_MB) {
+		constexpr Bytes CORIUM_RUNTIME_API operator""_MB(unsigned long long v_MB) {
 			return v_MB * 1000ULL * 1000ULL;
 		}
 
-		constexpr Bytes CORIUM operator""_MiB(unsigned long long v_MiB) {
+		constexpr Bytes CORIUM_RUNTIME_API operator""_MiB(unsigned long long v_MiB) {
 			return v_MiB * 1024ULL * 1024ULL;
 		}
 
-		constexpr Bytes CORIUM operator""_GB(unsigned long long v_GB) {
+		constexpr Bytes CORIUM_RUNTIME_API operator""_GB(unsigned long long v_GB) {
 			return v_GB * 1000ULL * 1000ULL * 1000ULL;
 		}
 
-		constexpr Bytes CORIUM operator""_GiB(unsigned long long v_GiB) {
+		constexpr Bytes CORIUM_RUNTIME_API operator""_GiB(unsigned long long v_GiB) {
 			return v_GiB * 1024ULL * 1024ULL * 1024ULL;
 		}
 	}
@@ -97,7 +97,7 @@ namespace Corium::Memory {
 		Reserved, Committed, Freed
 	};
 
-	class CORIUM VirtualMemory final {
+	class CORIUM_RUNTIME_API VirtualMemory final {
 	public:
 		[[nodiscard]]
 		static VirtualSegment virtualAlloc(
@@ -234,14 +234,14 @@ namespace Corium::Memory {
 	}
 
 	template<typename T>
-	struct CORIUM alignas(8) SharedPtr final {
+	struct CORIUM_RUNTIME_API alignas(8) SharedPtr final {
 	};
 
 	template<typename T>
-	struct CORIUM alignas(8) WeakPtr final {
+	struct CORIUM_RUNTIME_API alignas(8) WeakPtr final {
 	};
 
 	template<typename T>
-	struct CORIUM alignas(8) UniquePtr final {
+	struct CORIUM_RUNTIME_API alignas(8) UniquePtr final {
 	};
 }

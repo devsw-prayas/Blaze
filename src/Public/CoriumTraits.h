@@ -30,17 +30,17 @@ namespace Corium::Backend::Traits {
 #ifndef DefineTrait
 #define DefineTrait(name) \
 	template<typename T, typename = void> \
-	struct CORIUM name final : std::false_type {};\
+	struct CORIUM_RUNTIME_API name final : std::false_type {};\
 	\
 	template<typename T> \
-	ForceInline bool CORIUM constexpr name##V = name<T>::value; \
+	CORIUM_FORCEINLINE bool CORIUM_RUNTIME_API constexpr name##V = name<T>::value; \
 
 #endif
-
+																					
 #ifndef DefineConditional
 #define DefineConditional(name) \
 	template<Flag permission> \
-	struct CORIUM name final : std::conditional<permission, std::true_type, std::false_type> {};
+	struct CORIUM_RUNTIME_API name final : std::conditional<permission, std::true_type, std::false_type> {};
 
 #endif
 

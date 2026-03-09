@@ -20,7 +20,7 @@ namespace Corium::Execution::Builder {
 		Memory::UniquePtr<void> m_OutputMemBuffer;
 	};
 
-	struct CORIUM TaskFrame final {
+	struct CORIUM_RUNTIME_API TaskFrame final {
 		TaskFrame() {}
 		~TaskFrame() = default;
 		TaskFrame(const TaskFrame&) = default;
@@ -34,7 +34,7 @@ namespace Corium::Execution::Builder {
 		friend struct TaskMemoryDesc;
 	};
 
-	class CORIUM TaskBuilder final {
+	class CORIUM_RUNTIME_API TaskBuilder final {
 
 	};
 } // namespace Corium::Execution::Builder

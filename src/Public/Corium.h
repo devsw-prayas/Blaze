@@ -20,18 +20,18 @@
 */
 
 #pragma once
-#ifndef CORIUM
+#ifndef CORIUM_RUNTIME_API
 #if defined(_WIN32) || defined(__CYGWIN__)
 #if defined(CORIUM_SHARED)
-#define CORIUM __declspec(dllexport)
+#define CORIUM_RUNTIME_API __declspec(dllexport)
 #else
-#define CORIUM __declspec(dllimport)
+#define CORIUM_RUNTIME_API __declspec(dllimport)
 #endif
 
 #elif defined(__GNUC__) || defined(__clang__ )
-#define CORIUM __attribute__((visibility("default")))
+#define CORIUM_RUNTIME_API __attribute__((visibility("default")))
 #else
-#define CORIUM
+#define CORIUM_RUNTIME_API
 #endif
 #endif
 

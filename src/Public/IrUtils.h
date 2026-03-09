@@ -25,11 +25,11 @@ namespace Corium::IntermediateRepresentation {
     // My ass had an itch, so i added IR, deal with it bish!
 
     template <size_t Rank>
-    struct CORIUM TensorStrideHelper;
+    struct CORIUM_RUNTIME_API TensorStrideHelper;
 
     // Rank 0 - scalar (no strides)
     template <>
-    struct CORIUM TensorStrideHelper<0> {
+    struct CORIUM_RUNTIME_API TensorStrideHelper<0> {
         static constexpr std::array<size_t, 0>
             compute(const std::array<size_t, 0>&) {
             return {};
@@ -38,7 +38,7 @@ namespace Corium::IntermediateRepresentation {
 
     // Rank 1 - vector
     template <>
-    struct CORIUM TensorStrideHelper<1> {
+    struct CORIUM_RUNTIME_API TensorStrideHelper<1> {
         static constexpr std::array<size_t, 1>
             compute(const std::array<size_t, 1>& extents, size_t elementSize) {
             return { elementSize };
@@ -47,7 +47,7 @@ namespace Corium::IntermediateRepresentation {
 
     // Rank 2 - matrix
     template <>
-    struct CORIUM TensorStrideHelper<2> {
+    struct CORIUM_RUNTIME_API TensorStrideHelper<2> {
         static constexpr std::array<size_t, 2>
             compute(const std::array<size_t, 2>& extents, size_t elementSize) {
             return {
@@ -59,7 +59,7 @@ namespace Corium::IntermediateRepresentation {
 
     // Rank 3 - grid
     template <>
-    struct CORIUM TensorStrideHelper<3> {
+    struct CORIUM_RUNTIME_API TensorStrideHelper<3> {
         static constexpr std::array<size_t, 3>
             compute(const std::array<size_t, 3>& extents, size_t elementSize) {
             return {
@@ -72,7 +72,7 @@ namespace Corium::IntermediateRepresentation {
 
 
     template <typename T, size_t... Extents>
-    struct CORIUM TensorParameter {
+    struct CORIUM_RUNTIME_API TensorParameter {
         using DataType = T;
         static constexpr size_t Rank = sizeof...(Extents);
         static_assert(Rank <= 3, "TensorParameter supports up to 3 dimensions");
