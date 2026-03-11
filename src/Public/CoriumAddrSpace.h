@@ -124,6 +124,8 @@ NOTES:
 ==============================================================================
 */
 
+
+
 namespace Corium::Memory::Internal {
 
 	// 3 million different VA slices, what the fuck?!
@@ -150,7 +152,7 @@ namespace Corium::Memory::Internal {
 	inline VARegionSlicer g_GlobalVA;
 
 	// -------------------------------------------------------------------------
-	// Top-level VA regions
+	// Top-level VA regions		(DO NOT TOUCH!)
 	// -------------------------------------------------------------------------
 
 	inline VARegion g_UpperNullGuard;
@@ -252,6 +254,129 @@ namespace Corium::Memory::Internal {
 
 	CORIUM_FORCEINLINE bool init() {
 
+		// ==============================================================================
+		//                     CORIUM VIRTUAL ADDRESS SPACE HIERARCHY
+		// ==============================================================================
+		//
+		// GLOBAL VA (32 GiB reserved)
+		// |
+		// |  UPPER NULL GUARD (2 MiB)
+		// |
+		// |- RUNTIME / INFRASTRUCTURE VA (~6 GiB)
+		// |  |
+		// |  |- ClosureRange
+		// |  |    - ClosureFunction objects
+		// |  |    - 3 closures per task (startup / body / shutdown)
+		// |  |
+		// |  |- Guard (2 MiB)
+		// |  |
+		// |  |- SmartPtrControlBlocks (2 GiB)
+		// |  |    - shared_ptr / intrusive control blocks
+		// |  |
+		// |  |- Guard (2 MiB)
+		// |  |
+		// |  |- RuntimeCoreObjects
+		// |       - schedulers
+		// |       - executors
+		// |       - pools
+		// |       - global allocators
+		// |
+		// |- RUNTIME GUARD (2 MiB)
+		// |
+		// |- TASK METADATA VA (~8 GiB)
+		// |  |
+		// |  |- Object Locations (3 GiB)
+		// |  |  |
+		// |  |  |- TaskMemoryDescRange
+		// |  |  |    - task memory descriptors
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- TaskMemoryHeaderRange
+		// |  |  |    - task memory ownership metadata
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- TaskContextRange
+		// |  |  |    - runtime execution context
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- TaskSliceContextRange
+		// |  |  |    - slice execution state
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- GPUContextRange
+		// |  |  |    - GPU execution state
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- ObjectLocationSpare
+		// |  |
+		// |  |- Guard (2 MiB)
+		// |  |
+		// |  |- Input Layouts (3 GiB)
+		// |  |  |
+		// |  |  |- InputSizeArrays
+		// |  |  |    - input size metadata
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- InputAlignmentArrays
+		// |  |  |    - input alignment metadata
+		// |  |  |
+		// |  |  |- Guard (2 MiB)
+		// |  |  |
+		// |  |  |- InputLayoutSpare
+		// |  |
+		// |  |- Guard (2 MiB)
+		// |  |
+		// |  |- Output Layouts
+		// |     |
+		// |     |- OutputSizeArrays
+		// |     |    - output size metadata
+		// |     |
+		// |     |- Guard (2 MiB)
+		// |     |
+		// |     |- OutputAlignmentArrays
+		// |     |    - output alignment metadata
+		// |     |
+		// |     |- Guard (2 MiB)
+		// |     |
+		// |     |- OutputLayoutSpare
+		// |
+		// |- TASK METADATA GUARD (2 MiB)
+		// |
+		// |- TASK PAYLOAD VA (~14 GiB)
+		// |  |
+		// |  |- TaskPayloadArena
+		// |       - task payload buffers
+		// |       - input/output data
+		// |       - reductions
+		// |       - GPU-visible payload
+		// |
+		// |- TASK PAYLOAD GUARD (2 MiB)
+		// |
+		// |- RESERVED / FUTURE VA (~4 GiB)
+		// |  - GPU staging / DMA
+		// |  - NUMA mirroring
+		// |  - sanitizer / shadow memory
+		// |  - RDMA / remote memory
+		// |
+		// |- LOWER NULL GUARD (2 MiB)
+		//
+		// ==============================================================================
+		// Design Notes
+		// ------------------------------------------------------------------------------
+		// - Entire runtime lives in a single reserved VA block.
+		// - Subsystems are partitioned into deterministic regions.
+		// - 2 MiB guard regions detect linear memory overruns.
+		// - Task metadata uses structure-of-arrays layout for cache efficiency.
+		// - Payload memory is isolated from metadata to prevent corruption.
+		// - All regions are sliced once at startup and never moved.
+		// ==============================================================================
+
 		g_GlobalMemoryHeaderMemory = VirtualMemory::virtualAlloc(g_GlobalMemoryHeaderMemory,g_TotalVA,
 				MemoryOperation::Reserve);
 
@@ -321,8 +446,7 @@ namespace Corium::Memory::Internal {
 			g_GPUContextRange =obj.slice(Bytes{ MaxTasks * sizeof(GPUContextHeader) });
 			g_GPUContextGuard = obj.slice(SectionGuardSize);
 
-			g_ObjectLocationSpare =
-				obj.slice(obj.remaining());
+			g_ObjectLocationSpare = obj.slice(obj.remaining());
 		}
 
 		// --- Input Layouts ---------------------------------------------------

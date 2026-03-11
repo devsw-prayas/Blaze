@@ -77,9 +77,14 @@ namespace Corium::Memory {
 	using namespace Literals;
 	constexpr Bytes PAGE_SIZE = 4_KiB;
 
-	[[nodiscard]] CORIUM_FORCEINLINE constexpr Bytes alignToPage(unsigned long long v_Bytes) {
+	CORIUM_NODISCARD CORIUM_FORCEINLINE constexpr Bytes alignToPage(unsigned long long v_Bytes) {
 		return (v_Bytes + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
 	}
+
+	CORIUM_NODISCARD CORIUM_FORCEINLINE constexpr Bytes alignUp(size_t v_Bytes, size_t v_Align) {
+		return (v_Bytes + v_Align - 1) / v_Align * v_Align;
+	}
+
 
 	constexpr Bytes KILO_BYTE = 1_KB;
 	constexpr Bytes MEGA_BYTE = 1_MB;
@@ -99,28 +104,32 @@ namespace Corium::Memory {
 
 	class CORIUM_RUNTIME_API VirtualMemory final {
 	public:
-		[[nodiscard]]
+		CORIUM_NODISCARD
 		static VirtualSegment virtualAlloc(
 			VirtualSegment& segment,
 			Bytes v_Size,
 			MemoryOperation v_Operation
 		);
-
-		[[nodiscard]]
+		   
+		CORIUM_NODISCARD
 		static bool virtualFree(
 			VirtualSegment& segment,
 			Bytes v_Size,
 			MemoryOperation v_Operation
 		);
 
-		[[nodiscard]]
+		CORIUM_NODISCARD
 		static bool lockMem(const VirtualSegment& segment);
 
-		[[nodiscard]]
+		CORIUM_NODISCARD
 		static bool unlockMem(const VirtualSegment& segment);
 
-		[[nodiscard]]
+		CORIUM_NODISCARD
 		static MemState queryPage(const VirtualSegment& segment, Bytes v_Offset);
+
+		CORIUM_MAYBE_UNUSED
+		static bool commitPageIfNeeded(VirtualSegment& ro_Segment, size_t v_Offset);
+
 	};
 
 	namespace Internal {
@@ -229,8 +238,10 @@ namespace Corium::Memory {
 		CORIUM_FORCEINLINE bool lockGuard(const VARegion& r_Guard) noexcept {
 			return VirtualMemory::lockMem(segmentFromRegion(r_Guard));
 		}
+	}
 
-
+	CORIUM_FORCEINLINE VirtualSegment createSegment(const Internal::VARegion& ro_Region) noexcept {
+		return { ro_Region.m_Base, ro_Region.m_Size, 0 };
 	}
 
 	template<typename T>

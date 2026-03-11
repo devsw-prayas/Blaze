@@ -33,8 +33,6 @@ namespace Corium::Intrinsic {
 #define CORIUM_MEMORY_ORDER_ACQ_REL   4
 #define CORIUM_MEMORY_ORDER_SEQ_CST   5
 
-
-
 	// Don't want some random compiler screaming cause some constant vanished in linux
 #if !CORIUM_COMPILER_CLANG && !CORIUM_COMPILER_GCC
 #define __ATOMIC_RELAXED 0
@@ -139,132 +137,131 @@ namespace Corium::Intrinsic {
 #endif
 	}
 
-// (Why is this even necessary?) Compiler hint fences
+	// (Why is this even necessary?) Compiler hint fences
 
-// ============================================================================
-// RWCompileBarrier
-//
-// Compiler-only barrier for both loads and stores.
-//
-// Prevents the compiler from reordering memory operations across
-// this point, without emitting any CPU instructions.
-//
-// Does NOT provide inter-thread synchronization.
-// ============================================================================
+	// ============================================================================
+	// RWCompileBarrier
+	//
+	// Compiler-only barrier for both loads and stores.
+	//
+	// Prevents the compiler from reordering memory operations across
+	// this point, without emitting any CPU instructions.
+	//
+	// Does NOT provide inter-thread synchronization.
+	// ============================================================================
 
-CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RWCompileBarrier() {
+	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RWCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
-	_ReadWriteBarrier();
+		_ReadWriteBarrier();
 #elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
-	__atomic_signal_fence(__ATOMIC_SEQ_CST);
+		__atomic_signal_fence(__ATOMIC_SEQ_CST);
 # else
-	CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
+		CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-	CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+		CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 #else
-	CORIUM_STATIC_ASSERT(false, "Unsupported read write barrier in this environment");
-	CORIUM_UNREACHABLE();
+		CORIUM_STATIC_ASSERT(false, "Unsupported read write barrier in this environment");
+		CORIUM_UNREACHABLE();
 #endif
-}
+	}
 
-// ============================================================================
-// RCompileBarrier
-//
-// Compiler-only barrier for load operations.
-//
-// Prevents reordering of reads across this point while allowing
-// stores to move freely.
-//
-// Intended for rare, read-only ordering constraints.
-// ============================================================================
+	// ============================================================================
+	// RCompileBarrier
+	//
+	// Compiler-only barrier for load operations.
+	//
+	// Prevents reordering of reads across this point while allowing
+	// stores to move freely.
+	//
+	// Intended for rare, read-only ordering constraints.
+	// ============================================================================
 
-CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RCompileBarrier() {
+	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
-	_ReadBarrier();
+		_ReadBarrier();
 #elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
-	__atomic_signal_fence(__ATOMIC_ACQUIRE);
+		__atomic_signal_fence(__ATOMIC_ACQUIRE);
 #else
-	CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
+		CORIUM_STATIC_ASSERT(__has_builtin(__atomic_signal_fence), "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-	CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+		CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 #else
-	CORIUM_STATIC_ASSERT(false, "Unsupported read barrier in this environment");
-	CORIUM_UNREACHABLE();
+		CORIUM_STATIC_ASSERT(false, "Unsupported read barrier in this environment");
+		CORIUM_UNREACHABLE();
 #endif
-}
+	}
 
-// ============================================================================
-// WCompileBarrier
-//
-// Compiler-only barrier for store operations.
-//
-// Prevents reordering of writes across this point while allowing
-// loads to move freely.
-//
-// Commonly used before publishing shared state.
-// ============================================================================
+	// ============================================================================
+	// WCompileBarrier
+	//
+	// Compiler-only barrier for store operations.
+	//
+	// Prevents reordering of writes across this point while allowing
+	// loads to move freely.
+	//
+	// Commonly used before publishing shared state.
+	// ============================================================================
 
-CORIUM_FORCEINLINE CORIUM_RUNTIME_API void WCompileBarrier() {
+	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void WCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
-	_WriteBarrier();
+		_WriteBarrier();
 #elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_signal_fence)
-	__atomic_signal_fence(__ATOMIC_RELEASE);
+		__atomic_signal_fence(__ATOMIC_RELEASE);
 #else
-	CORIUM_STATIC_ASSERT(false, "__atomic_signal_fence not supported by this compiler");
+		CORIUM_STATIC_ASSERT(false, "__atomic_signal_fence not supported by this compiler");
 #endif
 #else
-	CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
+		CORIUM_STATIC_ASSERT(false, "__has_builtin not available");
 #endif
 #else
-	CORIUM_STATIC_ASSERT(false, "Unsupported write barrier in this environment");
-	CORIUM_UNREACHABLE();
+		CORIUM_STATIC_ASSERT(false, "Unsupported write barrier in this environment");
+		CORIUM_UNREACHABLE();
 #endif
-}
+	}
 
-template<typename T>
-struct ValidAtomicParameter final {
-	using Type = T;
-	CORIUM_STATIC_ASSERT(
-		std::is_trivially_copyable_v<Type>,
-		"Unsupported atomic nature: type must be trivially copyable."
-	);
+	template<typename T>
+	struct ValidAtomicParameter final {
+		using Type = T;
+		CORIUM_STATIC_ASSERT(
+			std::is_trivially_copyable_v<Type>,
+			"Unsupported atomic nature: type must be trivially copyable."
+		);
 
-	CORIUM_STATIC_ASSERT(
-		!std::is_const_v<Type>,
-		"Unsupported atomic nature: atomic type must not be const-qualified."
-	);
+		CORIUM_STATIC_ASSERT(
+			!std::is_const_v<Type>,
+			"Unsupported atomic nature: atomic type must not be const-qualified."
+		);
 
-	CORIUM_STATIC_ASSERT(
-		!std::is_volatile_v<Type>,
-		"Unsupported atomic nature: atomic type must not be volatile-qualified."
-	);
-};
+		CORIUM_STATIC_ASSERT(
+			!std::is_volatile_v<Type>,
+			"Unsupported atomic nature: atomic type must not be volatile-qualified."
+		);
+	};
 
-// Moving on to a wall of macros, fuck!!
+		// Moving on to a wall of macros, fuck!!
 
-// ============================================================================
-// AtomicLoad
-//
-// Atomically reads the value stored at the target address.
-//
-// Guarantees that the value is read as a single, indivisible operation
-// even in the presence of concurrent writers.
-//
-// Does not modify the stored value.
-// ============================================================================
+		// ============================================================================
+		// AtomicLoad
+		//
+		// Atomically reads the value stored at the target address.
+		//
+		// Guarantees that the value is read as a single, indivisible operation
+		// even in the presence of concurrent writers.
+		//
+		// Does not modify the stored value.
+		// ============================================================================
 
 #ifndef AtomicLoad_Relaxed
-#define AtomicLoad_Relaxed
 #if CORIUM_COMPILER_MSVC
 #define AtomicLoad_Relaxed(p_Ptr) \
     (*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr))
@@ -283,7 +280,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicLoad_Acquire
-#define AtomicLoad_Acquire
 #if CORIUM_COMPILER_MSVC
 #define AtomicLoad_Acquire(p_Ptr) \
     (*reinterpret_cast<volatile std::remove_pointer_t<decltype(p_Ptr)>*>(p_Ptr))
@@ -304,7 +300,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicLoad_Consume
-#define AtomicLoad_Consume
 #if CORIUM_COMPILER_MSVC
 	/* CONSUME collapses to ACQUIRE */
 #define AtomicLoad_Consume(p_Ptr) \
@@ -325,7 +320,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicLoad_SeqCst
-#define AtomicLoad_SeqCst
 #if CORIUM_COMPILER_MSVC
 	/*
 	 * MSVC x64 has no standalone seq_cst load.
@@ -363,7 +357,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicStore_Relaxed
-#define AtomicStore_Relaxed
 #if CORIUM_COMPILER_MSVC
 
 #define AtomicStore_Relaxed(p_Ptr, v_Value)		  \
@@ -383,7 +376,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicStore_Release
-#define AtomicStore_Release
 #if CORIUM_COMPILER_MSVC
 
 #define AtomicStore_Release(p_Ptr, v_Value)		  \
@@ -403,7 +395,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicStore_SeqCst
-#define AtomicStore_SeqCst
 #if CORIUM_COMPILER_MSVC
 /*
 * MSVC x64 has no standalone seq_cst store.
@@ -439,7 +430,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicExchange32_Relaxed
-#define AtomicExchange32_Relaxed
 #if CORIUM_COMPILER_MSVC
 #define AtomicExchange32_Relaxed(p_Ptr, v_Value) \
 		_InterlockedExchange((p_Ptr), (v_Value))
@@ -457,7 +447,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicExchange64_Relaxed
-#define AtomicExchange64_Relaxed
 #if CORIUM_COMPILER_MSVC
 #define AtomicExchange64_Relaxed(p_Ptr, v_Value) \
 		_InterlockedExchange64((p_Ptr), (v_Value))
@@ -475,7 +464,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicExchange32_AcqRel
-#define AtomicExchange32_AcqRel
 #if CORIUM_COMPILER_MSVC
 #define AtomicExchange32_AcqRel(p_Ptr, v_Value) \
 		_InterlockedExchange((p_Ptr), (v_Value))
@@ -493,7 +481,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicExchange64_AcqRel
-#define AtomicExchange64_AcqRel
 #if CORIUM_COMPILER_MSVC
 #define AtomicExchange64_AcqRel(p_Ptr, v_Value) \
 		_InterlockedExchange64((p_Ptr), (v_Value))
@@ -511,7 +498,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicExchange32_SeqCst
-#define AtomicExchange32_SeqCst
 #if CORIUM_COMPILER_MSVC
 #define AtomicExchange32_SeqCst(p_Ptr, v_Value) \
 		_InterlockedExchange((p_Ptr), (v_Value))
@@ -529,7 +515,6 @@ struct ValidAtomicParameter final {
 #endif
 
 #ifndef AtomicExchange64_SeqCst
-#define AtomicExchange64_SeqCst
 #if CORIUM_COMPILER_MSVC
 #define AtomicExchange64_SeqCst(p_Ptr, v_Value) \
 		_InterlockedExchange64((p_Ptr), (v_Value))
@@ -559,7 +544,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicCompareExchange32
-#define AtomicCompareExchange32
 #if CORIUM_COMPILER_MSVC
 #define AtomicCompareExchange32(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         _InterlockedCompareExchange((p_Ptr), (desired), *(expected))
@@ -636,7 +620,6 @@ struct ValidAtomicParameter final {
         AtomicCompareExchange32((p_Ptr), (expected), (desired), (weak), __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 
 #ifndef AtomicCompareExchange64
-#define AtomicCompareExchange64
 #if CORIUM_COMPILER_MSVC
 #define AtomicCompareExchange64(p_Ptr, expected, desired, weak, success_memOrder, failure_memOrder) \
         _InterlockedCompareExchange64((p_Ptr), (desired), *(expected))
@@ -723,7 +706,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicFetchAdd32
-#define AtomicFetchAdd32
 #if CORIUM_COMPILER_MSVC
 #define AtomicFetchAdd32(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd((p_Ptr), (v_Value))
@@ -760,7 +742,6 @@ struct ValidAtomicParameter final {
         AtomicFetchAdd32((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
 #ifndef AtomicFetchAdd64
-#define AtomicFetchAdd64
 #if CORIUM_COMPILER_MSVC
 #define AtomicFetchAdd64(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd64((p_Ptr), (v_Value))
@@ -807,7 +788,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicAddFetch32
-#define AtomicAddFetch32
 #if CORIUM_COMPILER_MSVC
 #define AtomicAddFetch32(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd((p_Ptr), (v_Value)) + (v_Value)
@@ -844,7 +824,6 @@ struct ValidAtomicParameter final {
         AtomicAddFetch32((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
 #ifndef AtomicAddFetch64
-#define AtomicAddFetch64
 #if CORIUM_COMPILER_MSVC
 #define AtomicAddFetch64(p_Ptr, v_Value, memOrder) \
         _InterlockedExchangeAdd64((p_Ptr), (v_Value)) + (v_Value)
@@ -891,7 +870,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicIncrement32
-#define AtomicIncrement32
 #if CORIUM_COMPILER_MSVC
 #define AtomicIncrement32(p_Ptr, memOrder) \
         _InterlockedIncrement((p_Ptr))
@@ -928,7 +906,6 @@ struct ValidAtomicParameter final {
         AtomicIncrement32((p_Ptr), __ATOMIC_SEQ_CST)
 
 #ifndef AtomicDecrement32
-#define AtomicDecrement32
 #if CORIUM_COMPILER_MSVC
 #define AtomicDecrement32(p_Ptr, memOrder) \
         _InterlockedDecrement((p_Ptr))
@@ -965,7 +942,6 @@ struct ValidAtomicParameter final {
         AtomicDecrement32((p_Ptr), __ATOMIC_SEQ_CST)
 
 #ifndef AtomicIncrement64
-#define AtomicIncrement64
 #if CORIUM_COMPILER_MSVC
 #define AtomicIncrement64(p_Ptr, memOrder) \
         _InterlockedIncrement64((p_Ptr))
@@ -1012,7 +988,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicDecrement64
-#define AtomicDecrement64
 #if CORIUM_COMPILER_MSVC
 #define AtomicDecrement64(p_Ptr, memOrder) \
         _InterlockedDecrement64((p_Ptr))
@@ -1060,7 +1035,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicFetchAnd
-#define AtomicFetchAnd
 #if CORIUM_COMPILER_MSVC
 #define AtomicFetchAnd(p_Ptr, v_Value, memOrder) \
         _InterlockedAnd((p_Ptr), (v_Value))
@@ -1108,7 +1082,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicFetchOr
-#define AtomicFetchOr
 #if CORIUM_COMPILER_MSVC
 #define AtomicFetchOr(p_Ptr, v_Value, memOrder) \
         _InterlockedOr((p_Ptr), (v_Value))
@@ -1156,7 +1129,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicFetchXor
-#define AtomicFetchXor
 #if CORIUM_COMPILER_MSVC
 #define AtomicFetchXor(p_Ptr, v_Value, memOrder) \
         _InterlockedXor((p_Ptr), (v_Value))
@@ -1204,7 +1176,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicFetchNand
-#define AtomicFetchNand
 #if CORIUM_COMPILER_MSVC
 #define AtomicFetchNand(p_Ptr, v_Value, memOrder) \
         _InterlockedNand((p_Ptr), (v_Value))
@@ -1252,7 +1223,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicMinFetchLong
-#define AtomicMinFetchLong
 #if CORIUM_COMPILER_MSVC
 #define AtomicMinFetchLong(p_Ptr, v_Value, memOrder) \
         _InterlockedMin((p_Ptr), (v_Value))
@@ -1300,7 +1270,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicMaxFetchLong
-#define AtomicMaxFetchLong
 #if CORIUM_COMPILER_MSVC
 #define AtomicMaxFetchLong(p_Ptr, v_Value, memOrder) \
         _InterlockedMax((p_Ptr), (v_Value))
@@ -1346,7 +1315,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicMinFetchULong
-#define AtomicMinFetchULong
 #if CORIUM_COMPILER_MSVC
 #define AtomicMinFetchULong(p_Ptr, v_Value, memOrder) \
         _InterlockedUMin((p_Ptr), (v_Value))
@@ -1392,7 +1360,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicMaxFetchULong
-#define AtomicMaxFetchULong
 #if CORIUM_COMPILER_MSVC
 #define AtomicMaxFetchULong(p_Ptr, v_Value, memOrder) \
         _InterlockedUMax((p_Ptr), (v_Value))
@@ -1438,7 +1405,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicTestAndSet
-#define AtomicTestAndSet
 #if CORIUM_COMPILER_MSVC
 #define AtomicTestAndSet(p_Ptr, bit, memOrder) \
         _InterlockedBitTestAndSet((p_Ptr), (bit))
@@ -1483,7 +1449,6 @@ struct ValidAtomicParameter final {
 	// ============================================================================
 
 #ifndef AtomicClear
-#define AtomicClear
 #if CORIUM_COMPILER_MSVC
 #define AtomicClear(p_Ptr, bit, memOrder) \
         _InterlockedBitTestAndReset((p_Ptr), (bit))

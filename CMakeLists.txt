@@ -24,6 +24,9 @@
     # Compile options
 target_compile_definitions(Corium PRIVATE
     CORIUM_SHARED
+)
+
+target_compile_definitions(Corium PUBLIC
     CORIUM_VA_ALLOCATION=32756
 )
 

@@ -51,10 +51,10 @@ namespace Corium::Core::Utils {
 
         template<typename L>
             requires (!std::is_same_v<std::remove_cvref_t<L>, ClosureFunction>)
-        ClosureFunction(L&& lambda, const AllocatorType& allocator) {
+        ClosureFunction(L&& lambda, AllocatorType* allocator) {
             using LambdaT = std::decay_t<L>;
 
-            LambdaT* stored = allocator.template allocate<LambdaT>(
+            LambdaT* stored = allocator->template emplace<LambdaT>(
                 std::forward<L>(lambda)
             );
 
