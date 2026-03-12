@@ -131,7 +131,7 @@ namespace Corium::Memory::Internal {
 	// 3 million different VA slices, what the fuck?!
 
 	using namespace Corium::Memory::Literals;
-	inline constexpr Bytes g_TotalVA = CORIUM_VA_ALLOCATION * 1_MiB;
+	constexpr Bytes g_TotalVA = CORIUM_VA_ALLOCATION * 1_MiB;
 
 	constexpr Bytes NullGuardSize = Bytes{ 2_MiB };
 	constexpr Bytes SectionGuardSize = Bytes{ 2_MiB };
@@ -143,100 +143,110 @@ namespace Corium::Memory::Internal {
 	constexpr Bytes TaskMetadataVASize = Bytes{ 8_GiB };
 	constexpr Bytes TaskPayloadVASize = Bytes{ 14_GiB };
 
+	constexpr Bytes ReservedVASize = g_TotalVA
+		- NullGuardSize          // upper null guard
+		- RuntimeVASize
+		- SectionGuardSize       // runtime guard
+		- TaskMetadataVASize
+		- SectionGuardSize       // task metadata guard
+		- TaskPayloadVASize
+		- SectionGuardSize       // task payload guard
+		- NullGuardSize;         // lower null guard
+
 
 	// -------------------------------------------------------------------------
 	// Global VA state
 	// -------------------------------------------------------------------------
 
-	inline VirtualSegment g_GlobalMemoryHeaderMemory;
-	inline VARegionSlicer g_GlobalVA;
+	extern VirtualSegment g_GlobalMemoryHeaderMemory;
+	extern VARegionSlicer g_GlobalVA;
 
 	// -------------------------------------------------------------------------
 	// Top-level VA regions		(DO NOT TOUCH!)
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_UpperNullGuard;
-	inline VARegion g_RuntimeVA;
-	inline VARegion g_RuntimeGuard;
-	inline VARegion g_TaskMetadataVA;
-	inline VARegion g_TaskMetadataGuard;
-	inline VARegion g_TaskPayloadVA;
-	inline VARegion g_TaskPayloadGuard;
-	inline VARegion g_ReservedVA;
-	inline VARegion g_LowerNullGuard;
+	extern VARegion g_UpperNullGuard;
+	extern VARegion g_RuntimeVA;
+	extern VARegion g_RuntimeGuard;
+	extern VARegion g_TaskMetadataVA;
+	extern VARegion g_TaskMetadataGuard;
+	extern VARegion g_TaskPayloadVA;
+	extern VARegion g_TaskPayloadGuard;
+	extern VARegion g_ReservedVA;
+	extern VARegion g_LowerNullGuard;
 
 	// -------------------------------------------------------------------------
 	// Runtime / Infra VA sub-regions
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_ClosureRange;
-	inline VARegion g_ClosureGuard;
-	inline VARegion g_SmartPtrControlBlocks;
-	inline VARegion g_SmartPtrGuard;
-	inline VARegion g_RuntimeCoreObjects;
+	extern VARegion g_ClosureRange;
+	extern VARegion g_ClosureGuard;
+	extern VARegion g_SmartPtrControlBlocks;
+	extern VARegion g_SmartPtrGuard;
+	extern VARegion g_RuntimeCoreObjects;
 
 	// -------------------------------------------------------------------------
 	// TaskMetadata VA - Level 1 sections
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_TaskObjectLocations;
-	inline VARegion g_ObjectLocationsGuard;
+	extern VARegion g_TaskObjectLocations;
+	extern VARegion g_ObjectLocationsGuard;
 
-	inline VARegion g_TaskInputLayouts;
-	inline VARegion g_InputLayoutsGuard;
+	extern VARegion g_TaskInputLayouts;
+	extern VARegion g_InputLayoutsGuard;
 
-	inline VARegion g_TaskOutputLayouts;
+	extern VARegion g_TaskOutputLayouts;
 
 	// -------------------------------------------------------------------------
 	// TaskMetadata VA - Object Locations (typed ranges)
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_TaskMemoryDescRange;
-	inline VARegion g_TaskMemoryDescGuard;
+	extern VARegion g_TaskMemoryDescRange;
+	extern VARegion g_TaskMemoryDescGuard;
 
-	inline VARegion g_TaskMemoryHeaderRange;
-	inline VARegion g_TaskMemoryHeaderGuard;
+	extern VARegion g_TaskMemoryHeaderRange;
+	extern VARegion g_TaskMemoryHeaderGuard;
 
-	inline VARegion g_TaskContextRange;
-	inline VARegion g_TaskContextGuard;
+	extern VARegion g_TaskContextRange;
+	extern VARegion g_TaskContextGuard;
 
-	inline VARegion g_TaskSliceContextRange;
-	inline VARegion g_TaskSliceContextGuard;
+	extern VARegion g_TaskSliceContextRange;
+	extern VARegion g_TaskSliceContextGuard;
 
-	inline VARegion g_GPUContextRange;
-	inline VARegion g_GPUContextGuard;
+	extern VARegion g_GPUContextRange;
+	extern VARegion g_GPUContextGuard;
 
-	inline VARegion g_ObjectLocationSpare;
+	extern VARegion g_ObjectLocationSpare;
 
 	// -------------------------------------------------------------------------
 	// TaskMetadata VA - Input Layouts (typed ranges)
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_InputSizeArrays;
-	inline VARegion g_InputSizeGuard;
+	extern VARegion g_InputSizeArrays;
+	extern VARegion g_InputSizeGuard;
 
-	inline VARegion g_InputAlignmentArrays;
-	inline VARegion g_InputAlignmentGuard;
+	extern VARegion g_InputAlignmentArrays;
+	extern VARegion g_InputAlignmentGuard;
 
-	inline VARegion g_InputLayoutSpare;
+	extern VARegion g_InputLayoutSpare;
 
 	// -------------------------------------------------------------------------
 	// TaskMetadata VA - Output Layouts (typed ranges)
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_OutputSizeArrays;
-	inline VARegion g_OutputSizeGuard;
+	extern VARegion g_OutputSizeArrays;
+	extern VARegion g_OutputSizeGuard;
 
-	inline VARegion g_OutputAlignmentArrays;
-	inline VARegion g_OutputAlignmentGuard;
+	extern VARegion g_OutputAlignmentArrays;
+	extern VARegion g_OutputAlignmentGuard;
 
-	inline VARegion g_OutputLayoutSpare;
+	extern VARegion g_OutputLayoutSpare;
 
 	// -------------------------------------------------------------------------
 	// Task Payload VA
 	// -------------------------------------------------------------------------
 
-	inline VARegion g_TaskPayloadArena;
+	extern VARegion g_TaskPayloadArena;
 
 	// -------------------------------------------------------------------------
 	// Initialization
@@ -251,274 +261,5 @@ namespace Corium::Memory::Internal {
 	struct alignas(64) GPUContextHeader final {};
 
 	// Call this, or ur life be fucked hard
-
-	CORIUM_FORCEINLINE bool init() {
-
-		// ==============================================================================
-		//                     CORIUM VIRTUAL ADDRESS SPACE HIERARCHY
-		// ==============================================================================
-		//
-		// GLOBAL VA (32 GiB reserved)
-		// |
-		// |  UPPER NULL GUARD (2 MiB)
-		// |
-		// |- RUNTIME / INFRASTRUCTURE VA (~6 GiB)
-		// |  |
-		// |  |- ClosureRange
-		// |  |    - ClosureFunction objects
-		// |  |    - 3 closures per task (startup / body / shutdown)
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- SmartPtrControlBlocks (2 GiB)
-		// |  |    - shared_ptr / intrusive control blocks
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- RuntimeCoreObjects
-		// |       - schedulers
-		// |       - executors
-		// |       - pools
-		// |       - global allocators
-		// |
-		// |- RUNTIME GUARD (2 MiB)
-		// |
-		// |- TASK METADATA VA (~8 GiB)
-		// |  |
-		// |  |- Object Locations (3 GiB)
-		// |  |  |
-		// |  |  |- TaskMemoryDescRange
-		// |  |  |    - task memory descriptors
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- TaskMemoryHeaderRange
-		// |  |  |    - task memory ownership metadata
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- TaskContextRange
-		// |  |  |    - runtime execution context
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- TaskSliceContextRange
-		// |  |  |    - slice execution state
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- GPUContextRange
-		// |  |  |    - GPU execution state
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- ObjectLocationSpare
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- Input Layouts (3 GiB)
-		// |  |  |
-		// |  |  |- InputSizeArrays
-		// |  |  |    - input size metadata
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- InputAlignmentArrays
-		// |  |  |    - input alignment metadata
-		// |  |  |
-		// |  |  |- Guard (2 MiB)
-		// |  |  |
-		// |  |  |- InputLayoutSpare
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- Output Layouts
-		// |     |
-		// |     |- OutputSizeArrays
-		// |     |    - output size metadata
-		// |     |
-		// |     |- Guard (2 MiB)
-		// |     |
-		// |     |- OutputAlignmentArrays
-		// |     |    - output alignment metadata
-		// |     |
-		// |     |- Guard (2 MiB)
-		// |     |
-		// |     |- OutputLayoutSpare
-		// |
-		// |- TASK METADATA GUARD (2 MiB)
-		// |
-		// |- TASK PAYLOAD VA (~14 GiB)
-		// |  |
-		// |  |- TaskPayloadArena
-		// |       - task payload buffers
-		// |       - input/output data
-		// |       - reductions
-		// |       - GPU-visible payload
-		// |
-		// |- TASK PAYLOAD GUARD (2 MiB)
-		// |
-		// |- RESERVED / FUTURE VA (~4 GiB)
-		// |  - GPU staging / DMA
-		// |  - NUMA mirroring
-		// |  - sanitizer / shadow memory
-		// |  - RDMA / remote memory
-		// |
-		// |- LOWER NULL GUARD (2 MiB)
-		//
-		// ==============================================================================
-		// Design Notes
-		// ------------------------------------------------------------------------------
-		// - Entire runtime lives in a single reserved VA block.
-		// - Subsystems are partitioned into deterministic regions.
-		// - 2 MiB guard regions detect linear memory overruns.
-		// - Task metadata uses structure-of-arrays layout for cache efficiency.
-		// - Payload memory is isolated from metadata to prevent corruption.
-		// - All regions are sliced once at startup and never moved.
-		// ==============================================================================
-
-		g_GlobalMemoryHeaderMemory = VirtualMemory::virtualAlloc(g_GlobalMemoryHeaderMemory,g_TotalVA,
-				MemoryOperation::Reserve);
-
-		g_GlobalVA = VARegionSlicer{ g_GlobalMemoryHeaderMemory };
-
-		// --- Top-level VA ----------------------------------------------------
-
-		g_UpperNullGuard = g_GlobalVA.slice(NullGuardSize);
-
-		g_RuntimeVA = g_GlobalVA.slice(RuntimeVASize);
-		g_RuntimeGuard = g_GlobalVA.slice(SectionGuardSize);
-
-		g_TaskMetadataVA = g_GlobalVA.slice(TaskMetadataVASize);
-		g_TaskMetadataGuard = g_GlobalVA.slice(SectionGuardSize);
-
-		g_TaskPayloadVA = g_GlobalVA.slice(TaskPayloadVASize);
-		g_TaskPayloadGuard = g_GlobalVA.slice(SectionGuardSize);
-
-		g_ReservedVA = g_GlobalVA.slice(g_GlobalVA.remaining());
-		g_LowerNullGuard = g_GlobalVA.slice(NullGuardSize);
-
-		// --- Runtime VA ------------------------------------------------------
-
-		{
-			VARegionSlicer slicer{ g_RuntimeVA };
-
-			g_ClosureRange = slicer.slice(Bytes{ MaxTasks * 3 * 256 });
-			g_ClosureGuard = slicer.slice(SectionGuardSize);
-
-			g_SmartPtrControlBlocks = slicer.slice(Bytes{ 2_GiB });
-			g_SmartPtrGuard = slicer.slice(SectionGuardSize);
-
-			g_RuntimeCoreObjects = slicer.slice(slicer.remaining());
-		}
-
-		// --- TaskMetadata VA -------------------------------------------------
-
-		{
-			VARegionSlicer meta{ g_TaskMetadataVA };
-
-			g_TaskObjectLocations = meta.slice(Bytes{ 3_GiB });
-			g_ObjectLocationsGuard = meta.slice(SectionGuardSize);
-
-			g_TaskInputLayouts = meta.slice(Bytes{ 3_GiB });
-			g_InputLayoutsGuard = meta.slice(SectionGuardSize);
-
-			g_TaskOutputLayouts = meta.slice(meta.remaining());
-		}
-
-		// --- Object Locations ------------------------------------------------
-
-		{
-			VARegionSlicer obj{ g_TaskObjectLocations };
-
-			g_TaskMemoryDescRange =obj.slice(Bytes{ MaxTasks * sizeof(TaskMemoryDescHeader) });
-			g_TaskMemoryDescGuard = obj.slice(SectionGuardSize);
-
-			g_TaskMemoryHeaderRange =obj.slice(Bytes{ MaxTasks * sizeof(TaskMemoryHeader) });
-			g_TaskMemoryHeaderGuard = obj.slice(SectionGuardSize);
-
-			g_TaskContextRange =obj.slice(Bytes{ MaxTasks * sizeof(TaskContextHeader) });
-			g_TaskContextGuard = obj.slice(SectionGuardSize);
-
-			g_TaskSliceContextRange =obj.slice(Bytes{ MaxTasks * sizeof(TaskSliceContextHeader) });
-			g_TaskSliceContextGuard = obj.slice(SectionGuardSize);
-
-			g_GPUContextRange =obj.slice(Bytes{ MaxTasks * sizeof(GPUContextHeader) });
-			g_GPUContextGuard = obj.slice(SectionGuardSize);
-
-			g_ObjectLocationSpare = obj.slice(obj.remaining());
-		}
-
-		// --- Input Layouts ---------------------------------------------------
-
-		{
-			VARegionSlicer in{ g_TaskInputLayouts };
-
-			g_InputSizeArrays =in.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-			g_InputSizeGuard = in.slice(SectionGuardSize);
-
-			g_InputAlignmentArrays =in.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-			g_InputAlignmentGuard = in.slice(SectionGuardSize);
-
-			g_InputLayoutSpare =in.slice(in.remaining());
-		}
-
-		// --- Output Layouts --------------------------------------------------
-
-		{
-			VARegionSlicer out{ g_TaskOutputLayouts };
-
-			g_OutputSizeArrays =out.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-			g_OutputSizeGuard = out.slice(SectionGuardSize);
-
-			g_OutputAlignmentArrays = out.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-			g_OutputAlignmentGuard = out.slice(SectionGuardSize);
-			g_OutputLayoutSpare = out.slice(out.remaining());
-		}
-
-		// --- Payload VA ------------------------------------------------------
-
-		{
-			VARegionSlicer payload{ g_TaskPayloadVA };
-			g_TaskPayloadArena = payload.slice(payload.remaining());
-		}
-
-		// -----------------------------------------------------------------------------
-		// Lock all guard regions (NO ACCESS)
-		// -----------------------------------------------------------------------------
-
-		// Only if there was a for loop
-
-		// Top-level guards
-		lockGuard(g_UpperNullGuard);
-		lockGuard(g_RuntimeGuard);
-		lockGuard(g_TaskMetadataGuard);
-		lockGuard(g_TaskPayloadGuard);
-		lockGuard(g_LowerNullGuard);
-
-		// Runtime / Infra VA guards
-		lockGuard(g_ClosureGuard);
-		lockGuard(g_SmartPtrGuard);
-
-		// TaskMetadata VA - level 1 guards
-		lockGuard(g_ObjectLocationsGuard);
-		lockGuard(g_InputLayoutsGuard);
-
-		// TaskMetadata VA - Object Locations guards
-		lockGuard(g_TaskMemoryDescGuard);
-		lockGuard(g_TaskMemoryHeaderGuard);
-		lockGuard(g_TaskContextGuard);
-		lockGuard(g_TaskSliceContextGuard);
-		lockGuard(g_GPUContextGuard);
-
-		// TaskMetadata VA - Input Layout guards
-		lockGuard(g_InputSizeGuard);
-		lockGuard(g_InputAlignmentGuard);
-
-		// TaskMetadata VA - Output Layout guards
-		lockGuard(g_OutputSizeGuard);
-		lockGuard(g_OutputAlignmentGuard);
-
-		return true;
-	}
+	CORIUM_RUNTIME_API bool init();
 }

@@ -5,33 +5,34 @@
 #include <CoriumSyscalls.h>
 
 namespace Corium::Memory {
-		VirtualSegment VirtualMemory::virtualAlloc(VirtualSegment& segment, Bytes v_Size, MemoryOperation v_Operation) {
-	#if defined(CORIYM_DEBUG)
-			CORIUM_ASSERT(v_Size > 0);
-	#endif
-			v_Size = alignToPage(v_Size);
-	#if defined(_WIN32)
-			switch (v_Operation) {
-			case MemoryOperation::Reserve:
-				{
-					if (segment.isValid())return INVALID_SEGMENT;
-					void* p = VirtualAlloc(nullptr, v_Size, MEM_RESERVE, PAGE_NOACCESS);
-					return p ? VirtualSegment{ p, v_Size, 0 } : INVALID_SEGMENT;
-				}
-			case MemoryOperation::Commit:
-				{
-					if (!segment.isValid())return INVALID_SEGMENT;
-					if (segment.v_CommittedSize + v_Size > segment.v_TotalSize)return INVALID_SEGMENT;
-
-					void* p = VirtualAlloc(static_cast<std::byte*>(segment.m_Memory) + segment.v_CommittedSize, v_Size, MEM_COMMIT, PAGE_READWRITE);
-					if (!p)return INVALID_SEGMENT;
-					segment.v_CommittedSize += v_Size;
-					return segment;
-				}
-			default:return INVALID_SEGMENT;
+	VirtualSegment VirtualMemory::virtualAlloc(VirtualSegment& segment, Bytes v_Size, MemoryOperation v_Operation) {
+#ifdef CORIYM_DEBUG
+		CORIUM_ASSERT(v_Size > 0);
+#endif
+		v_Size = alignToPage(v_Size);
+#ifdef _WIN32
+		switch (v_Operation) {
+		case MemoryOperation::Reserve:
+			{
+				if (segment.isValid())return INVALID_SEGMENT;
+				void* p = VirtualAlloc(nullptr, v_Size, MEM_RESERVE, PAGE_NOACCESS);
+				return p ? VirtualSegment{ p, v_Size, 0 } : INVALID_SEGMENT;
 			}
+		case MemoryOperation::Commit:
+			{
+				if (!segment.isValid())return INVALID_SEGMENT;
+				if (segment.v_CommittedSize + v_Size > segment.v_TotalSize)return INVALID_SEGMENT;
 
-	#elif defined(__linux__)
+				void* p = VirtualAlloc(static_cast<std::byte*>(segment.m_Memory) + segment.v_CommittedSize, v_Size, MEM_COMMIT, PAGE_READWRITE);
+				if (!p)return INVALID_SEGMENT;
+				segment.v_CommittedSize += v_Size;
+				return segment;
+			}
+		case MemoryOperation::Decommit:
+		case MemoryOperation::Free: return INVALID_SEGMENT;
+		}
+		CORIUM_UNREACHABLE();
+#elif defined(__linux__)
 
 		switch (v_Operation) {
 		case MemoryOperation::Reserve:
@@ -52,9 +53,10 @@ namespace Corium::Memory {
 				segment.v_CommittedSize += v_Size;
 				return segment;
 			}
-		default:return INVALID_SEGMENT;
+		case MemoryOperation::Decommit:
+		case MemoryOperation::Free: return INVALID_SEGMENT;
 		}
-
+		CORIUM_UNREACHABLE();
 #else
 		CORIUM_UNREACHABLE();
 #endif
@@ -66,12 +68,12 @@ namespace Corium::Memory {
 		MemoryOperation v_Operation
 	) {
 		if (!segment.isValid()) return false;
-#if defined(CORIYM_DEBUG)
+#ifdef CORIYM_DEBUG
 		CORIUM_ASSERT(v_Size > 0);
 #endif
 		v_Size = alignToPage(v_Size);
 
-#if defined(_WIN32)
+#ifdef _WIN32
 
 		switch (v_Operation) {
 		case MemoryOperation::Decommit:
@@ -96,9 +98,10 @@ namespace Corium::Memory {
 				return ok;
 			}
 
-		default:
-			return false;
+		case MemoryOperation::Commit:
+		case MemoryOperation::Reserve: return false;
 		}
+		CORIUM_UNREACHABLE();
 
 #elif defined(__linux__)
 
@@ -127,27 +130,47 @@ namespace Corium::Memory {
 				return ok;
 			}
 
-		default:
-			return false;
+		case MemoryOperation::Commit:
+		case MemoryOperation::Reserve: return false;
 		}
-
+		CORIUM_UNREACHABLE();
 #else
 		CORIUM_UNREACHABLE();
 #endif
 	}
 
-	bool VirtualMemory::lockMem(const VirtualSegment& segment) {
+	bool VirtualMemory::protectMem(const VirtualSegment& segment) {
 		if (!segment.isValid() || segment.v_CommittedSize != 0)
 			return false;
 
-#if defined(_WIN32)
-		return VirtualLock(segment.m_Memory, segment.v_TotalSize);
-
+#ifdef _WIN32
+		DWORD old;
+		return VirtualProtect(segment.m_Memory, segment.v_TotalSize, PAGE_NOACCESS, &old) != 0;
 #elif defined(__linux__)
-		return mlock(segment.m_Memory, segment.v_CommittedSize) == 0;
-
+		return mprotect(segment.m_Memory, segment.v_TotalSize, PROT_NONE) == 0;
 #else
 		CORIUM_UNREACHABLE();
+#endif
+	}
+
+	bool VirtualMemory::unprotectMem(const VirtualSegment& segment) {
+#ifdef _WIN32
+		DWORD old;
+		return VirtualProtect(segment.m_Memory, segment.v_TotalSize, PAGE_READWRITE, &old) != 0;
+#elif defined(__linux__)
+		return mprotect(segment.m_Memory, segment.v_TotalSize, PROT_READ | PROT_WRITE) == 0;
+#else
+		return false;
+#endif
+	}
+
+	bool VirtualMemory::lockMem(const VirtualSegment& segment) {
+#ifdef _WIN32
+		return VirtualLock(segment.m_Memory, segment.v_CommittedSize) != 0;
+#elif defined(__linux__)
+		return mlock(segment.m_Memory, segment.v_CommittedSize) == 0;
+#else
+		return false;
 #endif
 	}
 
@@ -155,7 +178,7 @@ namespace Corium::Memory {
 		if (!segment.isValid() || segment.v_CommittedSize == 0)
 			return false;
 
-#if defined(_WIN32)
+#ifdef _WIN32
 		return VirtualUnlock(segment.m_Memory, segment.v_CommittedSize);
 
 #elif defined(__linux__)
@@ -167,10 +190,10 @@ namespace Corium::Memory {
 	}
 
 	MemState VirtualMemory::queryPage(const VirtualSegment& segment, Bytes v_Offset) {
-#if defined(CORIUM_DEBUG)
+#ifdef CORIUM_DEBUG
 		CORIUM_ASSERT(v_Offset < segment.v_TotalSize);
 #endif
-#if defined (_WIN32)
+#ifdef _WIN32
 		MEMORY_BASIC_INFORMATION memInfo;
 		void* offsetMem = static_cast<std::byte*>(segment.m_Memory) + v_Offset;
 		VirtualQuery(offsetMem, &memInfo, sizeof(MEMORY_BASIC_INFORMATION));

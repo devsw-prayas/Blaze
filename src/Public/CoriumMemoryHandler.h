@@ -3,7 +3,7 @@
 #include "EngineAllocators.h"
 
 namespace Corium::Memory::Internal {
-	struct CORIUM_RUNTIME_API AllocatorRegistry final {
+	struct CORIUM_RUNTIME_API	AllocatorRegistry final {
 		~AllocatorRegistry() = delete;
 		AllocatorRegistry(const AllocatorRegistry&) = delete;
 		AllocatorRegistry(AllocatorRegistry&&) noexcept = delete;
