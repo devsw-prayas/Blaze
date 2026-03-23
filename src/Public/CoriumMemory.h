@@ -247,16 +247,4 @@ namespace Corium::Memory {
 	CORIUM_FORCEINLINE VirtualSegment createSegment(const Internal::VARegion& ro_Region) noexcept {
 		return { ro_Region.m_Base, ro_Region.m_Size, 0 };
 	}
-
-	template<typename T>
-	struct CORIUM_RUNTIME_API alignas(8) SharedPtr final {
-	};
-
-	template<typename T>
-	struct CORIUM_RUNTIME_API alignas(8) WeakPtr final {
-	};
-
-	template<typename T>
-	struct CORIUM_RUNTIME_API alignas(8) UniquePtr final {
-	};
 }

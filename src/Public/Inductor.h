@@ -3,6 +3,7 @@
 
 #include "CoriumTraits.h"
 #include <CoriumMemory.h>
+#include "CoriumPointers.h"
 
 namespace Corium::Execution::Inductor {
 

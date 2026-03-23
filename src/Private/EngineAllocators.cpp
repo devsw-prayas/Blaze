@@ -2,8 +2,8 @@
 #include "EngineAllocators.h"
 
 namespace Corium::Memory::Allocators {
-	void* BumpAllocatorBase::allocate(size_t v_Bytes, size_t v_Align) noexcept {
-		if (!m_Base.isValid() || v_Bytes == 0 || v_Align == 0) return nullptr;
+	void* BumpAllocator::allocateImpl(size_t v_Bytes, size_t v_Align) noexcept {
+		if (!m_Base->isValid() || v_Bytes == 0 || v_Align == 0) return nullptr;
 
 		CORIUM_ASSERT((v_Align & (v_Align - 1)) == 0);
 
@@ -20,12 +20,16 @@ namespace Corium::Memory::Allocators {
 				next,
 				Core::Atomics::MemoryOrder::RELEASE,
 				Core::Atomics::MemoryOrder::RELAXED)) {
-				if (Memory::VirtualMemory::commitPageIfNeeded(m_Base, next)) {
-					m_Base.v_CommittedSize = alignUp(next, PAGE_SIZE);
-					return static_cast<std::byte*>(m_Base.m_Memory) + aligned;
+				if (Memory::VirtualMemory::commitPageIfNeeded(*m_Base, next)) {
+					m_Base->v_CommittedSize = alignUp(next, PAGE_SIZE);
+					return static_cast<std::byte*>(m_Base->m_Memory) + aligned;
 				}
 				return nullptr;
 			}
 		}
+	}
+
+	void* BumpAllocator::allocateImpl(size_t v_Bytes) noexcept {
+		return allocateImpl(v_Bytes, 0);
 	}
 }

@@ -22,12 +22,36 @@
 #include <Corium.h>
 #include <CoriumUtility.h>
 
+#include "AtomicVariable.h"
+#include "EngineAllocators.h"
+#include "CoriumMemoryHandler.h"
+
 namespace Corium::Core {
 	struct Allocator {};
 
+	template<typename S>
+	using Closure = Utils::ClosureFunction<Memory::Allocators::ClosureAllocator, S>;
+
+	template<typename S, typename F>
+	Closure<S> createClosure(F&& u_Func) {
+		return Closure<S>(std::forward<F>(u_Func), &Memory::Internal::AtomicAllocators::s_ClosureAllocator);
+	}
+
 	using AffinityMask = size_t;
 	using ProcessorIdx = uint32_t;
-	using ThreadPriority = int32_t;
+	using Dword = uint32_t;
+
+	using Flag = bool;
+	constexpr Flag allow = true;
+	constexpr Flag disallow = false;
+
+	enum class ThreadPriority {
+		ZERO, LOW, BELOW_NORMAL, NORMAL, ABOVE_NORMAL, HIGH, TIME_CRITICAL
+	};
+
+	enum class ThreadState {
+		CREATED, RUNNING, SEALED, REAPED
+	};
 
 	enum class DescriptorState : uint8_t { UNINITIALIZED, MUTABLE, FROZEN };
 
@@ -36,10 +60,14 @@ namespace Corium::Core {
 		ProcessorIdx m_IdealProcessor;
 		ThreadPriority m_ThreadPriority;
 		DescriptorState m_State = DescriptorState::UNINITIALIZED;
-		bool m_isDetached;
-		bool m_SupportsIdealProcessor;
-		bool m_IsGuardPageEnabled;
+		Flag m_isDetached;
+		Flag m_SupportsIdealProcessor;
+		Flag m_IsGuardPageEnabled;
 
+#ifdef _WIN32
+		Flag m_SupportsGroup;
+		Dword m_GroupId;
+#endif
 		ThreadAttrDesc() = default;
 		~ThreadAttrDesc() = default;
 
@@ -51,30 +79,33 @@ namespace Corium::Core {
 
 	void CORIUM_RUNTIME_API init(ThreadAttrDesc& ro_Desc);
 	void CORIUM_RUNTIME_API setAffinity(ThreadAttrDesc& ro_Desc, AffinityMask v_Mask);
-	void CORIUM_RUNTIME_API shouldSupportIdealProcessor(ThreadAttrDesc& ro_Desc, bool v_Permission);
+	void CORIUM_RUNTIME_API shouldSupportIdealProcessor(ThreadAttrDesc& ro_Desc, Flag v_Permission);
 	void CORIUM_RUNTIME_API setIdealProcessor(ThreadAttrDesc& ro_Desc, ProcessorIdx v_Idx);
-	void CORIUM_RUNTIME_API canDetach(ThreadAttrDesc& ro_Desc, bool v_Permission);
-	void CORIUM_RUNTIME_API vaGuardEnabled(ThreadAttrDesc& ro_Desc, bool v_Permission);
-	bool CORIUM_RUNTIME_API validate(ThreadAttrDesc& ro_Desc);
+	void CORIUM_RUNTIME_API canDetach(ThreadAttrDesc& ro_Desc, Flag v_Permission);
+	void CORIUM_RUNTIME_API vaGuardEnabled(ThreadAttrDesc& ro_Desc, Flag v_Permission);
+#ifdef _WIN32
+	void CORIUM_RUNTIME_API setThreadGroup(ThreadAttrDesc& ro_Desc, Dword v_GroupId);
+#endif
+	Flag CORIUM_RUNTIME_API validate(ThreadAttrDesc& ro_Desc);
 
 	struct CORIUM_RUNTIME_API alignas(64) ThreadLaunchDesc final {
-		Utils::ClosureFunction<Allocator, void()> m_StartPoint;
+		Closure<void()> m_StartPoint;
 		size_t m_VaSize;
-		const char* m_Name;
+		const char* m_Name = "";
 		DescriptorState m_State;
-		bool m_IsPreSuspended;
+		Flag m_IsPreSuspended;
 	};
 
 	void CORIUM_RUNTIME_API init(ThreadLaunchDesc& ro_Desc);
 	void CORIUM_RUNTIME_API
 		attachLaunchAddr(ThreadLaunchDesc& ro_Desc,
-						 Utils::ClosureFunction<Allocator, void()> v_Closure);
+			Closure<void()> v_Closure);
 	void CORIUM_RUNTIME_API setVaSize(ThreadLaunchDesc& ro_Desc, size_t v_VaSize);
 	void CORIUM_RUNTIME_API setName(ThreadLaunchDesc& ro_Desc, const char* p_Name);
-	void CORIUM_RUNTIME_API isPreSuspended(ThreadLaunchDesc& ro_Desc, bool v_Permission);
-	void CORIUM_RUNTIME_API validate(ThreadLaunchDesc& ro_Desc);
+	void CORIUM_RUNTIME_API isPreSuspended(ThreadLaunchDesc& ro_Desc, Flag v_Permission);
+	bool CORIUM_RUNTIME_API validate(ThreadLaunchDesc& ro_Desc);
 
-	CORIUM_FORCEINLINE static bool isFrozen(const ThreadAttrDesc& ro_Desc) {
+	CORIUM_FORCEINLINE static Flag isFrozen(const ThreadAttrDesc& ro_Desc) {
 		return ro_Desc.m_State == DescriptorState::FROZEN;
 	}
 
@@ -82,4 +113,37 @@ namespace Corium::Core {
 		if (r_Desc.m_State == DescriptorState::UNINITIALIZED)
 			r_Desc.m_State = DescriptorState::MUTABLE;
 	}
-} 
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) ParkHandle final {
+		Atomic::AtomicValue32<uint32_t> m_ParkingPermit{ 0 };
+
+		explicit ParkHandle(uint32_t v_Value) : m_ParkingPermit(v_Value) {}
+		ParkHandle(const ParkHandle&) = default;
+		ParkHandle& operator=(const ParkHandle&) = default;
+		ParkHandle(ParkHandle&&) noexcept = default;
+		ParkHandle& operator=(ParkHandle&&) noexcept = default;
+		~ParkHandle() = default;
+	};
+
+	struct CORIUM_ALIGNAS(32) CORIUM_RUNTIME_API ThreadHandle final {
+		friend class NativeThread;
+	private:
+		size_t m_ThreadId;
+		size_t m_Generation;
+
+		size_t m_AccessToken;
+		ThreadState m_State;
+
+		constexpr ThreadHandle(size_t v_ThreadId, size_t v_Generation, size_t v_AccessToken, ThreadState v_State) 
+			: m_ThreadId(v_ThreadId), m_Generation(v_Generation), m_AccessToken(v_AccessToken), m_State(v_State) {}
+
+	public:
+		ThreadState expectedState() const {
+			return m_State;
+		}
+
+		static ThreadHandle getInvalidThread() {
+			return { 0, 0, 0, ThreadState::REAPED };
+		}
+	};
+}

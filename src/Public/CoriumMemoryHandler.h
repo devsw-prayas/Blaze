@@ -1,6 +1,7 @@
 #pragma once
 #include "CoriumAddrSpace.h"
 #include "EngineAllocators.h"
+#include "CoriumMemory.h"
 
 namespace Corium::Memory::Internal {
 	struct CORIUM_RUNTIME_API	AllocatorRegistry final {
@@ -75,40 +76,40 @@ namespace Corium::Memory::Internal {
 				return false;
 
 			s_ClosureMemory = createSegment(g_ClosureRange);
-			s_ClosureAllocator.init(s_ClosureMemory);
+			s_ClosureAllocator.init(&s_ClosureMemory);
 
 			s_SmartPtrControlBlockMemory = createSegment(g_SmartPtrControlBlocks);
-			s_ControlBlockAllocator.init(s_SmartPtrControlBlockMemory);
+			s_ControlBlockAllocator.init(&s_SmartPtrControlBlockMemory);
 
 			s_TaskMemoryDescMemory = createSegment(g_TaskMemoryDescRange);
-			s_TaskMemoryDescAllocator.init(s_TaskMemoryDescMemory);
+			s_TaskMemoryDescAllocator.init(&s_TaskMemoryDescMemory);
 
 			s_TaskMemoryHeaderMemory = createSegment(g_TaskMemoryHeaderRange);
-			s_TaskMemoryHeaderAllocator.init(s_TaskMemoryHeaderMemory);
+			s_TaskMemoryHeaderAllocator.init(&s_TaskMemoryHeaderMemory);
 
 			s_TaskContextMemory = createSegment(g_TaskContextRange);
-			s_TaskContextAllocator.init(s_TaskContextMemory);
+			s_TaskContextAllocator.init(&s_TaskContextMemory);
 
 			s_TaskSliceContextMemory = createSegment(g_TaskSliceContextRange);
-			s_TaskSliceContextAllocator.init(s_TaskSliceContextMemory);
+			s_TaskSliceContextAllocator.init(&s_TaskSliceContextMemory);
 
 			s_GPUContextMemory = createSegment(g_GPUContextRange);
-			s_GPUContextAllocator.init(s_GPUContextMemory);
+			s_GPUContextAllocator.init(&s_GPUContextMemory);
 
 			s_InputSizeMemory = createSegment(g_InputSizeArrays);
-			s_InputSizeAllocator.init(s_InputSizeMemory);
+			s_InputSizeAllocator.init(&s_InputSizeMemory);
 
 			s_InputAlignmentMemory = createSegment(g_InputAlignmentArrays);
-			s_InputAlignmentAllocator.init(s_InputAlignmentMemory);
+			s_InputAlignmentAllocator.init(&s_InputAlignmentMemory);
 
 			s_OutputSizeMemory = createSegment(g_OutputSizeArrays);
-			s_OutputSizeAllocator.init(s_OutputSizeMemory);
+			s_OutputSizeAllocator.init(&s_OutputSizeMemory);
 
 			s_OutputAlignmentMemory = createSegment(g_OutputAlignmentArrays);
-			s_OutputAlignmentAllocator.init(s_OutputAlignmentMemory);
+			s_OutputAlignmentAllocator.init(&s_OutputAlignmentMemory);
 
 			s_TaskPayloadMemory = createSegment(g_TaskPayloadArena);
-			s_TaskPayloadAllocator.init(s_TaskPayloadMemory);
+			s_TaskPayloadAllocator.init(&s_TaskPayloadMemory);
 
 			isRegistered = true;
 			return true;
