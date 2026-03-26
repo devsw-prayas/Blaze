@@ -20,6 +20,9 @@
 */
 #pragma once
 #include <Corium.h>
+#include "CoriumAllocator.h"
+#include "CoriumMemoryHandler.h"
+#include "EngineAllocators.h"
 
 namespace Corium::Core::Utils {
 	template<typename R, typename... Args>
@@ -37,34 +40,59 @@ namespace Corium::Core::Utils {
 	struct ClosureFunction<A, R(Args...)> {
 		using AllocatorType = A;
 		using EntryType = R(*)(void*, Args...);
+		using DeleterType = void(*)(void*, AllocatorType*);
 
 		void* m_Context = nullptr;
 		EntryType m_Entry = nullptr;
+
+		AllocatorType* m_Allocator = nullptr;
+		DeleterType m_Deleter = nullptr;
 
 		ClosureFunction() = default;
 		ClosureFunction(const ClosureFunction&) = delete;
 		ClosureFunction& operator=(const ClosureFunction&) = delete;
 
 		ClosureFunction(ClosureFunction&& u_Other) noexcept
-			: m_Context(u_Other.m_Context), m_Entry(u_Other.m_Entry) {
+			: m_Context(u_Other.m_Context),
+			m_Entry(u_Other.m_Entry),
+			m_Allocator(u_Other.m_Allocator),
+			m_Deleter(u_Other.m_Deleter){
 			u_Other.m_Context = nullptr;
 			u_Other.m_Entry = nullptr;
+			u_Other.m_Allocator = nullptr;
+			u_Other.m_Deleter = nullptr;
 		}
 
 		ClosureFunction& operator=(ClosureFunction&& u_Other) noexcept {
-			m_Context = u_Other.m_Context;
-			m_Entry = u_Other.m_Entry;
-			u_Other.m_Context = nullptr;
-			u_Other.m_Entry = nullptr;
+			if (this != &u_Other) {
+				// Destroy current state (if any)
+				if (m_Context && m_Deleter) {
+					m_Deleter(m_Context, m_Allocator);
+				}
+
+				// Transfer ownership
+				m_Context = u_Other.m_Context;
+				m_Entry = u_Other.m_Entry;
+				m_Allocator = u_Other.m_Allocator;
+				m_Deleter = u_Other.m_Deleter;
+
+				// Null out source
+				u_Other.m_Context = nullptr;
+				u_Other.m_Entry = nullptr;
+				u_Other.m_Allocator = nullptr;
+				u_Other.m_Deleter = nullptr;
+			}
 			return *this;
 		}
-
-		~ClosureFunction() = default;
 
 		template<typename L>
 			requires (!std::is_same_v<std::remove_cvref_t<L>, ClosureFunction>)
 		explicit ClosureFunction(L&& lambda, AllocatorType* allocator) {
-			if (!allocator) return;
+			if (!allocator) {
+				m_Context = nullptr;
+				m_Entry = nullptr;
+				return;
+			}
 			using LambdaT = std::decay_t<L>;
 
 			LambdaT* stored = allocator->template emplace<LambdaT>(
@@ -72,14 +100,34 @@ namespace Corium::Core::Utils {
 			);
 
 			m_Context = stored;
+			m_Allocator = allocator;
+
 			m_Entry = &Trampoline<R, Args...>::template invoke<LambdaT>;
+
+			m_Deleter = [](void* ctx, AllocatorType* alloc) {
+				auto* obj = static_cast<LambdaT*>(ctx);
+
+				obj->~LambdaT();
+
+				if constexpr (Memory::Allocators::ResolveAllocation<AllocatorType>::trait !=
+					Memory::Allocators::AllocationTrait::Persistent) {
+					alloc->deallocate(obj, sizeof(LambdaT));
+				}
+			};
+		}
+
+		~ClosureFunction() {
+			if (m_Context && m_Deleter) {
+				m_Deleter(m_Context, m_Allocator);
+			}
 		}
 
 		CORIUM_NODISCARD R operator()(Args... args) const {
+			CORIUM_ASSERT(m_Entry != nullptr);
 			return m_Entry(m_Context, std::forward<Args>(args)...);
 		}
 
-		bool isCallable() const {
+		bool isCallable() const noexcept{
 			return m_Context != nullptr && m_Entry != nullptr;
 		}
 	};
@@ -95,7 +143,7 @@ namespace Corium::Core::Utils {
 		Entry m_Entry = nullptr;
 
 		template<typename L>
-		FunctionView(L& lambda) {
+		FunctionView(L& lambda) noexcept{
 			using LambdaT = std::remove_reference_t<L>;
 
 			m_Context = &lambda;
@@ -110,7 +158,24 @@ namespace Corium::Core::Utils {
 		}
 
 		CORIUM_NODISCARD R operator()(Args... args) const {
+			CORIUM_ASSERT(m_Entry != nullptr);
 			return m_Entry(m_Context, std::forward<Args>(args)...);
 		}
 	};
+
+	template<typename S, typename L>
+	auto buildClosure(L&& u_Lambda) {
+		using Alloc = Corium::Memory::Allocators::ClosureAllocator;
+
+		auto* alloc = Corium::Memory::Internal::AtomicAllocators
+			::instance()
+			.s_ClosureAllocator
+			.load();
+
+		return Corium::Core::Utils::ClosureFunction<Alloc, S>(
+			std::forward<L>(u_Lambda),
+			alloc
+		);
+	}
+
 }

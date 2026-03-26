@@ -1,37 +1,65 @@
-    cmake_minimum_required(VERSION 3.20)
-    project(Corium)
+cmake_minimum_required(VERSION 3.20)
 
-    set(CMAKE_CXX_STANDARD 20)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    set(CMAKE_CXX_EXTENSIONS OFF)
+option(CORIUM_ENABLE_CUDA "Enable CUDA GPU backend" ON)
 
-    # Enable folders in IDEs like Visual Studio
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+if (CORIUM_ENABLE_CUDA)
+    project(Corium LANGUAGES CXX CUDA)
+    set(CMAKE_CUDA_ARCHITECTURES 80 86) # Supports only Ampere for now
+else()
+    project(Corium LANGUAGES CXX)
+endif()
 
-    file(GLOB_RECURSE CORIUM_PUBLIC CONFIGURE_DEPENDS "src/Public/*.h")
-    file(GLOB_RECURSE CORIUM_PRIVATE CONFIGURE_DEPENDS "src/Private/*.cpp")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-    add_library(Corium SHARED ${CORIUM_PUBLIC} ${CORIUM_PRIVATE})
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-    target_include_directories(Corium PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/Public
+file(GLOB_RECURSE CORIUM_PUBLIC  CONFIGURE_DEPENDS "src/Public/*.h")
+file(GLOB_RECURSE CORIUM_PRIVATE CONFIGURE_DEPENDS "src/Private/*.cpp")
+
+if (CORIUM_ENABLE_CUDA)
+    file(GLOB_RECURSE CORIUM_CUDA CONFIGURE_DEPENDS
+        "src/Cuda/*.cu"
+        "src/Cuda/*.cuh"
+        "src/Cuda/*.cpp"
+        "src/Cuda/*.h"
     )
+endif()
 
-    set_target_properties(Corium PROPERTIES FOLDER "Base")
-
-    target_precompile_headers(Corium PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/Public/Corium.h)
-
-    # Compile options
-target_compile_definitions(Corium PRIVATE
-    CORIUM_SHARED
+add_library(Corium SHARED
+    ${CORIUM_PUBLIC}
+    ${CORIUM_PRIVATE}
+    $<$<BOOL:${CORIUM_ENABLE_CUDA}>:${CORIUM_CUDA}>
 )
 
-target_compile_definitions(Corium PUBLIC
-    CORIUM_VA_ALLOCATION=32756
+target_include_directories(Corium PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Public
 )
 
+if (CORIUM_ENABLE_CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    target_include_directories(Corium PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/CUDA
+    )
+    target_link_libraries(Corium PRIVATE CUDA::cudart)
+    target_compile_definitions(Corium PRIVATE CORIUM_CUDA_AVAILABLE)
+    set_target_properties(Corium PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_STANDARD 20
+    )
+endif()
 
-    if (MSVC)
+set_target_properties(Corium PROPERTIES FOLDER "Base")
+
+target_precompile_headers(Corium PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Public/Corium.h
+)
+
+target_compile_definitions(Corium PRIVATE  CORIUM_SHARED)
+target_compile_definitions(Corium PUBLIC   CORIUM_VA_ALLOCATION=32756)
+
+if (MSVC)
     set_property(TARGET Corium PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
     )

@@ -33,4 +33,8 @@
 #include <pthread.h>
 #include <sched.h>
 #endif
+
+#ifdef CORIUM_CUDA_AVAILABLE
+#include <cuda_runtime.h>
+#endif
 #endif

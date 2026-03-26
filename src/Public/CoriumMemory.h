@@ -26,8 +26,8 @@ namespace Corium::Memory {
 
 	struct CORIUM_RUNTIME_API alignas(32) VirtualSegment final {
 		void* m_Memory;
-		Bytes v_TotalSize;
-		Bytes v_CommittedSize;
+		Bytes m_TotalSize;
+		Bytes m_CommittedSize;
 
 		VirtualSegment(const VirtualSegment&) = default;
 		VirtualSegment& operator=(const VirtualSegment&) = default;
@@ -36,11 +36,11 @@ namespace Corium::Memory {
 		VirtualSegment& operator=(VirtualSegment&&) noexcept = default;
 
 		constexpr VirtualSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0) :
-			m_Memory(p_Memory), v_TotalSize(v_TSize), v_CommittedSize(v_CSize) {
+			m_Memory(p_Memory), m_TotalSize(v_TSize), m_CommittedSize(v_CSize) {
 		}
 
 		constexpr bool isValid() const noexcept {
-			return m_Memory != nullptr && v_TotalSize != 0;
+			return m_Memory != nullptr && m_TotalSize != 0;
 		}
 
 		~VirtualSegment() = default;
@@ -171,7 +171,7 @@ namespace Corium::Memory {
 
 			explicit VARegionSlicer(const VirtualSegment& r_Segment) noexcept
 				: m_Cursor(static_cast<uint8_t*>(r_Segment.m_Memory)),
-				m_End(static_cast<uint8_t*>(r_Segment.m_Memory) + r_Segment.v_TotalSize) {
+				m_End(static_cast<uint8_t*>(r_Segment.m_Memory) + r_Segment.m_TotalSize) {
 			}
 
 			explicit VARegionSlicer(const VARegion& r_Region) noexcept
@@ -235,7 +235,7 @@ namespace Corium::Memory {
 
 			VirtualSegment segment{};
 			segment.m_Memory = r_Region.m_Base;
-			segment.v_TotalSize = r_Region.m_Size;
+			segment.m_TotalSize = r_Region.m_Size;
 			return segment;
 		}
 

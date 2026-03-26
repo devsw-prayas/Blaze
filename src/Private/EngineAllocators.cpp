@@ -21,7 +21,7 @@ namespace Corium::Memory::Allocators {
 				Core::Atomics::MemoryOrder::RELEASE,
 				Core::Atomics::MemoryOrder::RELAXED)) {
 				if (Memory::VirtualMemory::commitPageIfNeeded(*m_Base, next)) {
-					m_Base->v_CommittedSize = alignUp(next, PAGE_SIZE);
+					m_Base->m_CommittedSize = alignUp(next, PAGE_SIZE);
 					return static_cast<std::byte*>(m_Base->m_Memory) + aligned;
 				}
 				return nullptr;
