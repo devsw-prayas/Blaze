@@ -10,8 +10,9 @@
 #endif
 
 namespace Corium {
-	class CORIUM_RUNTIME_API CoriumRuntime final {
-		static CORIUM_FORCEINLINE bool s_IsInit = false;
+	class CoriumRuntime final {
+		inline static bool s_IsInit = false;
+	public:
 		static void CORIUM_FORCEINLINE initRuntime() {
 			if (s_IsInit) return;
 

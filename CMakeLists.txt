@@ -46,7 +46,7 @@ target_include_directories(Corium PRIVATE
 if (CORIUM_ENABLE_CUDA)
     find_package(CUDAToolkit REQUIRED)
     target_include_directories(Corium PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/CUDA
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Cuda
     )
     target_link_libraries(Corium PRIVATE CUDA::cuda_driver)
     target_compile_definitions(Corium PRIVATE CORIUM_CUDA_AVAILABLE)

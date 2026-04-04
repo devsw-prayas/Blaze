@@ -56,7 +56,7 @@ namespace Corium::Core::Utils {
 			: m_Context(u_Other.m_Context),
 			m_Entry(u_Other.m_Entry),
 			m_Allocator(u_Other.m_Allocator),
-			m_Deleter(u_Other.m_Deleter){
+			m_Deleter(u_Other.m_Deleter) {
 			u_Other.m_Context = nullptr;
 			u_Other.m_Entry = nullptr;
 			u_Other.m_Allocator = nullptr;
@@ -110,10 +110,10 @@ namespace Corium::Core::Utils {
 				obj->~LambdaT();
 
 				if constexpr (Memory::Allocators::ResolveAllocation<AllocatorType>::trait !=
-					Memory::Allocators::AllocationTrait::Persistent) {
+							  Memory::Allocators::AllocationTrait::Persistent) {
 					alloc->deallocate(obj, sizeof(LambdaT));
 				}
-			};
+				};
 		}
 
 		~ClosureFunction() {
@@ -127,7 +127,7 @@ namespace Corium::Core::Utils {
 			return m_Entry(m_Context, std::forward<Args>(args)...);
 		}
 
-		bool isCallable() const noexcept{
+		bool isCallable() const noexcept {
 			return m_Context != nullptr && m_Entry != nullptr;
 		}
 	};
@@ -143,7 +143,7 @@ namespace Corium::Core::Utils {
 		Entry m_Entry = nullptr;
 
 		template<typename L>
-		FunctionView(L& lambda) noexcept{
+		FunctionView(L& lambda) noexcept {
 			using LambdaT = std::remove_reference_t<L>;
 
 			m_Context = &lambda;
@@ -168,8 +168,8 @@ namespace Corium::Core::Utils {
 		using Alloc = Corium::Memory::Allocators::ClosureAllocator;
 
 		const uint8_t safeNode = (node < Memory::Internal::AllocatorRegistry::s_NodeCount)
-		                       ? node
-		                       : 0;
+			? node
+			: 0;
 
 		auto* alloc = Corium::Memory::Internal::AtomicAllocators
 			::instance()
@@ -181,5 +181,4 @@ namespace Corium::Core::Utils {
 			alloc
 		);
 	}
-
 }
