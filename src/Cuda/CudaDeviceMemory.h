@@ -1,71 +1,51 @@
 #pragma once
-
 #include "Corium.h"
+#include "CoriumCompiler.h"
+#include "CudaStream.h"
+#include "CudaUtils.h"
 
-#ifdef CORIUM_CUDA_AVAILABLE
-namespace Corium::Cuda {
-	using Bytes = size_t;
+namespace Corium::Cuda::Memory {
+	using namespace Utils;
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(16) PitchedAllocation final {
+		GpuAddress m_Address;
+		size_t     m_Pitch;
 
-	struct CORIUM_RUNTIME_API alignas(32) DeviceSegment final {
-		void* m_DevicePtr;
-		Bytes m_TotalSize;
-		Bytes m_CommittedSize;
+		PitchedAllocation() = default;
+		~PitchedAllocation() = default;
 
-		DeviceSegment(const DeviceSegment&) = default;
-		DeviceSegment& operator=(const DeviceSegment&) = default;
+		PitchedAllocation(const PitchedAllocation&) = default;
+		PitchedAllocation& operator=(const PitchedAllocation&) = default;
 
-		DeviceSegment(DeviceSegment&&) noexcept = default;
-		DeviceSegment& operator=(DeviceSegment&&) noexcept = default;
-
-		constexpr DeviceSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0) :
-			m_DevicePtr(p_Memory), m_TotalSize(v_TSize), m_CommittedSize(v_CSize) {
-		}
-
-		constexpr bool isValid() const noexcept {
-			return m_DevicePtr != nullptr && m_TotalSize != 0;
-		}
-
-		~DeviceSegment() = default;
+		PitchedAllocation(PitchedAllocation&&) noexcept = default;
+		PitchedAllocation& operator=(PitchedAllocation&&) noexcept = default;
 	};
-
-	inline constexpr DeviceSegment INVALID_DEVICE_SEGMENT{};
-
-	struct CORIUM_RUNTIME_API alignas(32) PinnedSegment final {
-		void* m_HostPtr;
-		Bytes m_TotalSize;
-
-		PinnedSegment(const PinnedSegment&) = default;
-		PinnedSegment& operator=(const PinnedSegment&) = default;
-
-		PinnedSegment(PinnedSegment&&) noexcept = default;
-		PinnedSegment& operator=(PinnedSegment&&) noexcept = default;
-
-		constexpr PinnedSegment(void* p_Memory = nullptr, Bytes v_TSize = 0) :
-			m_HostPtr(p_Memory), m_TotalSize(v_TSize) {
-		}
-
-		constexpr bool isValid() const noexcept {
-			return m_HostPtr != nullptr && m_TotalSize != 0;
-		}
-
-		~PinnedSegment() = default;
-	};
-
-	inline constexpr PinnedSegment INVALID_PINNED_SEGMENT{};
 
 	class CORIUM_RUNTIME_API DeviceMemory final {
-		static DeviceSegment deviceAlloc(DeviceSegment& ro_DevSegment, Bytes v_Size);
-		static bool deviceFree(DeviceSegment& ro_DevSegment);
+	public:
+		static GpuAddress deviceAlloc(size_t v_Bytes);
+		static PitchedAllocation deviceAllocPitch(size_t v_WidthInBytes, size_t v_Height, uint32_t v_ElemsInBytes);
+		static void deviceFree(GpuAddress& ro_Address);
+		static GpuMemory query();
 
-		static PinnedSegment pinnedAlloc(PinnedSegment& ro_PinSegment, Bytes v_Size);
-		static bool pinnedFree(PinnedSegment& ro_PinSegment);
+		static void memsetD8(const GpuAddress& ro_Address, uint8_t v_Val, size_t v_Count);
+		static void memsetD16(const GpuAddress& ro_Address, uint16_t v_Val, size_t v_Count);
+		static void memsetD32(const GpuAddress& ro_Address, uint32_t v_Val, size_t v_Count);
 
-		static bool copyToDevice(DeviceSegment& ro_DevDst, const PinnedSegment& ro_PinSrc, Bytes v_Size, void* po_CudaStream);
-		static bool copyToHost(PinnedSegment& roPinDst, const DeviceSegment& ro_DevSrc, Bytes v_Size, void* po_CudaStream);
+		static void memsetD8Async(
+			const GpuAddress& ro_Address, uint8_t v_Val,
+			size_t v_Count, const Streams::GpuStream& ro_Stream);
 
-		static bool deviceMemset(DeviceSegment& ro_DevSegment, int v_Val, Bytes v_Size, void* po_CudaStream);
+		static void memsetD16Async(
+			const GpuAddress& ro_Address, uint16_t v_Val,
+			size_t v_Count, const Streams::GpuStream& ro_Stream);
 
-		static Bytes queryFreeMemory();
+		static void memsetD32Async(
+			const GpuAddress& ro_Address, uint32_t v_Val,
+			size_t v_Count, const Streams::GpuStream& ro_Stream);
+
+		static void copyDeviceToDevice(const GpuAddress& ro_Dst, const GpuAddress& ro_Src, size_t v_Bytes);
+		static void copyDeviceToDeviceAsync(
+			const GpuAddress& ro_Dst, const GpuAddress& ro_Src,
+			size_t v_Bytes, const Streams::GpuStream& ro_Stream);
 	};
 }
-#endif

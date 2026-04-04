@@ -4,7 +4,7 @@
 #include "CoriumMemory.h"
 
 namespace Corium::Memory::Internal {
-	struct CORIUM_RUNTIME_API	AllocatorRegistry final {
+	struct CORIUM_RUNTIME_API AllocatorRegistry final {
 		~AllocatorRegistry() = delete;
 		AllocatorRegistry(const AllocatorRegistry&) = delete;
 		AllocatorRegistry(AllocatorRegistry&&) noexcept = delete;
@@ -13,103 +13,129 @@ namespace Corium::Memory::Internal {
 		AllocatorRegistry& operator=(AllocatorRegistry&&) noexcept = delete;
 		AllocatorRegistry() = delete;
 
-		static bool isRegistered;
+		static bool     isRegistered;
+		static uint32_t s_NodeCount;
 
 		// ------------------------------------------------------------------------
 		// Runtime / Infrastructure
 		// ------------------------------------------------------------------------
 
-		static VirtualSegment s_ClosureMemory;
-		static Allocators::ClosureAllocator s_ClosureAllocator;
+		static VirtualSegment                   s_ClosureMemory[MAX_NUMA_NODES];
+		static Allocators::ClosureAllocator     s_ClosureAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_SmartPtrControlBlockMemory;
-		static Allocators::ControlBlockAllocator s_ControlBlockAllocator;
+		static VirtualSegment                   s_SmartPtrControlBlockMemory[MAX_NUMA_NODES];
+		static Allocators::ControlBlockAllocator s_ControlBlockAllocator[MAX_NUMA_NODES];
+
+		static VirtualSegment                   s_RuntimeCoreObjectsMemory[MAX_NUMA_NODES];
+		static Allocators::GeneralAllocator     s_GeneralAllocator[MAX_NUMA_NODES];
 
 		// ------------------------------------------------------------------------
 		// Task Metadata - Object Locations
 		// ------------------------------------------------------------------------
 
-		static VirtualSegment s_TaskMemoryDescMemory;
-		static Allocators::TaskMetadataAllocator s_TaskMemoryDescAllocator;
+		static VirtualSegment                    s_TaskMemoryDescMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_TaskMemoryDescAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_TaskMemoryHeaderMemory;
-		static Allocators::TaskMetadataAllocator s_TaskMemoryHeaderAllocator;
+		static VirtualSegment                    s_TaskMemoryHeaderMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_TaskMemoryHeaderAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_TaskContextMemory;
-		static Allocators::TaskMetadataAllocator s_TaskContextAllocator;
+		static VirtualSegment                    s_TaskContextMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_TaskContextAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_TaskSliceContextMemory;
-		static Allocators::TaskMetadataAllocator s_TaskSliceContextAllocator;
+		static VirtualSegment                    s_TaskSliceContextMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_TaskSliceContextAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_GPUContextMemory;
-		static Allocators::TaskMetadataAllocator s_GPUContextAllocator;
+		static VirtualSegment                    s_GPUContextMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_GPUContextAllocator[MAX_NUMA_NODES];
 
 		// ------------------------------------------------------------------------
 		// Task Metadata - Input Layouts
 		// ------------------------------------------------------------------------
 
-		static VirtualSegment s_InputSizeMemory;
-		static Allocators::TaskMetadataAllocator s_InputSizeAllocator;
+		static VirtualSegment                    s_InputSizeMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_InputSizeAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_InputAlignmentMemory;
-		static Allocators::TaskMetadataAllocator s_InputAlignmentAllocator;
+		static VirtualSegment                    s_InputAlignmentMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_InputAlignmentAllocator[MAX_NUMA_NODES];
 
 		// ------------------------------------------------------------------------
 		// Task Metadata - Output Layouts
 		// ------------------------------------------------------------------------
 
-		static VirtualSegment s_OutputSizeMemory;
-		static Allocators::TaskMetadataAllocator s_OutputSizeAllocator;
+		static VirtualSegment                    s_OutputSizeMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_OutputSizeAllocator[MAX_NUMA_NODES];
 
-		static VirtualSegment s_OutputAlignmentMemory;
-		static Allocators::TaskMetadataAllocator s_OutputAlignmentAllocator;
+		static VirtualSegment                    s_OutputAlignmentMemory[MAX_NUMA_NODES];
+		static Allocators::TaskMetadataAllocator s_OutputAlignmentAllocator[MAX_NUMA_NODES];
 
 		// ------------------------------------------------------------------------
 		// Task Payload
 		// ------------------------------------------------------------------------
 
-		static VirtualSegment s_TaskPayloadMemory;
-		static Allocators::TaskPayloadAllocator s_TaskPayloadAllocator;
+		static VirtualSegment                  s_TaskPayloadMemory[MAX_NUMA_NODES];
+		static Allocators::TaskPayloadAllocator s_TaskPayloadAllocator[MAX_NUMA_NODES];
 
-		static bool initRegistry() {
+		static bool initRegistry(uint32_t v_NodeCount) {
 			if (isRegistered)
 				return false;
 
-			s_ClosureMemory = createSegment(g_ClosureRange);
-			s_ClosureAllocator.init(&s_ClosureMemory);
+			s_NodeCount = v_NodeCount;
 
-			s_SmartPtrControlBlockMemory = createSegment(g_SmartPtrControlBlocks);
-			s_ControlBlockAllocator.init(&s_SmartPtrControlBlockMemory);
+			for (uint32_t node = 0; node < v_NodeCount; ++node) {
+				const uint8_t numaNode = static_cast<uint8_t>(node);
 
-			s_TaskMemoryDescMemory = createSegment(g_TaskMemoryDescRange);
-			s_TaskMemoryDescAllocator.init(&s_TaskMemoryDescMemory);
+				s_ClosureMemory[node]            = createSegment(g_ClosureRange[node]);
+				s_ClosureMemory[node].m_NumaNode = numaNode;
+				s_ClosureAllocator[node].init(&s_ClosureMemory[node]);
 
-			s_TaskMemoryHeaderMemory = createSegment(g_TaskMemoryHeaderRange);
-			s_TaskMemoryHeaderAllocator.init(&s_TaskMemoryHeaderMemory);
+				s_SmartPtrControlBlockMemory[node]            = createSegment(g_SmartPtrControlBlocks[node]);
+				s_SmartPtrControlBlockMemory[node].m_NumaNode = numaNode;
+				s_ControlBlockAllocator[node].init(&s_SmartPtrControlBlockMemory[node]);
 
-			s_TaskContextMemory = createSegment(g_TaskContextRange);
-			s_TaskContextAllocator.init(&s_TaskContextMemory);
+				s_RuntimeCoreObjectsMemory[node]            = createSegment(g_RuntimeCoreObjects[node]);
+				s_RuntimeCoreObjectsMemory[node].m_NumaNode = numaNode;
+				s_GeneralAllocator[node].init(&s_RuntimeCoreObjectsMemory[node]);
 
-			s_TaskSliceContextMemory = createSegment(g_TaskSliceContextRange);
-			s_TaskSliceContextAllocator.init(&s_TaskSliceContextMemory);
+				s_TaskMemoryDescMemory[node]            = createSegment(g_TaskMemoryDescRange[node]);
+				s_TaskMemoryDescMemory[node].m_NumaNode = numaNode;
+				s_TaskMemoryDescAllocator[node].init(&s_TaskMemoryDescMemory[node]);
 
-			s_GPUContextMemory = createSegment(g_GPUContextRange);
-			s_GPUContextAllocator.init(&s_GPUContextMemory);
+				s_TaskMemoryHeaderMemory[node]            = createSegment(g_TaskMemoryHeaderRange[node]);
+				s_TaskMemoryHeaderMemory[node].m_NumaNode = numaNode;
+				s_TaskMemoryHeaderAllocator[node].init(&s_TaskMemoryHeaderMemory[node]);
 
-			s_InputSizeMemory = createSegment(g_InputSizeArrays);
-			s_InputSizeAllocator.init(&s_InputSizeMemory);
+				s_TaskContextMemory[node]            = createSegment(g_TaskContextRange[node]);
+				s_TaskContextMemory[node].m_NumaNode = numaNode;
+				s_TaskContextAllocator[node].init(&s_TaskContextMemory[node]);
 
-			s_InputAlignmentMemory = createSegment(g_InputAlignmentArrays);
-			s_InputAlignmentAllocator.init(&s_InputAlignmentMemory);
+				s_TaskSliceContextMemory[node]            = createSegment(g_TaskSliceContextRange[node]);
+				s_TaskSliceContextMemory[node].m_NumaNode = numaNode;
+				s_TaskSliceContextAllocator[node].init(&s_TaskSliceContextMemory[node]);
 
-			s_OutputSizeMemory = createSegment(g_OutputSizeArrays);
-			s_OutputSizeAllocator.init(&s_OutputSizeMemory);
+				s_GPUContextMemory[node]            = createSegment(g_GPUContextRange[node]);
+				s_GPUContextMemory[node].m_NumaNode = numaNode;
+				s_GPUContextAllocator[node].init(&s_GPUContextMemory[node]);
 
-			s_OutputAlignmentMemory = createSegment(g_OutputAlignmentArrays);
-			s_OutputAlignmentAllocator.init(&s_OutputAlignmentMemory);
+				s_InputSizeMemory[node]            = createSegment(g_InputSizeArrays[node]);
+				s_InputSizeMemory[node].m_NumaNode = numaNode;
+				s_InputSizeAllocator[node].init(&s_InputSizeMemory[node]);
 
-			s_TaskPayloadMemory = createSegment(g_TaskPayloadArena);
-			s_TaskPayloadAllocator.init(&s_TaskPayloadMemory);
+				s_InputAlignmentMemory[node]            = createSegment(g_InputAlignmentArrays[node]);
+				s_InputAlignmentMemory[node].m_NumaNode = numaNode;
+				s_InputAlignmentAllocator[node].init(&s_InputAlignmentMemory[node]);
+
+				s_OutputSizeMemory[node]            = createSegment(g_OutputSizeArrays[node]);
+				s_OutputSizeMemory[node].m_NumaNode = numaNode;
+				s_OutputSizeAllocator[node].init(&s_OutputSizeMemory[node]);
+
+				s_OutputAlignmentMemory[node]            = createSegment(g_OutputAlignmentArrays[node]);
+				s_OutputAlignmentMemory[node].m_NumaNode = numaNode;
+				s_OutputAlignmentAllocator[node].init(&s_OutputAlignmentMemory[node]);
+
+				s_TaskPayloadMemory[node]            = createSegment(g_TaskPayloadArena[node]);
+				s_TaskPayloadMemory[node].m_NumaNode = numaNode;
+				s_TaskPayloadAllocator[node].init(&s_TaskPayloadMemory[node]);
+			}
 
 			isRegistered = true;
 			return true;
@@ -122,62 +148,81 @@ namespace Corium::Memory::Internal {
 
 		AtomicAllocators& operator=(const AtomicAllocators&) = delete;
 		AtomicAllocators& operator=(AtomicAllocators&&) noexcept = delete;
+
 		// ---------------------------------------------------------------------
 		// Runtime / Infrastructure
 		// ---------------------------------------------------------------------
 
-		const Core::Atomic::AtomicPointer<Allocators::ClosureAllocator> s_ClosureAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::ControlBlockAllocator> s_ControlBlockAllocator;
+		Core::Atomic::AtomicPointer<Allocators::ClosureAllocator>      s_ClosureAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::ControlBlockAllocator> s_ControlBlockAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::GeneralAllocator>      s_GeneralAllocator[MAX_NUMA_NODES];
 
 		// ---------------------------------------------------------------------
 		// Task Metadata - Object Locations
 		// ---------------------------------------------------------------------
 
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskMemoryDescAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskMemoryHeaderAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskContextAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskSliceContextAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_GPUContextAllocator;
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskMemoryDescAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskMemoryHeaderAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskContextAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_TaskSliceContextAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_GPUContextAllocator[MAX_NUMA_NODES];
 
 		// ---------------------------------------------------------------------
 		// Task Metadata - Input Layouts
 		// ---------------------------------------------------------------------
 
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_InputSizeAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_InputAlignmentAllocator;
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_InputSizeAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_InputAlignmentAllocator[MAX_NUMA_NODES];
 
 		// ---------------------------------------------------------------------
 		// Task Metadata - Output Layouts
 		// ---------------------------------------------------------------------
 
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_OutputSizeAllocator;
-		const Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_OutputAlignmentAllocator;
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_OutputSizeAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::TaskMetadataAllocator> s_OutputAlignmentAllocator[MAX_NUMA_NODES];
 
 		// ---------------------------------------------------------------------
 		// Task Payload
 		// ---------------------------------------------------------------------
 
-		const Core::Atomic::AtomicPointer<Allocators::TaskPayloadAllocator> s_TaskPayloadAllocator;
+		Core::Atomic::AtomicPointer<Allocators::TaskPayloadAllocator>  s_TaskPayloadAllocator[MAX_NUMA_NODES];
 
 	private:
-		AtomicAllocators()
-			: s_ClosureAllocator(&AllocatorRegistry::s_ClosureAllocator)
-			, s_ControlBlockAllocator(&AllocatorRegistry::s_ControlBlockAllocator)
+		AtomicAllocators() {
+			for (uint32_t node = 0; node < AllocatorRegistry::s_NodeCount; ++node) {
+				s_ClosureAllocator[node].store(
+					&AllocatorRegistry::s_ClosureAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_ControlBlockAllocator[node].store(
+					&AllocatorRegistry::s_ControlBlockAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_GeneralAllocator[node].store(
+					&AllocatorRegistry::s_GeneralAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
 
-			, s_TaskMemoryDescAllocator(&AllocatorRegistry::s_TaskMemoryDescAllocator)
-			, s_TaskMemoryHeaderAllocator(&AllocatorRegistry::s_TaskMemoryHeaderAllocator)
-			, s_TaskContextAllocator(&AllocatorRegistry::s_TaskContextAllocator)
-			, s_TaskSliceContextAllocator(&AllocatorRegistry::s_TaskSliceContextAllocator)
-			, s_GPUContextAllocator(&AllocatorRegistry::s_GPUContextAllocator)
+				s_TaskMemoryDescAllocator[node].store(
+					&AllocatorRegistry::s_TaskMemoryDescAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_TaskMemoryHeaderAllocator[node].store(
+					&AllocatorRegistry::s_TaskMemoryHeaderAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_TaskContextAllocator[node].store(
+					&AllocatorRegistry::s_TaskContextAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_TaskSliceContextAllocator[node].store(
+					&AllocatorRegistry::s_TaskSliceContextAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_GPUContextAllocator[node].store(
+					&AllocatorRegistry::s_GPUContextAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
 
-			, s_InputSizeAllocator(&AllocatorRegistry::s_InputSizeAllocator)
-			, s_InputAlignmentAllocator(&AllocatorRegistry::s_InputAlignmentAllocator)
+				s_InputSizeAllocator[node].store(
+					&AllocatorRegistry::s_InputSizeAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_InputAlignmentAllocator[node].store(
+					&AllocatorRegistry::s_InputAlignmentAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
 
-			, s_OutputSizeAllocator(&AllocatorRegistry::s_OutputSizeAllocator)
-			, s_OutputAlignmentAllocator(&AllocatorRegistry::s_OutputAlignmentAllocator)
+				s_OutputSizeAllocator[node].store(
+					&AllocatorRegistry::s_OutputSizeAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_OutputAlignmentAllocator[node].store(
+					&AllocatorRegistry::s_OutputAlignmentAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
 
-			, s_TaskPayloadAllocator(&AllocatorRegistry::s_TaskPayloadAllocator) {
+				s_TaskPayloadAllocator[node].store(
+					&AllocatorRegistry::s_TaskPayloadAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+			}
 		}
+
 	public:
 		static AtomicAllocators& instance();
 	};

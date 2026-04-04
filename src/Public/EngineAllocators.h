@@ -85,6 +85,10 @@ namespace Corium::Memory::Allocators {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
 	};
 
+	// Initialise all per-node allocator instances. Must be called after
+	// Corium::Memory::Internal::init() has reserved the VA regions.
+	CORIUM_RUNTIME_API void init();
+
 	struct alignas(64) CORIUM_RUNTIME_API GeneralAllocator final : IArenaAllocator<GeneralAllocator>{
 	private:
 		struct alignas(16) BlockHeader final {
@@ -214,6 +218,15 @@ namespace Corium::Memory::Allocators {
 		}
 
 	public:
+		template<typename T, typename... Args>
+		CORIUM_FORCEINLINE
+		T* emplace(Args&&... args) noexcept {
+			void* mem = allocateImpl(sizeof(T), alignof(T));
+			if (!mem) return nullptr;
+
+			return ::new (mem) T(std::forward<Args>(args)...);
+		}
+
 		void init(VirtualSegment* seg) {
 			CORIUM_ASSERT(seg && seg->isValid());
 
@@ -290,4 +303,5 @@ namespace Corium::Memory::Allocators {
 			m_FreeList = nullptr;
 		}
 	};
+
 }

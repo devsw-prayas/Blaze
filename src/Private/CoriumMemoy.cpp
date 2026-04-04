@@ -14,9 +14,17 @@ namespace Corium::Memory {
 		switch (v_Operation) {
 		case MemoryOperation::Reserve:
 			{
-				if (segment.isValid())return INVALID_SEGMENT;
-				void* p = VirtualAlloc(nullptr, v_Size, MEM_RESERVE, PAGE_NOACCESS);
-				return p ? VirtualSegment{ p, v_Size, 0 } : INVALID_SEGMENT;
+				if (segment.isValid()) return INVALID_SEGMENT;
+				void* p = nullptr;
+				// Route through VirtualAllocExNuma when a node is set so physical pages
+				// are preferentially allocated on the correct NUMA node at commit time.
+				if (segment.m_NumaNode != VirtualSegment::INVALID_NUMA_NODE) {
+					p = VirtualAllocExNuma(GetCurrentProcess(), nullptr, v_Size,
+					                       MEM_RESERVE, PAGE_NOACCESS, segment.m_NumaNode);
+				} else {
+					p = VirtualAlloc(nullptr, v_Size, MEM_RESERVE, PAGE_NOACCESS);
+				}
+				return p ? VirtualSegment{ p, v_Size, 0, segment.m_NumaNode } : INVALID_SEGMENT;
 			}
 		case MemoryOperation::Commit:
 			{
@@ -37,10 +45,12 @@ namespace Corium::Memory {
 		switch (v_Operation) {
 		case MemoryOperation::Reserve:
 			{
-				if (segment.isValid())return INVALID_SEGMENT;
+				// Linux: mbind/numa_alloc_onnode not implemented; node tag is carried
+				// through for bookkeeping but physical affinity is not enforced.
+				if (segment.isValid()) return INVALID_SEGMENT;
 				void* p = mmap(nullptr, v_Size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-				if (p == MAP_FAILED)return INVALID_SEGMENT;
-				return VirtualSegment{ p, v_Size, 0 };
+				if (p == MAP_FAILED) return INVALID_SEGMENT;
+				return VirtualSegment{ p, v_Size, 0, segment.m_NumaNode };
 			}
 
 		case MemoryOperation::Commit:

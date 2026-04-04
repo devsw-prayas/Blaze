@@ -15,8 +15,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-file(GLOB_RECURSE CORIUM_PUBLIC  CONFIGURE_DEPENDS "src/Public/*.h")
-file(GLOB_RECURSE CORIUM_PRIVATE CONFIGURE_DEPENDS "src/Private/*.cpp")
+file(GLOB_RECURSE CORIUM_PUBLIC    CONFIGURE_DEPENDS "src/Public/*.h")
+file(GLOB_RECURSE CORIUM_PRIVATE   CONFIGURE_DEPENDS "src/Private/*.cpp")
+file(GLOB_RECURSE CORIUM_INTERNAL  CONFIGURE_DEPENDS "src/Internal/*.h")
 
 if (CORIUM_ENABLE_CUDA)
     file(GLOB_RECURSE CORIUM_CUDA CONFIGURE_DEPENDS
@@ -30,6 +31,7 @@ endif()
 add_library(Corium SHARED
     ${CORIUM_PUBLIC}
     ${CORIUM_PRIVATE}
+    ${CORIUM_INTERNAL}
     $<$<BOOL:${CORIUM_ENABLE_CUDA}>:${CORIUM_CUDA}>
 )
 
@@ -37,12 +39,16 @@ target_include_directories(Corium PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Public
 )
 
+target_include_directories(Corium PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Internal
+)
+
 if (CORIUM_ENABLE_CUDA)
     find_package(CUDAToolkit REQUIRED)
     target_include_directories(Corium PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/CUDA
     )
-    target_link_libraries(Corium PRIVATE CUDA::cudart)
+    target_link_libraries(Corium PRIVATE CUDA::cuda_driver)
     target_compile_definitions(Corium PRIVATE CORIUM_CUDA_AVAILABLE)
     set_target_properties(Corium PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
@@ -57,7 +63,7 @@ target_precompile_headers(Corium PRIVATE
 )
 
 target_compile_definitions(Corium PRIVATE  CORIUM_SHARED)
-target_compile_definitions(Corium PUBLIC   CORIUM_VA_ALLOCATION=32756)
+target_compile_definitions(Corium PUBLIC   CORIUM_VA_ALLOCATION=524288)
 
 if (MSVC)
     set_property(TARGET Corium PROPERTY

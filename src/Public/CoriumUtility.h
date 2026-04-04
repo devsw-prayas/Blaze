@@ -164,12 +164,16 @@ namespace Corium::Core::Utils {
 	};
 
 	template<typename S, typename L>
-	auto buildClosure(L&& u_Lambda) {
+	auto buildClosure(L&& u_Lambda, uint8_t node) {
 		using Alloc = Corium::Memory::Allocators::ClosureAllocator;
+
+		const uint8_t safeNode = (node < Memory::Internal::AllocatorRegistry::s_NodeCount)
+		                       ? node
+		                       : 0;
 
 		auto* alloc = Corium::Memory::Internal::AtomicAllocators
 			::instance()
-			.s_ClosureAllocator
+			.s_ClosureAllocator[safeNode]
 			.load();
 
 		return Corium::Core::Utils::ClosureFunction<Alloc, S>(

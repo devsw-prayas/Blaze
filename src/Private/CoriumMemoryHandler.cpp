@@ -3,43 +3,69 @@
 
 namespace Corium::Memory::Internal {
 
-	bool AllocatorRegistry::isRegistered = false;
+	bool     AllocatorRegistry::isRegistered = false;
+	uint32_t AllocatorRegistry::s_NodeCount  = 0;
 
-	VirtualSegment AllocatorRegistry::s_ClosureMemory{};
-	Allocators::ClosureAllocator AllocatorRegistry::s_ClosureAllocator{};
+	// -------------------------------------------------------------------------
+	// Runtime / Infrastructure
+	// -------------------------------------------------------------------------
 
-	VirtualSegment AllocatorRegistry::s_SmartPtrControlBlockMemory{};
-	Allocators::ControlBlockAllocator AllocatorRegistry::s_ControlBlockAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_ClosureMemory[MAX_NUMA_NODES]{};
+	Allocators::ClosureAllocator      AllocatorRegistry::s_ClosureAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_TaskMemoryDescMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskMemoryDescAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_SmartPtrControlBlockMemory[MAX_NUMA_NODES]{};
+	Allocators::ControlBlockAllocator AllocatorRegistry::s_ControlBlockAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_TaskMemoryHeaderMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskMemoryHeaderAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_RuntimeCoreObjectsMemory[MAX_NUMA_NODES]{};
+	Allocators::GeneralAllocator      AllocatorRegistry::s_GeneralAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_TaskContextMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskContextAllocator{};
+	// -------------------------------------------------------------------------
+	// Task Metadata - Object Locations
+	// -------------------------------------------------------------------------
 
-	VirtualSegment AllocatorRegistry::s_TaskSliceContextMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskSliceContextAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_TaskMemoryDescMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskMemoryDescAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_GPUContextMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_GPUContextAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_TaskMemoryHeaderMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskMemoryHeaderAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_InputSizeMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_InputSizeAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_TaskContextMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskContextAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_InputAlignmentMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_InputAlignmentAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_TaskSliceContextMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_TaskSliceContextAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_OutputSizeMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_OutputSizeAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_GPUContextMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_GPUContextAllocator[MAX_NUMA_NODES]{};
 
-	VirtualSegment AllocatorRegistry::s_OutputAlignmentMemory{};
-	Allocators::TaskMetadataAllocator AllocatorRegistry::s_OutputAlignmentAllocator{};
+	// -------------------------------------------------------------------------
+	// Task Metadata - Input Layouts
+	// -------------------------------------------------------------------------
 
-	VirtualSegment AllocatorRegistry::s_TaskPayloadMemory{};
-	Allocators::TaskPayloadAllocator AllocatorRegistry::s_TaskPayloadAllocator{};
+	VirtualSegment                    AllocatorRegistry::s_InputSizeMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_InputSizeAllocator[MAX_NUMA_NODES]{};
+
+	VirtualSegment                    AllocatorRegistry::s_InputAlignmentMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_InputAlignmentAllocator[MAX_NUMA_NODES]{};
+
+	// -------------------------------------------------------------------------
+	// Task Metadata - Output Layouts
+	// -------------------------------------------------------------------------
+
+	VirtualSegment                    AllocatorRegistry::s_OutputSizeMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_OutputSizeAllocator[MAX_NUMA_NODES]{};
+
+	VirtualSegment                    AllocatorRegistry::s_OutputAlignmentMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskMetadataAllocator AllocatorRegistry::s_OutputAlignmentAllocator[MAX_NUMA_NODES]{};
+
+	// -------------------------------------------------------------------------
+	// Task Payload
+	// -------------------------------------------------------------------------
+
+	VirtualSegment                   AllocatorRegistry::s_TaskPayloadMemory[MAX_NUMA_NODES]{};
+	Allocators::TaskPayloadAllocator AllocatorRegistry::s_TaskPayloadAllocator[MAX_NUMA_NODES]{};
+
+	// -------------------------------------------------------------------------
 
 	AtomicAllocators& AtomicAllocators::instance() {
 		static AtomicAllocators inst;

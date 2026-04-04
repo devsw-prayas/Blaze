@@ -90,7 +90,7 @@ namespace Corium::Intrinsic {
 
 	CORIUM_FORCEINLINE	CORIUM_RUNTIME_API void LoadFence() {
 #if CORIUM_COMPILER_MSVC
-		_mm_lfence();
+		::_mm_lfence();
 #elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
@@ -120,7 +120,7 @@ namespace Corium::Intrinsic {
 
 	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void StoreFence() {
 #if CORIUM_COMPILER_MSVC
-		_mm_sfence();
+		::_mm_sfence();
 #elif  CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)

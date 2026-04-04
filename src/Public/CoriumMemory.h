@@ -25,9 +25,13 @@ namespace Corium::Memory {
 	using Bytes = size_t;
 
 	struct CORIUM_RUNTIME_API alignas(32) VirtualSegment final {
-		void* m_Memory;
-		Bytes m_TotalSize;
-		Bytes m_CommittedSize;
+		// Sentinel value meaning "no NUMA affinity" — VirtualAlloc used instead of VirtualAllocExNuma
+		static constexpr uint8_t INVALID_NUMA_NODE = 0xFF;
+
+		void*   m_Memory        = nullptr;
+		Bytes   m_TotalSize     = 0;
+		Bytes   m_CommittedSize = 0;
+		uint8_t m_NumaNode      = INVALID_NUMA_NODE;   // fits in existing alignas(32) padding
 
 		VirtualSegment(const VirtualSegment&) = default;
 		VirtualSegment& operator=(const VirtualSegment&) = default;
@@ -35,8 +39,9 @@ namespace Corium::Memory {
 		VirtualSegment(VirtualSegment&&) noexcept = default;
 		VirtualSegment& operator=(VirtualSegment&&) noexcept = default;
 
-		constexpr VirtualSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0) :
-			m_Memory(p_Memory), m_TotalSize(v_TSize), m_CommittedSize(v_CSize) {
+		constexpr VirtualSegment(void* p_Memory = nullptr, Bytes v_TSize = 0, Bytes v_CSize = 0,
+		                         uint8_t v_NumaNode = INVALID_NUMA_NODE) :
+			m_Memory(p_Memory), m_TotalSize(v_TSize), m_CommittedSize(v_CSize), m_NumaNode(v_NumaNode) {
 		}
 
 		constexpr bool isValid() const noexcept {
