@@ -276,12 +276,13 @@ namespace Corium::Core::Atomics {
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic increment")
 		Valid atomicIncrement32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return AtomicIncrement32_Relaxed(p_Memory);
-		case MemoryOrder::ACQUIRE:return AtomicIncrement32_Acquire(p_Memory);
-		case MemoryOrder::RELEASE:return AtomicIncrement32_Release(p_Memory);
-		case MemoryOrder::ACQ_REL:return AtomicIncrement32_AcqRel(p_Memory);
-		case MemoryOrder::SEQ_CST:return AtomicIncrement32_SeqCst(p_Memory);
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement32_Relaxed(p_Raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicIncrement32_Acquire(p_Raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicIncrement32_Release(p_Raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicIncrement32_AcqRel(p_Raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicIncrement32_SeqCst(p_Raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -291,12 +292,13 @@ namespace Corium::Core::Atomics {
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic increment")
 		Valid atomicIncrement64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return AtomicIncrement64_Relaxed(p_Memory);
-		case MemoryOrder::ACQUIRE:return AtomicIncrement64_Acquire(p_Memory);
-		case MemoryOrder::RELEASE:return AtomicIncrement64_Release(p_Memory);
-		case MemoryOrder::ACQ_REL:return AtomicIncrement64_AcqRel(p_Memory);
-		case MemoryOrder::SEQ_CST:return AtomicIncrement64_SeqCst(p_Memory);
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement64_Relaxed(p_Raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicIncrement64_Acquire(p_Raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicIncrement64_Release(p_Raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicIncrement64_AcqRel(p_Raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicIncrement64_SeqCst(p_Raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -306,12 +308,13 @@ namespace Corium::Core::Atomics {
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement")
 		Valid atomicDecrement32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return AtomicDecrement32_Relaxed(p_Memory);
-		case MemoryOrder::ACQUIRE:return AtomicDecrement32_Acquire(p_Memory);
-		case MemoryOrder::RELEASE:return AtomicDecrement32_Release(p_Memory);
-		case MemoryOrder::ACQ_REL:return AtomicDecrement32_AcqRel(p_Memory);
-		case MemoryOrder::SEQ_CST:return AtomicDecrement32_SeqCst(p_Memory);
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement32_Relaxed(p_Raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicDecrement32_Acquire(p_Raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicDecrement32_Release(p_Raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicDecrement32_AcqRel(p_Raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicDecrement32_SeqCst(p_Raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -321,12 +324,13 @@ namespace Corium::Core::Atomics {
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement")
 		Valid atomicDecrement64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return AtomicDecrement64_Relaxed(p_Memory);
-		case MemoryOrder::ACQUIRE:return AtomicDecrement64_Acquire(p_Memory);
-		case MemoryOrder::RELEASE:return AtomicDecrement64_Release(p_Memory);
-		case MemoryOrder::ACQ_REL:return AtomicDecrement64_AcqRel(p_Memory);
-		case MemoryOrder::SEQ_CST:return AtomicDecrement64_SeqCst(p_Memory);
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement64_Relaxed(p_Raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicDecrement64_Acquire(p_Raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicDecrement64_Release(p_Raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicDecrement64_AcqRel(p_Raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicDecrement64_SeqCst(p_Raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 

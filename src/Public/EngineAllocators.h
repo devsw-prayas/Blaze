@@ -2,7 +2,6 @@
 
 #include "AtomicVariable.h"
 #include "CoriumAllocator.h"
-#include "CoriumAddrSpace.h"
 #include "CoriumMemory.h"
 
 namespace Corium::Memory::Allocators {
@@ -198,7 +197,7 @@ namespace Corium::Memory::Allocators {
 		BlockHeader* coalesce(BlockHeader* b) {
 			// next
 			auto* n = next(b);
-			if (reinterpret_cast<uint8_t*>(n) < m_Base + m_Size && n->isFree()) {
+			if (reinterpret_cast<uint8_t*>(n) < m_Cursor && n->isFree()) {
 				removeFree(n);
 				b->set(b->size() + n->size(), true);
 			}

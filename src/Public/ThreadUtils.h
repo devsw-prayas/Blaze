@@ -27,6 +27,9 @@
 #include "CoriumMemoryHandler.h"
 
 namespace Corium::Core {
+	// Forward declaration — implementation lives in CoriumThread.cpp.
+	namespace Internal { struct ThreadLaunchHelper; }
+
 	struct Allocator {};
 
 	template<typename S>
@@ -127,6 +130,7 @@ namespace Corium::Core {
 
 	struct CORIUM_ALIGNAS(32) CORIUM_RUNTIME_API ThreadHandle final {
 		friend class NativeThread;
+		friend struct Internal::ThreadLaunchHelper;
 	private:
 		size_t m_ThreadId;
 		size_t m_Generation;
@@ -138,6 +142,7 @@ namespace Corium::Core {
 			: m_ThreadId(v_ThreadId), m_Generation(v_Generation), m_AccessToken(v_AccessToken), m_State(v_State) {}
 
 	public:
+		ThreadHandle() = default;
 		ThreadState expectedState() const {
 			return m_State;
 		}
@@ -146,4 +151,9 @@ namespace Corium::Core {
 			return { 0, 0, 0, ThreadState::REAPED };
 		}
 	};
+
+	namespace this_thread {
+		static thread_local ThreadHandle t_Handle = ThreadHandle::getInvalidThread();
+		static thread_local ParkHandle   t_Permit { 0u };
+	}
 }

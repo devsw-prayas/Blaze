@@ -103,6 +103,9 @@ namespace Corium::Core::Atomic {
 				Atomics::MemoryOrder v_Ordering = Atomics::MemoryOrder::SEQ_CST) noexcept {
 			return Atomics::atomicClear<Valid>(&m_Value, bit, v_Ordering);
 		}
+
+		CORIUM_FORCEINLINE Valid*       data() noexcept       { return &m_Value; }
+		CORIUM_FORCEINLINE const Valid* data() const noexcept { return &m_Value; }
 	};
 
 	template<typename T>
@@ -204,6 +207,9 @@ namespace Corium::Core::Atomic {
 				Atomics::MemoryOrder v_Ordering = Atomics::MemoryOrder::SEQ_CST) noexcept {
 			return Atomics::atomicClear<Valid>(&m_Value, bit, v_Ordering);
 		}
+
+		CORIUM_FORCEINLINE Valid*       data() noexcept       { return &m_Value; }
+		CORIUM_FORCEINLINE const Valid* data() const noexcept { return &m_Value; }
 	};
 
 	template<typename T>
