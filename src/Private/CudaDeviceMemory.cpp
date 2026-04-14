@@ -16,7 +16,7 @@ namespace Corium::Cuda::Memory {
 			addr.m_GpuAddr = ptr;
 			return  addr;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 			return addr;
 	}
 
@@ -30,7 +30,7 @@ namespace Corium::Cuda::Memory {
 			alloc.m_Pitch = pitch;
 			return alloc;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 			return alloc;
 	}
 
@@ -41,7 +41,7 @@ namespace Corium::Cuda::Memory {
 			ro_Address.m_GpuAddr = 0;
 			return;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	GpuMemory DeviceMemory::query() {
@@ -50,7 +50,7 @@ namespace Corium::Cuda::Memory {
 		if (result == CUDA_SUCCESS) {
 			return mem;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 			return mem;
 	}
 
@@ -59,7 +59,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Address.isValid());
 		const CUresult result = cuMemsetD8(ro_Address.m_GpuAddr, v_Val, v_Count);
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void DeviceMemory::memsetD16(const GpuAddress& ro_Address, uint16_t v_Val, size_t v_Count) {
@@ -67,7 +67,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Address.isValid());
 		const CUresult result = cuMemsetD16(ro_Address.m_GpuAddr, v_Val, v_Count);
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void DeviceMemory::memsetD32(const GpuAddress& ro_Address, uint32_t v_Val, size_t v_Count) {
@@ -75,7 +75,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Address.isValid());
 		const CUresult result = cuMemsetD32(ro_Address.m_GpuAddr, v_Val, v_Count);
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void DeviceMemory::memsetD8Async(const GpuAddress& ro_Address, uint8_t v_Val, size_t v_Count, const Streams::GpuStream& ro_Stream) {
@@ -84,7 +84,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Stream.isValid());
 		const CUresult result = cuMemsetD8Async(ro_Address.m_GpuAddr, v_Val, v_Count, static_cast<CUstream>(ro_Stream.m_StreamHandle));
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void DeviceMemory::memsetD16Async(const GpuAddress& ro_Address, uint16_t v_Val, size_t v_Count, const Streams::GpuStream& ro_Stream) {
@@ -93,7 +93,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Stream.isValid());
 		const CUresult result = cuMemsetD16Async(ro_Address.m_GpuAddr, v_Val, v_Count, static_cast<CUstream>(ro_Stream.m_StreamHandle));
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void DeviceMemory::memsetD32Async(const GpuAddress& ro_Address, uint32_t v_Val, size_t v_Count, const Streams::GpuStream& ro_Stream) {
@@ -102,7 +102,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Stream.isValid());
 		const CUresult result = cuMemsetD32Async(ro_Address.m_GpuAddr, v_Val, v_Count, static_cast<CUstream>(ro_Stream.m_StreamHandle));
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 
@@ -112,7 +112,7 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Dst.isValid());
 		const CUresult result = cuMemcpyDtoD(ro_Dst.m_GpuAddr, ro_Src.m_GpuAddr, v_Bytes);
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void DeviceMemory::copyDeviceToDeviceAsync(const GpuAddress& ro_Dst, const GpuAddress& ro_Src, size_t v_Bytes, const Streams::GpuStream& ro_Stream) {
@@ -122,6 +122,6 @@ namespace Corium::Cuda::Memory {
 		CORIUM_ASSERT(ro_Stream.isValid());
 		const CUresult result = cuMemcpyDtoDAsync(ro_Dst.m_GpuAddr, ro_Src.m_GpuAddr, v_Bytes, static_cast<CUstream>(ro_Stream.m_StreamHandle));
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 }

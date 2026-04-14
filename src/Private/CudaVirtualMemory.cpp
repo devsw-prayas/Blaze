@@ -31,7 +31,7 @@ namespace Corium::Cuda::Memory {
             return addr;
         }
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
             return addr;
     }
 
@@ -52,7 +52,7 @@ namespace Corium::Cuda::Memory {
             return;
         }
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
     }
 
     Utils::AllocHandle GpuVirtualMemory::createAllocation(
@@ -89,7 +89,7 @@ namespace Corium::Cuda::Memory {
             return outHandle;
         }
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
             return outHandle;
     }
 
@@ -108,7 +108,7 @@ namespace Corium::Cuda::Memory {
             return;
         }
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
     }
 
     void GpuVirtualMemory::map(
@@ -131,7 +131,7 @@ namespace Corium::Cuda::Memory {
 
         if (result == CUDA_SUCCESS) return;
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
     }
 
 
@@ -149,7 +149,7 @@ namespace Corium::Cuda::Memory {
 
         if (result == CUDA_SUCCESS) return;
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
     }
 
     void GpuVirtualMemory::setAccess(
@@ -186,7 +186,7 @@ namespace Corium::Cuda::Memory {
 
         if (result == CUDA_SUCCESS) return;
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
     }
 
     // ------------------------------------------------------------
@@ -220,7 +220,7 @@ namespace Corium::Cuda::Memory {
 
         if (result == CUDA_SUCCESS) return granularity;
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
             return 0;
     }
 
@@ -241,7 +241,7 @@ namespace Corium::Cuda::Memory {
 
         if (result == CUDA_SUCCESS) return;
 
-        CUDA_ERROR_TRAP(result)
+        CUDA_ERROR_TRAP(result);
     }
 
 }

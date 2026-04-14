@@ -30,7 +30,7 @@ namespace Corium::Cuda::Context {
 			ctx.m_Handle = context;
 			return ctx;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 		return ctx;
 	}
 
@@ -39,7 +39,7 @@ namespace Corium::Cuda::Context {
 		const CUresult result = cuCtxSetCurrent(static_cast<CUcontext>(ro_Context.m_Handle));
 		if (result == CUDA_SUCCESS) return;
 
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	Utils::CudaContext ContextManager::getCurrentCudaContext() {
@@ -51,7 +51,7 @@ namespace Corium::Cuda::Context {
 			ctx.m_Handle = context;
 			return ctx;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 		return ctx;
 	}
 
@@ -59,7 +59,7 @@ namespace Corium::Cuda::Context {
 		CORIUM_ASSERT(ro_Context.m_Handle);
 		CUresult result = cuCtxPushCurrent_v2(static_cast<CUcontext>(ro_Context.m_Handle));
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	Utils::CudaContext ContextManager::popCudaContext() {
@@ -72,14 +72,14 @@ namespace Corium::Cuda::Context {
 			return ctx;
 		}
 
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 		return ctx;
 	}
 
 	void ContextManager::cudaContextSynchronize() {
 		CUresult result = cuCtxSynchronize();
 		if (result == CUDA_SUCCESS) return;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void ContextManager::destroyCudaContext(Utils::CudaContext& ro_Context) {
@@ -89,6 +89,6 @@ namespace Corium::Cuda::Context {
 			ro_Context.m_Handle = nullptr;
 			return;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 }

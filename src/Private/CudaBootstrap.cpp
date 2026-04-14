@@ -50,7 +50,7 @@ namespace Corium::Cuda {
 		if (result == CUDA_SUCCESS)
 			return static_cast<uint32_t>(version);
 
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 		return 0;
 	}
 
@@ -72,7 +72,7 @@ namespace Corium::Cuda {
 		CUresult result = cuDeviceGetName(p_Name, static_cast<int>(v_Len), Internal::CUDA_DeviceRegistry::s_Devices[v_Handle.m_HandleValue]);
 		if (result == CUDA_SUCCESS) return;
 
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	void Bootstrap::CudaDeviceManager::getCudaDeviceAttribute(int* p_Value, Utils::CudaDeviceAttribute v_Attr, Utils::DeviceHandle v_Handle) {
@@ -81,7 +81,7 @@ namespace Corium::Cuda {
 		CUresult result = cuDeviceGetAttribute(p_Value, Internal::CUDA_InternalHelpers::toCudaAttr(v_Attr), Internal::CUDA_DeviceRegistry::s_Devices[v_Handle.m_HandleValue]);
 		if (result == CUDA_SUCCESS) return;
 
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 	}
 
 	size_t Bootstrap::CudaDeviceManager::getCudaDeviceTotalMemory(Utils::DeviceHandle v_Handle) {
@@ -89,7 +89,7 @@ namespace Corium::Cuda {
 		size_t mem = 0;
 		CUresult result = cuDeviceTotalMem_v2(&mem, Internal::CUDA_DeviceRegistry::s_Devices[v_Handle.m_HandleValue]);
 		if (result == CUDA_SUCCESS) return mem;
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 		return 0;
 	}
 
@@ -103,7 +103,7 @@ namespace Corium::Cuda {
 			memcpy(&deviceUUID, uuid.bytes, 16);	
 			return deviceUUID;
 		}
-		CUDA_ERROR_TRAP(result)
+		CUDA_ERROR_TRAP(result);
 		return deviceUUID;
 	}
 }
