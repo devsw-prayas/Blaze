@@ -20,7 +20,6 @@
 */
 #pragma once
 
-namespace Corium {
 #if defined(_MSC_VER)
 #define CORIUM_COMPILER_MSVC 1
 #else
@@ -38,7 +37,6 @@ namespace Corium {
 #else
 #define CORIUM_COMPILER_GCC 0
 #endif
-}
 
 #if CORIUM_COMPILER_MSVC
 #define CORIUM_FORCEINLINE __forceinline
@@ -64,9 +62,12 @@ namespace Corium {
 #if CORIUM_COMPILER_MSVC
 #define CORIUM_OPTIMIZE_OFF __pragma(optimize("", off))
 #define CORIUM_OPTIMIZE_ON  __pragma(optimize("", on))
-#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
+#elif CORIUM_COMPILER_CLANG
 #define CORIUM_OPTIMIZE_OFF _Pragma("clang optimize off")
 #define CORIUM_OPTIMIZE_ON  _Pragma("clang optimize on")
+#elif CORIUM_COMPILER_GCC
+#define CORIUM_OPTIMIZE_OFF _Pragma("GCC optimize(\"O0\")")
+#define CORIUM_OPTIMIZE_ON  _Pragma("GCC optimize(\"O2\")")
 #else
 #define CORIUM_OPTIMIZE_OFF
 #define CORIUM_OPTIMIZE_ON
@@ -108,14 +109,21 @@ namespace Corium {
 #define CORIUM_PRAGMA(x)
 #endif
 
-#define CORIUM_DIAGNOSTIC_PUSH CORIUM_PRAGMA(diagnostic push)
-#define CORIUM_DIAGNOSTIC_POP  CORIUM_PRAGMA(diagnostic pop)
-
 #if CORIUM_COMPILER_MSVC
+#define CORIUM_DIAGNOSTIC_PUSH    CORIUM_PRAGMA(warning(push))
+#define CORIUM_DIAGNOSTIC_POP     CORIUM_PRAGMA(warning(pop))
 #define CORIUM_DISABLE_WARNING(w) CORIUM_PRAGMA(warning(disable : w))
-#elif CORIUM_COMPILER_CLANG || CORIUM_COMPILER_GCC
+#elif CORIUM_COMPILER_CLANG
+#define CORIUM_DIAGNOSTIC_PUSH    CORIUM_PRAGMA(clang diagnostic push)
+#define CORIUM_DIAGNOSTIC_POP     CORIUM_PRAGMA(clang diagnostic pop)
 #define CORIUM_DISABLE_WARNING(w) CORIUM_PRAGMA(clang diagnostic ignored w)
+#elif CORIUM_COMPILER_GCC
+#define CORIUM_DIAGNOSTIC_PUSH    CORIUM_PRAGMA(GCC diagnostic push)
+#define CORIUM_DIAGNOSTIC_POP     CORIUM_PRAGMA(GCC diagnostic pop)
+#define CORIUM_DISABLE_WARNING(w) CORIUM_PRAGMA(GCC diagnostic ignored w)
 #else
+#define CORIUM_DIAGNOSTIC_PUSH
+#define CORIUM_DIAGNOSTIC_POP
 #define CORIUM_DISABLE_WARNING(w)
 #endif
 
