@@ -20,14 +20,13 @@ namespace Corium::Environment {
 	void EnvironmentProbe::init() {
 		if (g_IsInitialized) return;
 
-		g_CpuInfo              = {};
+		g_CpuInfo = {};
 		g_VectorizeCapabilities = {};
-		g_OsInfo               = {};
+		g_OsInfo = {};
 
 #ifdef _WIN32
-		// =====================================================================
+
 		// CPU TOPOLOGY + CACHE
-		// =====================================================================
 
 		DWORD size = 0;
 		GetLogicalProcessorInformationEx(RelationAll, nullptr, &size);
@@ -36,14 +35,14 @@ namespace Corium::Environment {
 		if (!buffer) return;
 
 		if (!GetLogicalProcessorInformationEx(
-				RelationAll,
-				reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer),
-				&size)) {
+			RelationAll,
+			reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer),
+			&size)) {
 			free(buffer);
 			return;
 		}
 
-		BYTE* p   = buffer;
+		BYTE* p = buffer;
 		BYTE* end = buffer + size;
 
 		while (p < end) {
@@ -74,7 +73,7 @@ namespace Corium::Environment {
 			case RelationCache:
 				{
 					const auto& cache = entry->Cache;
-					if      (cache.Level == 1) g_CpuInfo.m_L1CacheSize += cache.CacheSize;
+					if (cache.Level == 1) g_CpuInfo.m_L1CacheSize += cache.CacheSize;
 					else if (cache.Level == 2) g_CpuInfo.m_L2CacheSize += cache.CacheSize;
 					else if (cache.Level == 3) g_CpuInfo.m_L3CacheSize += cache.CacheSize;
 					break;
@@ -88,18 +87,16 @@ namespace Corium::Environment {
 
 		free(buffer);
 
-		// =====================================================================
 		// CACHE LINE SIZE + SIMD CAPABILITIES
-		// =====================================================================
 
 		int cpuInfo[4] = {};
 		__cpuid(cpuInfo, 1);
 
 		g_CpuInfo.m_CacheLineSize = ((cpuInfo[1] >> 8) & 0xFF) * 8;
 
-		const bool hasSSE   = (cpuInfo[3] & (1 << 25)) != 0;
+		const bool hasSSE = (cpuInfo[3] & (1 << 25)) != 0;
 		const bool hasSSE41 = (cpuInfo[2] & (1 << 19)) != 0;
-		const bool hasAVX   = (cpuInfo[2] & (1 << 28)) != 0;
+		const bool hasAVX = (cpuInfo[2] & (1 << 28)) != 0;
 
 		uint64_t xcr0 = 0;
 #ifdef _XCR_XFEATURE_ENABLED_MASK
@@ -113,21 +110,19 @@ namespace Corium::Environment {
 		int cpuInfoEx[4] = {};
 		__cpuidex(cpuInfoEx, 7, 0);
 
-		const bool hasAVX2   = (cpuInfoEx[1] & (1 << 5))  != 0;
+		const bool hasAVX2 = (cpuInfoEx[1] & (1 << 5)) != 0;
 		const bool hasAVX512 = (cpuInfoEx[1] & (1 << 16)) != 0 && ((xcr0 & 0xE0) == 0xE0);
 
 		uint8_t caps = 0;
 		if (hasSSE)              caps |= (1 << 0);
 		if (hasSSE41)            caps |= (1 << 1);
-		if (hasAVX  && avxOs)    caps |= (1 << 2);
+		if (hasAVX && avxOs)    caps |= (1 << 2);
 		if (hasAVX2 && avxOs)    caps |= (1 << 3);
 		if (hasAVX512)           caps |= (1 << 4);
 
 		g_VectorizeCapabilities.m_VectorCapabilities = caps;
 
-		// =====================================================================
 		// OS VERSION (RtlGetVersion — bypasses compatibility shim)
-		// =====================================================================
 
 		typedef LONG(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
 
@@ -147,7 +142,7 @@ namespace Corium::Environment {
 				if (fn_cast.typed(&ver) == 0) {
 					g_OsInfo.m_MajorVersion = ver.dwMajorVersion;
 					g_OsInfo.m_MinorVersion = ver.dwMinorVersion;
-					g_OsInfo.m_BuildNumber  = ver.dwBuildNumber;
+					g_OsInfo.m_BuildNumber = ver.dwBuildNumber;
 				}
 			}
 		}
@@ -164,23 +159,22 @@ namespace Corium::Environment {
 		g_OsInfo.m_ProductName = s_ProductName;
 
 #elif defined(__linux__)
-		// =====================================================================
+
 		// Linux fallback — CPUID still works, topology via /proc/cpuinfo
-		// =====================================================================
 
 		int cpuInfo[4] = {};
 		__cpuid(1, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
 
 		g_CpuInfo.m_CacheLineSize = ((cpuInfo[1] >> 8) & 0xFF) * 8;
 
-		const bool hasSSE   = (cpuInfo[3] & (1 << 25)) != 0;
+		const bool hasSSE = (cpuInfo[3] & (1 << 25)) != 0;
 		const bool hasSSE41 = (cpuInfo[2] & (1 << 19)) != 0;
-		const bool hasAVX   = (cpuInfo[2] & (1 << 28)) != 0;
+		const bool hasAVX = (cpuInfo[2] & (1 << 28)) != 0;
 
 		int cpuInfoEx[4] = {};
 		__cpuid_count(7, 0, cpuInfoEx[0], cpuInfoEx[1], cpuInfoEx[2], cpuInfoEx[3]);
 
-		const bool hasAVX2   = (cpuInfoEx[1] & (1 << 5))  != 0;
+		const bool hasAVX2 = (cpuInfoEx[1] & (1 << 5)) != 0;
 		const bool hasAVX512 = (cpuInfoEx[1] & (1 << 16)) != 0;
 
 		uint8_t caps = 0;
@@ -288,5 +282,4 @@ namespace Corium::Environment {
 #endif
 		CORIUM_UNREACHABLE();
 	}
-
 }

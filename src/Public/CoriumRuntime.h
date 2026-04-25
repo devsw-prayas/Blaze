@@ -37,5 +37,8 @@ namespace Corium {
 
 			s_IsInit = true;
 		}
+		static bool CORIUM_FORCEINLINE isRuntimeInit() {
+			return s_IsInit;
+		}
 	};
 }

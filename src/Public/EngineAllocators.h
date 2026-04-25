@@ -6,9 +6,9 @@
 
 namespace Corium::Memory::Allocators {
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) BumpAllocator : IArenaAllocator<BumpAllocator> {
+		Core::Atomic::AtomicValue64<size_t> m_Bump{ 0 };
 		VirtualSegment* m_Base;
 		size_t m_Size = 0;
-		CORIUM_ALIGNAS(8) Core::Atomic::AtomicValue64<size_t> m_Bump{ 0 };
 
 		BumpAllocator() = default;
 		BumpAllocator(const BumpAllocator&) = delete;

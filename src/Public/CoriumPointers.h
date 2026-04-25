@@ -1,9 +1,30 @@
+/*
+* Copyright (c) 2025 StormWeaver
+*
+* This file is part of the Corium Multithreading API
+*
+* Licensed under the MIT License. You may obtain a copy of the License at
+* https://opensource.org/licenses/MIT
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND...
+*/
 #pragma once
 #include "CoriumMemoryHandler.h"
 #include "CoriumAtomics.h"
 
 namespace Corium::Memory {
 	using namespace Corium::Core::Atomics;
+
 	// UniqueView - non-owning observer vended by UniquePtr
 
 	template<typename T>
@@ -11,7 +32,7 @@ namespace Corium::Memory {
 	private:
 		T* m_Ptr = nullptr;
 
-		template<typename U>
+		template<typename U, typename UAllocator>
 		friend struct UniquePtr;
 
 		explicit UniqueView(T* p_Ptr) noexcept : m_Ptr(p_Ptr) {}
@@ -30,20 +51,23 @@ namespace Corium::Memory {
 		}
 	};
 
-	// UniquePtr<T> - single-owner smart pointer backed by GeneralAllocator.
+	// UniquePtr<T, TAllocator> - single-owner smart pointer.
+	//
+	// TAllocator defaults to GeneralAllocator but can be any allocator that
+	// exposes emplace<T>(...) and deallocate(void*, size_t).
 	// The allocator instance is passed at construction and stored alongside
 	// the pointer so destroy() can return memory without a separate free list.
 
-	template<typename T>
+	template<typename T, typename TAllocator = Allocators::GeneralAllocator>
 	struct alignas(16) UniquePtr final {
 	private:
-		Allocators::GeneralAllocator* m_Allocator = nullptr;
+		TAllocator* m_Allocator = nullptr;
 		T* m_Memory = nullptr;
 
 		template<typename... Args>
 		void alloc(Args&&... u_Params) {
 			CORIUM_ASSERT(m_Allocator != nullptr);
-			T* p_Mem = m_Allocator->emplace<T>(std::forward<Args>(u_Params)...);
+			T* p_Mem = m_Allocator->template emplace<T>(std::forward<Args>(u_Params)...);
 			if (p_Mem) {
 				m_Memory = p_Mem;
 			} else {
@@ -65,13 +89,12 @@ namespace Corium::Memory {
 		UniquePtr() noexcept = default;
 
 		template<typename... Args>
-		explicit UniquePtr(Allocators::GeneralAllocator* p_Allocator,
-						   Args&&... u_Params) noexcept {
+		explicit UniquePtr(TAllocator* p_Allocator, Args&&... u_Params) noexcept {
 			m_Allocator = p_Allocator;
 			alloc(std::forward<Args>(u_Params)...);
 		}
 
-		UniqueView<T> view() noexcept { return UniqueView<T>(m_Memory); }
+		UniqueView<T>       view() noexcept { return UniqueView<T>(m_Memory); }
 		UniqueView<const T> view() const noexcept { return UniqueView<const T>(m_Memory); }
 
 		UniquePtr(const UniquePtr&) = delete;
@@ -117,7 +140,7 @@ namespace Corium::Memory {
 		}
 
 		template<typename... Args>
-		void reset(Allocators::GeneralAllocator* p_Allocator, Args&&... u_Params) {
+		void reset(TAllocator* p_Allocator, Args&&... u_Params) {
 			destroy();
 			m_Allocator = p_Allocator;
 			alloc(std::forward<Args>(u_Params)...);
@@ -128,8 +151,7 @@ namespace Corium::Memory {
 	//
 	// Bump-allocated from ControlBlockAllocator (g_SmartPtrControlBlocks VA).
 	// Never individually freed - lives for the process lifetime.
-	// No type-erased deleter: SharedPtr<T> carries the GeneralAllocator* directly
-	// and destroys the object itself when the count hits zero.
+	// ControlBlockAllocator always stays fixed regardless of object allocator.
 
 	namespace Internal {
 		struct alignas(64) SharedControlBlock final {
@@ -137,6 +159,7 @@ namespace Corium::Memory {
 
 		private:
 			CORIUM_MAYBE_UNUSED const std::byte padding_[56] = {};
+
 		public:
 			explicit SharedControlBlock(uint64_t v_InitCount) noexcept
 				: m_StrongCount(v_InitCount) {
@@ -147,27 +170,19 @@ namespace Corium::Memory {
 			SharedControlBlock(SharedControlBlock&&) = delete;
 			SharedControlBlock& operator=(SharedControlBlock&&) = delete;
 
-			// Increment strong count. Called on SharedPtr copy. Never fails.
 			void addRef() noexcept {
 				CORIUM_UNUSED(m_StrongCount.increment(1u, MemoryOrder::RELAXED));
 			}
 
-			// Decrement strong count. Returns true if this was the last reference.
-			// atomicDecrement64 returns the new (post-decrement) value.
 			bool release() noexcept {
 				uint64_t v_NewCount = m_StrongCount.decrement(1u, MemoryOrder::ACQ_REL);
 				return v_NewCount == 0u;
 			}
 
-			// CAS loop: try to increment strong count from a non-zero value.
-			// Used by WeakPtr::lock() to atomically promote a weak reference.
-			// Returns true on success (caller now holds a strong reference).
 			bool tryAddRef() noexcept {
 				uint64_t cur = m_StrongCount.load(MemoryOrder::ACQUIRE);
 				while (cur != 0u) {
 					uint64_t v_Prev = cur;
-					// compareExchange updates cur on failure to the actual current value.
-					// On success cur is unchanged (still == v_Prev).
 					CORIUM_UNUSED(m_StrongCount.compareExchange(
 						&cur, cur + 1u,
 						MemoryOrder::ACQ_REL,
@@ -187,35 +202,31 @@ namespace Corium::Memory {
 	} // namespace Internal
 
 	// Forward declarations
-	template<typename T> struct SharedPtr;
-	template<typename T> struct WeakPtr;
 
-	// SharedPtr<T> - shared-ownership smart pointer backed by GeneralAllocator.
+	template<typename T, typename TAllocator = Allocators::GeneralAllocator> struct SharedPtr;
+	template<typename T, typename TAllocator = Allocators::GeneralAllocator> struct WeakPtr;
+
+	// SharedPtr<T, TAllocator> - shared-ownership smart pointer.
 	//
-	// Each instance carries both the object pointer and the GeneralAllocator*
-	// that owns it. All copies share the same control block (bump-allocated from
-	// ControlBlockAllocator). When the last strong reference drops, the holder
-	// calls ~T() and returns memory via the stored allocator directly - no
-	// type-erased deleter needed.
+	// TAllocator defaults to GeneralAllocator but can be any allocator that
+	// exposes emplace<T>(...) and deallocate(void*, size_t).
+	// ControlBlockAllocator always stays fixed - control blocks always go to
+	// g_SmartPtrControlBlocks regardless of object allocator.
 	//
 	// Construction:
-	//   SharedPtr<T>::adopt(p_Object, p_ObjAlloc, p_CtrlAlloc)
-	//     Takes ownership of a pre-constructed object.
-	//
-	//   SharedPtr<T>::make(p_ObjAlloc, p_CtrlAlloc, args...)
-	//     Constructs the object via p_ObjAlloc and adopts it.
+	//   SharedPtr<T, TAllocator>::adopt(p_Object, p_ObjAlloc, p_CtrlAlloc)
+	//   SharedPtr<T, TAllocator>::make(p_ObjAlloc, p_CtrlAlloc, args...)
 
-	template<typename T>
+	template<typename T, typename TAllocator>
 	struct alignas(16) SharedPtr final {
 	private:
-		Allocators::GeneralAllocator* m_Allocator = nullptr;
+		TAllocator* m_Allocator = nullptr;
 		T* m_Ptr = nullptr;
 		Internal::SharedControlBlock* m_Control = nullptr;
 
-		// Private constructor - used by adopt(), make(), copy, and WeakPtr::lock().
 		SharedPtr(T* p_Ptr,
 				  Internal::SharedControlBlock* p_Control,
-				  Allocators::GeneralAllocator* p_Allocator) noexcept
+				  TAllocator* p_Allocator) noexcept
 			: m_Allocator(p_Allocator), m_Ptr(p_Ptr), m_Control(p_Control) {
 		}
 
@@ -230,20 +241,17 @@ namespace Corium::Memory {
 			m_Control = nullptr;
 		}
 
-		template<typename U> friend struct SharedPtr;
-		template<typename U> friend struct WeakPtr;
+		template<typename U, typename UAllocator> friend struct SharedPtr;
+		template<typename U, typename UAllocator> friend struct WeakPtr;
 
 	public:
 		SharedPtr() noexcept = default;
 
-		// Take ownership of a pre-constructed object.
-		// p_ObjAlloc  - GeneralAllocator that owns p_Object.
-		// p_CtrlAlloc - ControlBlockAllocator for the ref-count block.
 		static SharedPtr adopt(T* p_Object,
-							   Allocators::GeneralAllocator* p_ObjAlloc,
+							   TAllocator* p_ObjAlloc,
 							   Allocators::ControlBlockAllocator* p_CtrlAlloc) noexcept {
 			CORIUM_ASSERT(p_Object && "Cannot adopt null object");
-			CORIUM_ASSERT(p_ObjAlloc && "GeneralAllocator is null");
+			CORIUM_ASSERT(p_ObjAlloc && "Allocator is null");
 			CORIUM_ASSERT(p_CtrlAlloc && "ControlBlockAllocator is null");
 
 			auto* p_Control = p_CtrlAlloc->emplace<Internal::SharedControlBlock>(1u);
@@ -252,21 +260,19 @@ namespace Corium::Memory {
 			return SharedPtr(p_Object, p_Control, p_ObjAlloc);
 		}
 
-		// Construct and adopt in one call.
 		template<typename... Args>
-		static SharedPtr make(Allocators::GeneralAllocator* p_ObjAlloc,
+		static SharedPtr make(TAllocator* p_ObjAlloc,
 							  Allocators::ControlBlockAllocator* p_CtrlAlloc,
 							  Args&&... u_Args) noexcept {
-			CORIUM_ASSERT(p_ObjAlloc && "GeneralAllocator is null");
+			CORIUM_ASSERT(p_ObjAlloc && "Allocator is null");
 			CORIUM_ASSERT(p_CtrlAlloc && "ControlBlockAllocator is null");
 
-			T* p_Object = p_ObjAlloc->emplace<T>(std::forward<Args>(u_Args)...);
+			T* p_Object = p_ObjAlloc->template emplace<T>(std::forward<Args>(u_Args)...);
 			if (!p_Object) return SharedPtr{};
 
 			return adopt(p_Object, p_ObjAlloc, p_CtrlAlloc);
 		}
 
-		// Copy - increments strong count. Carries the same allocator pointer.
 		SharedPtr(const SharedPtr& r_Other) noexcept
 			: m_Allocator(r_Other.m_Allocator)
 			, m_Ptr(r_Other.m_Ptr)
@@ -284,7 +290,6 @@ namespace Corium::Memory {
 			return *this;
 		}
 
-		// Move - steals ownership, no ref count change.
 		SharedPtr(SharedPtr&& u_Other) noexcept
 			: m_Allocator(u_Other.m_Allocator)
 			, m_Ptr(u_Other.m_Ptr)
@@ -318,33 +323,31 @@ namespace Corium::Memory {
 			return m_Control ? m_Control->useCount() : 0u;
 		}
 
-		WeakPtr<T> weak() const noexcept;
+		WeakPtr<T, TAllocator> weak() const noexcept;
 
 		void reset() noexcept { releaseRef(); }
 	};
 
-	// WeakPtr<T> - non-owning observer for SharedPtr<T>-managed objects.
+	// WeakPtr<T, TAllocator> - non-owning observer for SharedPtr-managed objects.
 	//
-	// Carries the GeneralAllocator* from the originating SharedPtr so that
+	// Carries the allocator ptr from the originating SharedPtr so that
 	// lock() can reconstruct a full SharedPtr<T> if the object is still alive.
-	// No ref counting in the destructor - control block is bump-allocated and
-	// lives for the process lifetime.
+	// No ref counting in the destructor - control block lives for process lifetime.
 
-	template<typename T>
+	template<typename T, typename TAllocator>
 	struct alignas(16) WeakPtr final {
 	private:
-		Allocators::GeneralAllocator* m_Allocator = nullptr;
+		TAllocator* m_Allocator = nullptr;
 		T* m_Ptr = nullptr;
 		Internal::SharedControlBlock* m_Control = nullptr;
 
-		template<typename U> friend struct SharedPtr;
-		template<typename U> friend struct WeakPtr;
+		template<typename U, typename UAllocator> friend struct SharedPtr;
+		template<typename U, typename UAllocator> friend struct WeakPtr;
 
 	public:
 		WeakPtr() noexcept = default;
 
-		// Construct from SharedPtr - does NOT increment the strong count.
-		explicit WeakPtr(const SharedPtr<T>& r_Shared) noexcept
+		explicit WeakPtr(const SharedPtr<T, TAllocator>& r_Shared) noexcept
 			: m_Allocator(r_Shared.m_Allocator)
 			, m_Ptr(r_Shared.m_Ptr)
 			, m_Control(r_Shared.m_Control) {
@@ -384,14 +387,11 @@ namespace Corium::Memory {
 			return *this;
 		}
 
-		// No destructor work - control block is bump-allocated, lives forever.
 		~WeakPtr() = default;
 
-		// Atomically promote to SharedPtr via CAS on the strong count.
-		// Returns an empty SharedPtr if the object has been destroyed.
-		SharedPtr<T> lock() const noexcept {
-			if (!m_Control || !m_Control->tryAddRef()) return SharedPtr<T>{};
-			return SharedPtr<T>(m_Ptr, m_Control, m_Allocator);
+		SharedPtr<T, TAllocator> lock() const noexcept {
+			if (!m_Control || !m_Control->tryAddRef()) return SharedPtr<T, TAllocator>{};
+			return SharedPtr<T, TAllocator>(m_Ptr, m_Control, m_Allocator);
 		}
 
 		bool expired() const noexcept {
@@ -408,8 +408,8 @@ namespace Corium::Memory {
 	};
 
 	// Deferred - defined after WeakPtr is complete.
-	template<typename T>
-	WeakPtr<T> SharedPtr<T>::weak() const noexcept {
-		return WeakPtr<T>(*this);
+	template<typename T, typename TAllocator>
+	WeakPtr<T, TAllocator> SharedPtr<T, TAllocator>::weak() const noexcept {
+		return WeakPtr<T, TAllocator>(*this);
 	}
 } 

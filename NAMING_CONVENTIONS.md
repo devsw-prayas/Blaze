@@ -1,247 +1,99 @@
-# Coding Conventions
-## Motivation:
-All code written across the entire development cycle must adhere strictly to the following rules and conventions to ensure consistency, maintainability, and correctness across the entire codebase. These conventions act as a structural contract for all contributors and enforce clear communication between systems and abstraction layers.
+# Corium Naming Manifesto
+> Im lazy, so all subsytems get the copy
 
-## [Naming Conventions]
-### A) Type Naming
-1. All `class`  and `struct`  that define concrete implementations must use `PascalCase`.
-   ```cpp
-   class ConcreteClass { /* ... */ };
-   struct DataStruct { /* ... */ };
-   ```
-2. Purely virtual `class` implementations (interfaces) must be prefixed with a capital I.
-   ```cpp
-   class IInterface {
-   public:
-       virtual void doSomething() = 0;
-   };
-   ```
-3. Abstract `class` (partially virtual) must be prefixed with a capital A.
-   ```cpp
-   class AAbstractBase {
-   public:
-       virtual void partialImplementation() = 0;
-       void concreteMethod() { /* ... */ }
-   };
-   ```
-4. `enum` must always be built using `enum class` and must use `uint8_t` as the underlying type unless a wider type is explicitly justified.
-   ```cpp
-   enum class Color : uint8_t { Red, Green, Blue };
-   ```
-5. Usage of `union ` is prohibited. Tagged struct s or standard variants must be used instead.
-   ```cpp
-   struct TaggedStruct {
-       bool isInt;
-       int intValue;
-       double doubleValue;
-   };
-   // Instead of: union { int a; double b; };
-   ```
+## Why We Name Things This Way
+Coding standards usually feel like they were written by a robot for a robot. This one isn't. The naming conventions in Spectra are born out of driver-level debugging, the quirks of C-style ABIs, and a bit of Java nostalgia. 
 
-### B) Function and Method Names
-1. All function and method names must follow `camelCase`.
-   ```cpp
-   void processData();
-   class Example {
-       void calculateResult();
-   };
-   ```
-2. Functions that reflect internal or thread-local behavior may be prefixed with internal or current, as appropriate.
-   ```cpp
-   void internalProcessData();
-   int currentThreadId();
-   ```
+The goal is **Visual Grep**: you should be able to see the memory layout, the ownership, and the intent of a variable just by looking at its name, without needing an IDE to save you.
 
-### C) Variable Naming
-1. Local variables must follow `camelCase`, and may optionally use a trailing underscore `_` to prevent name shadowing.
-   ```cpp
-   int localVariable;
-   int localVariable_; // To avoid shadowing
-   ```
-2. Private member variables must be prefixed with m_ and follow `camelCase`.
-   ```cpp
-   class Example {
-   private:
-       int m_memberVariable;
-   };
-   ```
-3. Global variables must be prefixed with `g_` and use `PascalCase`.
-   ```cpp
-   int g_GlobalCounter;
-   ```
-4. `thread_local` variables must be prefixed with `t_` and use `PascalCase`.
-   ```cpp
-   thread_local int t_ThreadId;
-   ```
-5. `static` variables within a class must be prefixed with `s_` and use `camelCase`.
-   ```cpp
-   class Example {
-   private:
-       static int s_staticCounter;
-   };
-   ```
-6. `static` variables inside a function can use regular `camelCase` without prefixing.
-   ```cpp
-   void exampleFunction() {
-       static int staticCounter;
-   }
-   ```
-7. The naming evaluation order is: scope → storage duration/type → naming rule.
+## 1. The "Visual ABI" (Parameters & High-Level Variables)
+In a renderer, a `float*` is never just a `float*`. The compiler sees an address; we see a memory contract.
 
-### D) Constants and Macros
-1. Constants must use `constexpr` and be written in `SCREAMING_SNAKE_CASE`.
-   ```cpp
-   constexpr int MAX_COUNT = 100;
-   ```
-2. Macros must be capitalized and use underscores. Optionally, macros can be prefixed with a module code for clarity.
-   ```cpp
-   #define MODULE_LOG_LEVEL 3
-   ```
-3. Constants ignore prefix rules and must be self-descriptive in name and meaning.
+### Pointer & Reference Prefixes
+We use these prefixes to explicitly communicate behavior and prevent logic errors at the "decay" level.
 
-### E) Template Parameters
-1. Template type parameters must be single uppercase letters (`T`, `U`, `K`, etc.). For variadic templates, use `Args`.
-   ```cpp
-   template<typename T, typename U>
-   class Pair;
-   template<typename... Args>
-   class Variadic;
-   ```
-2. All template parameters must be converted into `using` declarations scoped privately inside the class, written in `PascalCase` to denote placeholders.
-   ```cpp
-   template<typename T>
-   class Example {
-   private:
-       using PascalCase = T;
-   };
-   ```
-3. Template non-type parameters (e.g., int N) must be Capitalized.
-   ```cpp
-   template<int Size>
-   class FixedArray {};
-   ```
+| Prefix | Meaning | The "Why" |
+| :--- | :--- | :--- |
+| `p_` | **Pointer to Value** | Direct address-based passing for single values. |
+| `pa_` | **Pointer to Array** | Used when passing arrays to C-style functions. It warns that decay has happened. |
+| `po_` | **Pointer to Object** | Distinguishes a heap-allocated object from a raw data address. |
+| `r_` | **Reference to Value** | For trivial, handle-based aliases (struct-wrapped `uint64_t`). |
+| `ra_` | **Reference to Array** | Used for fixed-size array references. |
+| `ro_` | **Reference to Object** | For heavy descriptors or stateful objects. |
 
-### F) Namespaces
-1. All `namespace` must be capitalized using PascalCase.
-   ```cpp
-   namespace CoreSystem {
-       // ...
-   }
-   ```
-2. `namespace` that include `thread_local` data must define a `this_thread` sub-namespace to group them.
-   ```cpp
-   namespace CoreSystem {
-       namespace this_thread {
-           thread_local int t_ThreadData;
-       }
-   }
-   ```
+### Smart Pointers: The Ownership Guard
+*   `su_` (unique), `ss_` (shared), `sw_` (weak).
+*   **The "Why":** Since we often cast to raw pointers for performance, we need these prefixes to stop us from accidentally messing with ownership. 
 
-### G) Lambdas
-1. Lambda expressions must be assigned to variables prefixed with `l_`.
-   ```cpp
-   auto l_process = []() { /* ... */ };
-   ```
-2. Lambda variables are exempt from further prefixing or ownership markers.
+### The "Meyers Rule" (Universal References)
+*   `u_` (Universal Reference).
+*   **The "Why":** Inspired by Scott Meyers (Effective Modern C++). A `u_` prefix reminds you that this is a forwarding reference that **must** be `std::forward`ed.
 
-### H) References and Pointers
-1. All references must be prefixed with `r_`, followed by a `PascalCase` name.
-   ```cpp
-   int& r_DataReference = someVariable;
-   ```
-2. All raw pointers must be prefixed with `p_`, followed by a `PascalCase` name.
-   ```cpp
-   int* p_DataPointer = nullptr;
-   ```
-3. All universal references must be prefixed with `u_`, followed by a `PascalCase` name.
-   ```cpp
-   template<typename T>
-   void process(T&& u_UniversalData);
-   ```
+### Example: Full Parameter Prefixing
+```cpp
+void processData(
+    int v_Value,              // Pass-by-value
+    float* p_Pointer,         // Pointer to value
+    float* pa_Array,          // Pointer to array (decayed)
+    SpectraObject* po_Object, // Pointer to object
+    int& r_Handle,            // Reference to value (handle alias)
+    Descriptor& ro_Desc,      // Reference to heavy object
+    std::unique_ptr<T> su_Ptr // Unique ownership
+);
+```
 
-### I) Function Parameters (Prefixing)
-1. Functions do not require suffixing, but function parameters must be strictly prefixed to indicate their type of binding and ownership.
+**Note on Locals:** We don't use `p_` or `r_` for local variables. Locals should be clean `camelCase`. 
 
-   Type of Binding | Prefix
-   --- | ---
-   Pass-by-value | `v_`
-   Pointer | `p_`
-   Pointer to array | `pa_`
-   Pointer to function | `pf_`
-   Pointer to object | `po_`
-   Universal reference | `u_`
-   Reference | `r_`
-   Reference to array | `ra_`
-   Reference to function | `rf_`
-   Reference to object | `ro_`
-   std::unique_ptr | `su_`
-   std::shared_ptr | `ss_`
-   std::weak_ptr | `sw_`
+## 2. Type Naming & Hierarchy (The Nostalgia Trip)
+*   **PascalCase** for all classes and structs.
+*   **Interfaces (`I`):** Pure virtual bases.
+*   **Abstracts (`A`):** Partially implemented bases.
+    *   **The "Why":** Java nostalgia. It makes scanning a directory list instant.
 
-   ```cpp
-   void processData(int v_Value, int* p_Pointer, int& r_Reference,
-                    std::unique_ptr<int> su_Unique, std::shared_ptr<int> ss_Shared);
-   ```
+### Type Examples
+```cpp
+class IRenderer { virtual void render() = 0; };
+class ARendererBase : public IRenderer { /* Partial impl */ };
+class VulkanRenderer : public ARendererBase { /* Concrete impl */ };
 
-### Parameter Prefixing Policy
-Parameter prefixing is a structural design contract.
-It explicitly communicates the ownership, lifetime, and calling semantics of arguments. Its application depends on the abstraction level, runtime criticality, and exposure of the API.
+enum class Color : uint8_t { Red, Green, Blue };
+```
 
-#### When Full Prefixing is Required
-Full parameter prefixing (`ro`_, `pa_`, `pf_`, etc.) is mandatory when:
+## 3. Scoping & Storage
+*   `m_memberVariable`: Private members. (e.g., `int m_count;`).
+*   `g_GlobalVariable`: Globals (PascalCase + prefix). (e.g., `int g_GlobalCount;`).
+*   `t_ThreadLocal`: Thread-local data. (e.g., `thread_local int t_ThreadId;`).
+*   `s_staticVariable`: Class-level statics. (e.g., `static int s_staticCounter;`).
 
-1. Writing code that interacts with low-level systems such as:
-   - Memory management
-   - Threading, task, or job scheduling
-   - Synchronization primitives
-2. Ownership, reference semantics, or allocation behavior must be unambiguous
-3. The API is not exposed to higher-level systems or users and requires strict control over argument behavior
+## 4. Templates: The Clarity Alias
+Template parameters (`T`, `U`) are great for the compiler but terrible for the human.
 
-Such enforcement ensures:
-- No implicit copies or aliasing violations
-- No hidden heap allocations
-- Memory lifetime and ownership remain explicitly traceable
+1.  Use `T`, `U`, `V` in the declaration.
+2.  **Immediately** alias them inside the class using `_camelCase` with a leading underscore.
 
-#### When Prefixing May Berelaxed
-Simplified prefixing (e.g., `v_`, `r_`, `p_`, `u_`) is allowed when:
-1. Writing ergonomic or user-facing interfaces
-2. Creating helper utilities or debug code
-3. Working in layers where function semantics are self-evident
-4. Argument types are clear from context or naming
+### Template Example
+```cpp
+template<typename T>
+class Buffer {
+private:
+    using _dataType = T; // Much easier to read than 'T' everywhere
+};
 
-#### Boundary Rule
-If a function bridges two layers (e.g., receives high-level input and dispatches it to low-level systems):
-1. The exposed interface may use minimal prefixing
-2. Internally, the low-level component must enforce strict prefixing rules
+template<int Size>
+class FixedArray {}; // Non-type params are PascalCase
+```
 
-#### Summary
-Layer / Context | Prefixing Policy
---- | ---
-Low-level, memory, threading | Full (`ro_`, `pa_`, `pf_`, …)
-High-level, utility, public | Minimal (`v_`, `p_`, `r_`, `u_`)
-Boundary APIs | Minimal in interface, strict internally
+## 5. Macros: The Module Guard
+*   **Format:** `SCREAMING_SNAKE_CASE` with a `MODULE_` prefix.
+*   **The "Why":** Prevents chaos and name collisions between different backends.
+```cpp
+#define CORE_LOG_LEVEL 3
+#define VULKAN_ASSERT(cond) if (!(cond)) { ... }
+```
 
-Note: Prefixing is not a stylistic concern — it is a semantic and architectural guarantee that helps enforce data discipline across engine layers.
+## 6. The "Boundary Rule"
+*   **Engine Internals:** Full prefixing (`ro_`, `pa_`, `su_`) is mandatory. 
+*   **Public APIs / Utilities:** Prefixes can be relaxed to simple `v_`, `p_`, `r_` if the intent is obvious. 
 
-### J) File and Directory Structure
-1. Each component or module must follow this structure:
-   ```plaintext
-   /ModuleName/
-       └── src/
-           ├── Public/     → For all headers (.h, .inl, .impl)
-           └── Private/    → For implementation files (.cpp)
-   ```
-2. No global path hierarchy is imposed
-3. Only the Public/ folder may expose interfaces to other modules
-4. All internal code and logic must reside in Private/
-5. Implementation logic may be split into `.h`, `.cpp`, and `.impl`/`.inl` as needed for inlining or templating
-   ```plaintext
-   /CoreSystem/
-       └── src/
-           ├── Public/
-           │   ├── IInterface.h
-           │   ├── CoreTypes.h
-           └── Private/
-               ├── CoreTypes.cpp
-               ├── Implementation.impl
-   ```
+## The Golden Rule
+If a naming rule makes the code harder to read in a specific, performance-critical edge case—**break it**. But if you're just being lazy, stick to the manifesto.

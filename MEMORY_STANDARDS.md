@@ -1,48 +1,74 @@
-# Corium Memory & Ownership Standards
+# Corium Memory Manifesto
+> Im lazy, so all subsytems get the copy
 
-## Motivation
-Corium enforces strict performance and memory correctness constraints, defining how memory is allocated, passed, cleaned up, and structured to ensure high throughput, cache-friendliness, and debug-ability, where every byte, bounce, and allocation matters.
+## Why We Manage Memory This Way
+Memory is the most common source of performance death and "impossible" bugs. In Spectra, we don't trust the OS or the language to handle memory for us. We own every byte, we track every allocation, and we align everything to the hardware. 
 
-## A) Allocator Rules
-1. Raw `new` and `delete` are banned for bypassing sanitation, tracking, and instrumentation tools, requiring all memory to be acquired via allocators like `ArenaAllocator` or `PlatformPageAllocator`.
-2. Object construction must use placement new (`T* p_Object = new (allocator.allocate<T>()) T(args...);`) since allocators only provide raw memory and do not construct objects.
-3. Platform-specific allocators interfacing with OS APIs must be prefixed with `Platform` (e.g., `PlatformVirtualAllocator`, `PlatformAlignedHeap`) to ensure architectural clarity.
-4. Heap allocations are forbidden in hot paths, requiring up-front allocation, buffer reuse, object pooling, or stack memory to avoid performance hits.
-5. All allocators must expose instrumentation hooks (allocation tracker, leak auditor, profiler sampler) to integrate with tools like Kerbecs for profiling and debugging.
+## 1. The CRT Heap: Stay Away
+We avoid the standard Windows CRT Heap (`new` and `delete`) whenever possible.
+*   **The "Why":** The Windows CRT heap is heavy, bulky, and unpredictable. For a high-performance renderer, we need to own every memory call and manage the lifecycle ourselves.
+*   **Object Construction:** Use placement new with allocators. Allocators only provide raw memory; they don't construct objects.
+*   **The Reality:** Raw `new` and `delete` are allowed *only* in the early stages of a component. Once the infrastructure is ready, everything must move to specialized allocators.
 
-## B) RAII Enforcement
-1. RAII is mandatory for heap-resident resources, ensuring cleanup via destructors for exception safety and scope-based guarantees.
-2. Stack memory must avoid lingering references beyond scope and overloading stack frames, especially in deep task graphs, to prevent bloat and errors.
-3. Pools or arenas must be wrapped in RAII-enabled wrappers to ensure no leaks occur on early returns, failure paths, or panics.
+### Allocator Usage Example
+```cpp
+// Object construction via placement new
+T* p_Object = new (allocator.allocate<T>()) T(args...);
 
-## C) Ownership Contracts
-1. Ownership must be explicit, with functions returning ownership using `unique_ptr<T>` or clearly documenting raw pointer ownership.
-2. Functions accepting ownership must delete or store the object, ensuring no ambiguity in responsibility.
-3. Use `unique_ptr` for sole responsibility and `shared_ptr` only for shared ownership with unknown destruction timing, avoiding unnecessary use.
-4. Copy constructors for heavy types must be opt-in to prevent unintended duplication of large objects.
+// Destruction (Absolute Control)
+p_Object->~T(); 
+allocator.free(p_Object);
+```
 
-## D) Reference Passing Discipline
-1. Pass trivial types (ints, enums, POD structs) by value since they are cheap and safe.
-2. Pass heavy objects (strings, containers, large structs) by const reference to avoid costly copying.
-3. Use pointers with `nullptr` to signal optional work, not as a substitute for reference semantics, but for maybe-exists semantics.
-4. Pass by universal reference (`T&&`) only in template or lambda forwarding contexts, ensuring safety and utility with perfect forwarding.
-5. Explicitly name parameters with prefixes (e.g., `r_`, `p_`, `u_`, `su_`) to visually infer semantics and improve code readability.
+## 2. SMT & False Sharing: Align to 64
+We enforce a scorched-earth policy on alignment. Everything significant is `alignas(64)`.
+*   **The "Why":** Simultaneous Multithreading (SMT) is great until you hit false sharing. I don't want to spend three weeks debugging why a thread-safe variable is slow because it's bouncing between cache lines. We align to 64 bytes to ensure that different threads stay in their own lanes.
 
-## E) Destruction and Cleanup
-1. Allocator-constructed objects must be explicitly destroyed using `allocator.destroy(p_Object)` or by manually calling the destructor (`p_Object->~T(); allocator.free(p_Object);`).
-2. Allocators free bulk memory but do not destruct objects, leaving object destruction as the programmer’s responsibility unless using pooled handles or wrappers.
-3. All memory must be freed in the same manner it was acquired to avoid orphaned pointers and mismatched frees.
-4. Allocators should be trivially destructible unless managing pooled state or virtual memory regions, in which case they must be wrapped in a manager.
+### Alignment & Padding Example
+```cpp
+struct alignas(64) HotData {
+    // Performance-critical members at the top
+    float transform[16]; 
+    uint32_t id;
+    
+    // Padding to ensure gapless structs and prevent false sharing
+    uint8_t padding[12]; 
+};
+static_assert(sizeof(HotData) == 64, "Alignment mismatch!");
+```
 
-## F) Thread-Local Memory Patterns
-1. Use thread-local allocators like `ThreadLocalAllocator` or `TaskFrameArena`, typically implemented with ring buffers or fixed-size pages, to prevent contention.
-2. Avoid leaking shared memory into lambdas or thread workers, instead binding memory during lambda creation (e.g., `auto task = [arena = tlsArena]() { /* use arena safely */ };`).
-3. Pass allocator references explicitly in threads to avoid hidden allocator access and maintain clarity.
-4. Thread-local allocators must support debugging (bytes used, peaks, allocations), tagging (per-job, per-system), and sanity check tracing (e.g., TLS corruption detection).
+## 3. Destruction: Absolute Control
+We don't use `delete`. We use manual destructor calls followed by an allocator free.
+*   **The "Why":** Absolute control is the goal. I want to know exactly when an object dies and when its memory is actually returned to the pool.
+*   **RAII:** Still use RAII for heap-resident resources to ensure cleanup on early returns or failures, but the underlying memory must be allocator-backed.
 
-## G) Alignment & Cache-Aware Structs
-1. All data must be stored in aligned memory, targeting at least `alignas(32)` for AVX2 or `alignas(64)` for AVX-512 support.
-2. Every struct must include a leading comment indicating total size (e.g., `// Size: 64 bytes (aligned to cache line)`) to eliminate guesswork.
-3. Performance-critical members (SIMD/float/vector arrays, IDs, transforms) must be placed at the top of structs to enable fake-SoA patterns using AoS layouts.
-4. Padding is required to ensure gapless structs and prevent false sharing, with `static_assert(sizeof(...) == expectedSize)` to lock in the size.
-5. Cache-aware layout guidelines dictate ≤64B for L1 hot paths, ≤128B for L2 medium-critical paths, and pointers to external blobs for anything larger, avoiding virtual methods, internal heap allocations, or recursive containers in hot structs.
+## 4. Cache Awareness: The Size Rule
+Every struct must start with a comment indicating its size (e.g., `// Size: 64B`).
+*   **The "Why":** This is a personal touch to keep a constant eye on cache-line headroom. I want to know exactly how much space is left in a cache line so I can see if the struct is "extendable" later without blowing the budget.
+
+### Cache-Aware Layout
+*   **L1 Hot Path:** ≤64B
+*   **L2 Medium Path:** ≤128B
+*   **Larger Blobs:** Use pointers to external memory; avoid virtual methods or internal heap allocations in hot structs.
+
+## 5. Threading: Lock-Free Arenas
+We use `ThreadLocalAllocator` or `TaskFrameArena` for the hot path.
+*   **The "Why":** Lock contention is a death spiral for a renderer. By giving every thread its own arena, we keep the hot path entirely lock-free.
+*   **Pattern:** Bind memory during task creation to avoid hidden allocator access.
+
+### Thread-Local Pattern Example
+```cpp
+auto l_task = [arena = tlsArena]() {
+    // Use arena safely without locks
+    auto p_temp = arena.allocate<TempObject>();
+};
+```
+
+## 6. Passing & Ownership Discipline
+*   **Trivial Types:** Pass by value (ints, enums, POD structs).
+*   **Heavy Objects:** Pass by const reference or `ro_` (Reference to Object).
+*   **Optional Work:** Use pointers (`p_`) with `nullptr` checks to signal "maybe-exists" semantics.
+*   **Forwarding:** Use universal references (`T&&`) only in template or lambda forwarding contexts.
+
+## The Golden Rule
+If an allocator or an alignment rule is causing a bottleneck in a unique edge case—**fix the allocator, don't bypass the rule**. We keep the standards so we can keep our sanity.

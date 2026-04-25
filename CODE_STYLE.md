@@ -1,93 +1,88 @@
-# Corium Code Style Guide
+# Corium Style Manifesto
+> Im lazy, so all subsytems get the copy
 
-## Motivation
-Certain layout and formatting rules are recommended to keep the code readable, predictable, and to make peace with my Java-flavored instincts.
+## Why We Write Code This Way
+Style guides are usually about "cleanliness," but in a renderer, style is about **navigation and density**. We work with large files, complex templates, and low-level data. The following rules are designed to keep the logic visible and the data accessible.
 
-## A) Indentation and Bracing Style
-1. Indentation is mandatory for all block-scoped code.
-2. Range-based for loops with single-expression bodies may be written on a single line.
-3. `if` statements with single-expression bodies may be inlined.
-4. `else` statements with single-expression bodies may be inlined.
-5. Lambdas may be inlined if their body is a single expression and fits clearly on one line.
-6. All other constructs (classes, structs, functions, etc.) must always be braced and indented.
-7. Braces always stay on the same line as the statement — this is K&R style, not Java vertical cliffs.
+## 1. Class Structure: Data First
+We put private member variables at the **top** of the class.
+*   **The "Why":** I don't want to scroll through 1,000 lines of implementation logic just to find the private state of a class. The data is the most important part of the object—it should be the first thing you see.
 
-### Code Examples
+### Member Order Example
 ```cpp
-// Good: Single-line range-based for loop
-for (auto& item : items) process(item);
+class SpectraProcessor {
+private:
+    int m_data;         // Data layout first!
+    double m_config;
 
-// Good: Inlined if and else
-if (is_valid) count++;
-else log_error();
-
-// Good: Single-expression lambda
-auto square = [](int x) { return x * x; };
-
-// Bad: Unbraced multi-statement if (don't do this!)
-if (is_valid) count++; log("Updated"); // Chaos awaits.
-
-// Good: Braced class with K&R style
-class CoriumThing {
-    void do_work() { process(); finalize(); }
-};
-```
-
-## B) Line Length and Limits
-1. A single file should not exceed 15,000 lines — including whitespace, breathers, and sanity breaks — unless absolutely necessary (e.g., auto-generated code, giant tables).
-2. A line may extend to around 200 columns before wrapping is forced.
-
-### Code Example
-```cpp
-// Good: Keep it under 200 columns
-void process_data(const std::vector<int>& data, bool should_log, const std::string& prefix) { ... }
-
-// Bad: This line is trying to win a marathon
-void process_data_really_long_function_name_to_make_a_point_about_column_limits(const std::vector<int>& super_long_data_name, bool should_log_forever, const std::string& unnecessarily_verbose_prefix_name) { ... }
-```
-
-## C) Header / Source Separation
-1. Unless required for inlining or templating, all implementation logic should live in a `.cpp` file.
-2. Source files must always be kept inside a `Private` folder.
-3. Headers must always be kept inside a `Public` folder.
-
-### Code Example
-```
-// Public/CoriumThing.h
-#pragma once
-class CoriumThing {
 public:
-    void do_work();
+    void process();     // Public API in the middle
+    int getResult() const;
+
+protected:
+    void helper();      // Internals at the bottom
+
+private:
+    void internalWork();
 };
 
-// Private/CoriumThing.cpp
-#include "CoriumThing.h"
-void CoriumThing::do_work() {
-    // Implementation lives here, not in the header!
-}
+// Structs can ignore hierarchy for performance (SIMD/Alignment)
+struct AlignedData {
+    alignas(16) float vec[4]; 
+};
 ```
 
-## D) Function Length / Nesting Depth Limits
-1. Functions should be limited to ~70 lines of code (excluding whitespace).
-2. `if` blocks may be nested up to 16 levels — but if you reach that number, either you're writing a VM, or something’s very wrong.
-3. `switch` statements may be nested if explicitly justified, up to 4 levels deep.
-4. `goto` is banned. If you use it, you better be hand-writing `setjmp` macros — and even then, you should still feel guilty.
+## 2. Bracing: The Java Way
+We use K&R style braces (opening brace on the same line as the statement).
+*   **The "Why":** This is pure Java nostalgia. It keeps the code dense and prevents what I call "vertical cliffs"—where you spend half your time scrolling past empty lines with single braces.
 
-### Code Examples
+### Bracing & Inlining Examples
 ```cpp
-// Good: Short function
-void process_item(int item) { // ~10 lines
-    if (item > 0) {
-        log("Positive");
-        update(item);
+// Good: K&R style
+void doWork() {
+    if (isValid) {
+        process();
     }
 }
 
-// Bad: Function longer than a CVS receipt
-void process_everything() { // 200 lines of doom
-    // ... imagine endless code here ...
-}
+// Good: Single-line inlining for simple logic
+for (auto& item : items) process(item);
+if (isValid) count++;
+else logError();
 
+// Good: Single-expression lambda
+auto l_square = [](int x) { return x * x; };
+```
+
+## 3. Line Length: Ultra-Wide
+Lines are allowed to extend up to **200 columns** before wrapping.
+*   **The "Why":** Between verbose namespace names, deeply nested templates, and long graphics API calls (Vulkan/D3D12), 80 or 120 characters just isn't enough. We have wide monitors for a reason.
+
+### Column Limit Example
+```cpp
+// Good: Keep it under 200 columns to avoid horizontal 'staircases'
+void processData(const std::vector<int>& r_Data, bool v_ShouldLog, const std::string& ro_Prefix) { ... }
+
+// Bad: This line is trying to win a marathon (still keep names sane)
+void processDataReallyLongFunctionNameThatDoesTooMuch(const std::vector<int>& superLongDataName, bool shouldLogForever) { ... }
+```
+
+## 4. File Limits: Mega-Files are Fine
+A single file can grow up to **15,000 lines**.
+*   **The "Why":** We often need large Look-Up Tables (LUTs) or massive blocks of documentation and comments embedded directly in the source. I'd rather have everything related to one module in a single searchable file.
+
+## 5. Forward Declarations: The Local Exception
+Global forward declarations are generally discouraged.
+*   **The "Why":** They tend to "rot and tangle," leading to cyclic builds and a nightmare of "incomplete type" errors. 
+*   **The Exception:** Use them locally inside a namespace (like in the VulkanBackend bootstrap) when required by specific patterns.
+
+## 6. Logic & Control Flow
+*   **Nesting:** You can nest `if` blocks up to 16 levels. If you reach that number, you're either writing a VM or something is very wrong.
+*   **No Goto:** `goto` is banned. It's spaghetti code.
+*   **Functions:** Keep them around ~70 lines of code. If it's longer than a CVS receipt, break it up.
+
+### Nesting Hell Example
+```cpp
 // Bad: Nesting hell (don’t do this)
 void nightmare() {
     if (cond1) {
@@ -100,64 +95,26 @@ void nightmare() {
 }
 ```
 
-## E) File-Per-Type Enforcement
-1. This is not Java.
-2. File names must reflect the abstract role of their contents. Group types where it makes sense — we’re not doing one-class-per-file unless it helps.
-3. Utility types fundamental to larger types should be declared first in the file, before the dependent types.
+## 7. Header/Source Separation
+Keep your headers clean. 
+*   **Public/** for headers, **Private/** for implementations. 
+*   Unless it’s a template or an inline performance hint, the logic stays in the `.cpp`.
 
-### Code Example
+### File Structure Example
 ```
-// RendererUtils.h
-struct RenderContext { /* Utility type first */ };
-class Renderer { /* Depends on RenderContext */ };
-```
-
-## F) Member Order
-1. Avoid scattering different specifier blocks (`public`, `private`, `protected`) throughout a class.
-2. Recommended structure:
-   - Private member variables at the top
-   - Public-facing API in the middle
-   - Protected and private methods toward the bottom
-3. This rule doesn’t apply to structs — they may be organized for SoA layout, SIMD compatibility, or memory alignment. In those cases, performance wins over hierarchy.
-
-### Code Example
-```cpp
-class CoriumProcessor {
-private:
-    int data_;
-    double config_;
-
-public:
-    void process();
-    int get_result() const;
-
-protected:
-    void helper();
-
-private:
-    void internal_work();
-};
-
-// Structs can ignore hierarchy for performance
-struct AlignedData {
-    alignas(16) float vec[4]; // SIMD-friendly
-};
-```
-
-## G) Include Management
-1. Forward declarations are discouraged — they rot, tangle, and create spaghetti faster than they solve build times.
-2. All `.cpp` files must include the PCH header for their module.
-3. Common macros, headers, and constants must be placed inside the module's PCH header, named after the module.
-
-### Code Example
-```
-// CoriumCorePCH.h
+// Public/SpectraThing.h
 #pragma once
-#include <vector>
-#include <string>
-#define SPECTRA_LOG "LogPrefix"
+class SpectraThing {
+public:
+    void doWork();
+};
 
-// CoriumThing.cpp
-#include "CoriumCorePCH.h"
-// No forward declarations, no mess
+// Private/SpectraThing.cpp
+#include "SpectraThing.h"
+void SpectraThing::doWork() {
+    // Implementation lives here!
+}
 ```
+
+## The Golden Rule
+If a style rule makes it harder to read a complex shader-binding table or a critical hot-loop, **break it**. The goal is a high-performance renderer, not a pretty-print contest.
