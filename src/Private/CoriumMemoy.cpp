@@ -4,17 +4,51 @@
 #define ALLOW_SYSCALL
 #include <CoriumSyscalls.h>
 
+namespace {
+	struct VmInfo {
+		Corium::Memory::Bytes m_PageSize             = 0;
+		Corium::Memory::Bytes m_AllocationGranularity = 0;
+	};
+	VmInfo g_VmInfo{};
+	bool   g_IsVmInitialized = false;
+}
+
 namespace Corium::Memory {
+	void VirtualMemory::init() {
+		if (g_IsVmInitialized) return;
+#ifdef _WIN32
+		SYSTEM_INFO si{};
+		GetSystemInfo(&si);
+		g_VmInfo.m_PageSize             = static_cast<Bytes>(si.dwPageSize);
+		g_VmInfo.m_AllocationGranularity = static_cast<Bytes>(si.dwAllocationGranularity);
+#elif defined(__linux__)
+		long ps = sysconf(_SC_PAGESIZE);
+		g_VmInfo.m_PageSize             = ps > 0 ? static_cast<Bytes>(ps) : 4096u;
+		g_VmInfo.m_AllocationGranularity = g_VmInfo.m_PageSize;
+#endif
+		g_IsVmInitialized = true;
+	}
+
+	Bytes VirtualMemory::alignToGranularity(Bytes v_Bytes) {
+		CORIUM_ASSERT(g_IsVmInitialized);
+		return (v_Bytes + g_VmInfo.m_AllocationGranularity - 1) & ~(g_VmInfo.m_AllocationGranularity - 1);
+	}
+
+	Bytes VirtualMemory::getAllocationGranularity() {
+		CORIUM_ASSERT(g_IsVmInitialized);
+		return g_VmInfo.m_AllocationGranularity;
+	}
+
 	VirtualSegment VirtualMemory::virtualAlloc(VirtualSegment& segment, Bytes v_Size, MemoryOperation v_Operation) {
 #ifdef CORIYM_DEBUG
 		CORIUM_ASSERT(v_Size > 0);
 #endif
-		v_Size = alignToPage(v_Size);
 #ifdef _WIN32
 		switch (v_Operation) {
 		case MemoryOperation::Reserve:
 			{
 				if (segment.isValid()) return INVALID_SEGMENT;
+				v_Size = alignToGranularity(v_Size);
 				void* p = nullptr;
 				// Route through VirtualAllocExNuma when a node is set so physical pages
 				// are preferentially allocated on the correct NUMA node at commit time.
@@ -29,6 +63,7 @@ namespace Corium::Memory {
 		case MemoryOperation::Commit:
 			{
 				if (!segment.isValid())return INVALID_SEGMENT;
+				v_Size = alignToPage(v_Size);
 				if (segment.m_CommittedSize + v_Size > segment.m_TotalSize)return INVALID_SEGMENT;
 
 				void* p = VirtualAlloc(static_cast<std::byte*>(segment.m_Memory) + segment.m_CommittedSize, v_Size, MEM_COMMIT, PAGE_READWRITE);
@@ -48,6 +83,7 @@ namespace Corium::Memory {
 				// Linux: mbind/numa_alloc_onnode not implemented; node tag is carried
 				// through for bookkeeping but physical affinity is not enforced.
 				if (segment.isValid()) return INVALID_SEGMENT;
+				v_Size = alignToGranularity(v_Size);
 				void* p = mmap(nullptr, v_Size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 				if (p == MAP_FAILED) return INVALID_SEGMENT;
 				return VirtualSegment{ p, v_Size, 0, segment.m_NumaNode };
@@ -56,6 +92,7 @@ namespace Corium::Memory {
 		case MemoryOperation::Commit:
 			{
 				if (!segment.isValid())return INVALID_SEGMENT;
+				v_Size = alignToPage(v_Size);
 				if (segment.m_CommittedSize + v_Size > segment.m_TotalSize)return INVALID_SEGMENT;
 
 				void* p = static_cast<std::byte*>(segment.m_Memory) + segment.m_CommittedSize;

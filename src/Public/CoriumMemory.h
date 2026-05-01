@@ -108,6 +108,11 @@ namespace Corium::Memory {
 
 	class CORIUM_RUNTIME_API VirtualMemory final {
 	public:
+		static void init();
+
+		CORIUM_NODISCARD static Bytes alignToGranularity(Bytes v_Bytes);
+		CORIUM_NODISCARD static Bytes getAllocationGranularity();
+
 		CORIUM_NODISCARD
 			static VirtualSegment virtualAlloc(
 				VirtualSegment& segment,

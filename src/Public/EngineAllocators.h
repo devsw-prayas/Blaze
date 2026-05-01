@@ -7,7 +7,7 @@
 namespace Corium::Memory::Allocators {
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) BumpAllocator : IArenaAllocator<BumpAllocator> {
 		Core::Atomic::AtomicValue64<size_t> m_Bump{ 0 };
-		VirtualSegment* m_Base;
+		VirtualSegment* m_Base = nullptr;
 		size_t m_Size = 0;
 
 		BumpAllocator() = default;
@@ -38,14 +38,32 @@ namespace Corium::Memory::Allocators {
 		}
 	};
 
-	struct CORIUM_RUNTIME_API TaskMetadataAllocator final : BumpAllocator {};
+	struct CORIUM_RUNTIME_API TaskMetadataAllocator final : BumpAllocator {
+		template<typename T, typename... Args>
+		CORIUM_FORCEINLINE
+			T* emplace(Args&&... args) noexcept {
+			void* mem = allocateImpl(sizeof(T), alignof(T));
+			if (!mem) return nullptr;
+
+			return ::new (mem) T(std::forward<Args>(args)...);
+		}
+	};
 
 	template<>
 	struct CORIUM_RUNTIME_API ResolveAllocation<TaskMetadataAllocator> final {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
 	};
 
-	struct CORIUM_RUNTIME_API TaskPayloadAllocator final : BumpAllocator {};
+	struct CORIUM_RUNTIME_API TaskPayloadAllocator final : BumpAllocator {
+		template<typename T, typename... Args>
+		CORIUM_FORCEINLINE
+			T* emplace(Args&&... args) noexcept {
+			void* mem = allocateImpl(sizeof(T), alignof(T));
+			if (!mem) return nullptr;
+
+			return ::new (mem) T(std::forward<Args>(args)...);
+		}
+	};
 
 	template<>
 	struct CORIUM_RUNTIME_API ResolveAllocation<TaskPayloadAllocator> final {
@@ -83,10 +101,6 @@ namespace Corium::Memory::Allocators {
 	struct CORIUM_RUNTIME_API ResolveAllocation<ClosureAllocator> final {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
 	};
-
-	// Initialise all per-node allocator instances. Must be called after
-	// Corium::Memory::Internal::init() has reserved the VA regions.
-	CORIUM_RUNTIME_API void init();
 
 	struct alignas(64) CORIUM_RUNTIME_API GeneralAllocator final : IArenaAllocator<GeneralAllocator>{
 	private:

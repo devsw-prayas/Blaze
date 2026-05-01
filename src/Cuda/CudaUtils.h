@@ -84,11 +84,42 @@ namespace Corium::Cuda::Utils {
 		RECOMMENDED
 	};
 
+	enum class CORIUM_RUNTIME_API StreamFlags final : uint8_t {
+		DEFAULT,
+		NON_BLOCKING
+	};
+
+	enum class CORIUM_RUNTIME_API EventFlags final : uint8_t {
+		DEFAULT        = 0,
+		BLOCKING_SYNC  = 1 << 0,
+		DISABLE_TIMING = 1 << 1,
+		INTERPROCESS   = 1 << 2
+	};
+
+	enum class CORIUM_RUNTIME_API StreamCaptureMode : uint8_t {
+		GLOBAL,
+		THREAD_LOCAL,
+		RELAXED
+	};
+
+	enum class CORIUM_RUNTIME_API StreamCaptureStatus : uint8_t {
+		NONE,
+		ACTIVE,
+		INVALIDATED
+	};
+
+	enum class CORIUM_RUNTIME_API CopyMemoryType final : uint8_t {
+		HOST,
+		DEVICE,
+		ARRAY
+	};
+
 	class CORIUM_RUNTIME_API CudaHelpers final {
 	public:
 		static uint32_t computeAllocFlag(std::initializer_list<HostAllocFlags> flags);
 		static uint32_t computeRegFlag(std::initializer_list<HostRegisterFlags> flags);
 		static uint64_t computeAccessFlags(std::initializer_list<AccessFlagBits> flags);
+		static uint32_t computeEventFlags(std::initializer_list<EventFlags> flags);
 	};
 
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(4) DeviceHandle final {
@@ -267,4 +298,241 @@ namespace Corium::Cuda::Utils {
 	CORIUM_RUNTIME_API void initAccessDesc(AccessDesc& ro_Desc);
 	CORIUM_RUNTIME_API void setAccessLocation(AccessDesc& ro_Desc, DeviceHandle& ro_Handle);
 	CORIUM_RUNTIME_API void setAccessFlags(AccessDesc& ro_Desc, uint64_t v_Flags);
+
+	// -----------------------------------------------------------------------
+	// CudaArray handle — opaque wrapper required by MemCpy3DDesc
+	// -----------------------------------------------------------------------
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) CudaArray final {
+		void* m_Array = nullptr;
+
+		CudaArray() = default;
+		~CudaArray() = default;
+
+		CudaArray(const CudaArray&) = default;
+		CudaArray& operator=(const CudaArray&) = default;
+
+		CudaArray(CudaArray&&) noexcept = default;
+		CudaArray& operator=(CudaArray&&) noexcept = default;
+
+		CORIUM_NODISCARD bool isValid() const {
+			return m_Array != nullptr;
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(CudaArray) == 8, "Invalid CudaArray size, must be 64bit");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<CudaArray>, "CudaArray must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<CudaArray>, "CudaArray must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<CudaArray>, "CudaArray must be trivially move assignable");
+
+	// -----------------------------------------------------------------------
+	// 3D memory copy descriptor
+	// -----------------------------------------------------------------------
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(16) MemCpy3DDesc final {
+		// source
+		CopyMemoryType  m_SrcType           = CopyMemoryType::HOST;
+		PinnedAddress   m_SrcHost           = {};
+		GpuAddress      m_SrcDevice         = {};
+		CudaArray       m_SrcArray          = {};
+		size_t          m_SrcPitch          = 0;
+		size_t          m_SrcHeight         = 0;
+		size_t          m_SrcXOffsetBytes   = 0;
+		size_t          m_SrcYOffset        = 0;
+		size_t          m_SrcZOffset        = 0;
+
+		// destination
+		CopyMemoryType  m_DstType           = CopyMemoryType::ARRAY;
+		PinnedAddress   m_DstHost           = {};
+		GpuAddress      m_DstDevice         = {};
+		CudaArray       m_DstArray          = {};
+		size_t          m_DstPitch          = 0;
+		size_t          m_DstHeight         = 0;
+		size_t          m_DstXOffsetBytes   = 0;
+		size_t          m_DstYOffset        = 0;
+		size_t          m_DstZOffset        = 0;
+
+		// copy dimensions
+		size_t          m_WidthInBytes      = 0;
+		size_t          m_Height            = 0;
+		size_t          m_Depth             = 0;
+
+		MemCpy3DDesc() = default;
+		~MemCpy3DDesc() = default;
+
+		MemCpy3DDesc(const MemCpy3DDesc&) = default;
+		MemCpy3DDesc& operator=(const MemCpy3DDesc&) = default;
+
+		MemCpy3DDesc(MemCpy3DDesc&&) noexcept = default;
+		MemCpy3DDesc& operator=(MemCpy3DDesc&&) noexcept = default;
+	};
+
+	CORIUM_RUNTIME_API void initMemCpy3DDesc(MemCpy3DDesc& ro_Desc);
+	CORIUM_RUNTIME_API void setMemCpy3DSrcHost(MemCpy3DDesc& ro_Desc, PinnedAddress v_Src);
+	CORIUM_RUNTIME_API void setMemCpy3DSrcDevice(MemCpy3DDesc& ro_Desc, GpuAddress v_Src);
+	CORIUM_RUNTIME_API void setMemCpy3DSrcArray(MemCpy3DDesc& ro_Desc, CudaArray v_Src);
+	CORIUM_RUNTIME_API void setMemCpy3DDstHost(MemCpy3DDesc& ro_Desc, PinnedAddress v_Dst);
+	CORIUM_RUNTIME_API void setMemCpy3DDstDevice(MemCpy3DDesc& ro_Desc, GpuAddress v_Dst);
+	CORIUM_RUNTIME_API void setMemCpy3DDstArray(MemCpy3DDesc& ro_Desc, CudaArray v_Dst);
+	CORIUM_RUNTIME_API void setMemCpy3DDimensions(MemCpy3DDesc& ro_Desc, size_t v_WidthInBytes, size_t v_Height, size_t v_Depth);
+	CORIUM_RUNTIME_API void setMemCpy3DSrcPitch(MemCpy3DDesc& ro_Desc, size_t v_Pitch, size_t v_Height);
+	CORIUM_RUNTIME_API void setMemCpy3DDstPitch(MemCpy3DDesc& ro_Desc, size_t v_Pitch, size_t v_Height);
+	CORIUM_RUNTIME_API void setMemCpy3DSrcOffsets(MemCpy3DDesc& ro_Desc, size_t v_XOffsetBytes, size_t v_YOffset, size_t v_ZOffset);
+	CORIUM_RUNTIME_API void setMemCpy3DDstOffsets(MemCpy3DDesc& ro_Desc, size_t v_XOffsetBytes, size_t v_YOffset, size_t v_ZOffset);
+
+	// -----------------------------------------------------------------------
+	// Stream / Event / Graph handles
+	// -----------------------------------------------------------------------
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuStream final {
+		void* m_StreamHandle = nullptr;
+
+		GpuStream() = default;
+		~GpuStream() = default;
+
+		GpuStream(const GpuStream&) = default;
+		GpuStream& operator=(const GpuStream&) = default;
+
+		GpuStream(GpuStream&&) noexcept = default;
+		GpuStream& operator=(GpuStream&&) noexcept = default;
+
+		CORIUM_NODISCARD bool isValid() const {
+			return m_StreamHandle != nullptr;
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(GpuStream) == 8, "Invalid GpuStream size, must be 64bit");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<GpuStream>, "GpuStream must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuStream>, "GpuStream must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuStream>, "GpuStream must be trivially move assignable");
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuEvent final {
+		void* m_EventHandle = nullptr;
+
+		GpuEvent() = default;
+		~GpuEvent() = default;
+
+		GpuEvent(const GpuEvent&) = default;
+		GpuEvent& operator=(const GpuEvent&) = default;
+
+		GpuEvent(GpuEvent&&) noexcept = default;
+		GpuEvent& operator=(GpuEvent&&) noexcept = default;
+
+		CORIUM_NODISCARD bool isValid() const {
+			return m_EventHandle != nullptr;
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(GpuEvent) == 8, "Invalid GpuEvent size, must be 64bit");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<GpuEvent>, "GpuEvent must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuEvent>, "GpuEvent must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuEvent>, "GpuEvent must be trivially move assignable");
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuGraph final {
+		void* m_GraphHandle = nullptr;
+
+		GpuGraph() = default;
+		~GpuGraph() = default;
+
+		GpuGraph(const GpuGraph&) = default;
+		GpuGraph& operator=(const GpuGraph&) = default;
+
+		GpuGraph(GpuGraph&&) noexcept = default;
+		GpuGraph& operator=(GpuGraph&&) noexcept = default;
+
+		CORIUM_NODISCARD bool isValid() const {
+			return m_GraphHandle != nullptr;
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(GpuGraph) == 8, "Invalid GpuGraph size, must be 64bit");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<GpuGraph>, "GpuGraph must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuGraph>, "GpuGraph must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuGraph>, "GpuGraph must be trivially move assignable");
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuIpcEventHandle final {
+		char m_Reserved[64];
+
+		GpuIpcEventHandle() = default;
+		~GpuIpcEventHandle() = default;
+
+		GpuIpcEventHandle(const GpuIpcEventHandle&) = default;
+		GpuIpcEventHandle& operator=(const GpuIpcEventHandle&) = default;
+
+		GpuIpcEventHandle(GpuIpcEventHandle&&) noexcept = default;
+		GpuIpcEventHandle& operator=(GpuIpcEventHandle&&) noexcept = default;
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(GpuIpcEventHandle) == 64, "Invalid GpuIpcEventHandle size, must be 64 bytes");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<GpuIpcEventHandle>, "GpuIpcEventHandle must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuIpcEventHandle>, "GpuIpcEventHandle must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuIpcEventHandle>, "GpuIpcEventHandle must be trivially move assignable");
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuGraphExec final {
+		void* m_ExecHandle = nullptr;
+
+		GpuGraphExec() = default;
+		~GpuGraphExec() = default;
+
+		GpuGraphExec(const GpuGraphExec&) = default;
+		GpuGraphExec& operator=(const GpuGraphExec&) = default;
+
+		GpuGraphExec(GpuGraphExec&&) noexcept = default;
+		GpuGraphExec& operator=(GpuGraphExec&&) noexcept = default;
+
+		CORIUM_NODISCARD bool isValid() const {
+			return m_ExecHandle != nullptr;
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(GpuGraphExec) == 8, "Invalid GpuGraphExec size, must be 64bit");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<GpuGraphExec>, "GpuGraphExec must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuGraphExec>, "GpuGraphExec must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuGraphExec>, "GpuGraphExec must be trivially move assignable");
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuGraphNode final {
+		void* m_NodeHandle = nullptr;
+
+		GpuGraphNode() = default;
+		~GpuGraphNode() = default;
+
+		GpuGraphNode(const GpuGraphNode&) = default;
+		GpuGraphNode& operator=(const GpuGraphNode&) = default;
+
+		GpuGraphNode(GpuGraphNode&&) noexcept = default;
+		GpuGraphNode& operator=(GpuGraphNode&&) noexcept = default;
+
+		CORIUM_NODISCARD bool isValid() const {
+			return m_NodeHandle != nullptr;
+		}
+	};
+
+	CORIUM_STATIC_ASSERT(sizeof(GpuGraphNode) == 8, "Invalid GpuGraphNode size, must be 64bit");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<GpuGraphNode>, "GpuGraphNode must maintain standard layout");
+	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuGraphNode>, "GpuGraphNode must be trivially copyable");
+	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuGraphNode>, "GpuGraphNode must be trivially move assignable");
+
+	// Params for cuGraphAddKernelNode. m_Function must be a valid CUfunction handle from a loaded module.
+	struct CORIUM_RUNTIME_API KernelNodeParams final {
+		void*    m_Function       = nullptr; // CUfunction
+		uint32_t m_GridDimX       = 1;
+		uint32_t m_GridDimY       = 1;
+		uint32_t m_GridDimZ       = 1;
+		uint32_t m_BlockDimX      = 1;
+		uint32_t m_BlockDimY      = 1;
+		uint32_t m_BlockDimZ      = 1;
+		uint32_t m_SharedMemBytes = 0;
+		void**   m_KernelParams   = nullptr; // void*[] of kernel arguments
+		void**   m_Extra          = nullptr; // null in standard usage
+	};
+
+	// Params for cuGraphAddMemsetNode. m_ElementSize must be 1, 2, or 4.
+	struct CORIUM_RUNTIME_API MemsetNodeParams final {
+		uint64_t m_Dst         = 0; // CUdeviceptr
+		size_t   m_Pitch       = 0;
+		uint32_t m_Value       = 0;
+		uint32_t m_ElementSize = 1; // bytes: 1, 2, or 4
+		size_t   m_Width       = 0;
+		size_t   m_Height      = 1;
+	};
 }

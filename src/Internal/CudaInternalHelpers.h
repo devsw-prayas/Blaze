@@ -45,6 +45,19 @@ namespace Corium::Cuda::Internal {
 
 		static CUmemAccess_flags       toAccessFlags(Utils::AccessFlagBits flag);
 		static CUmemAllocationGranularity_flags toCuMemAllocGranularity(Utils::AllocationGranularityOption v_Option);
+
+		static CUmemorytype            toCopyMemoryType(Utils::CopyMemoryType v_Type);
+		static CUstreamCaptureMode     toCudaStreamCaptureMode(Utils::StreamCaptureMode v_Mode);
+		static CUstreamCaptureStatus   toCudaStreamCaptureStatus(Utils::StreamCaptureStatus v_Status);
+		static uint32_t                toStreamFlags(Utils::StreamFlags v_Flags);
+		static uint32_t                toEventFlags(Utils::EventFlags v_Flags);
+	};
+
+	class CUDA_PackingFunctions final {
+	public:
+		static CUDA_MEMCPY3D           pack3dMemcpyDesc(const Utils::MemCpy3DDesc& ro_Desc);        // → cuMemcpy3DAsync, cuGraphAddMemcpyNode
+		static CUDA_KERNEL_NODE_PARAMS packKernelNodeParams(const Utils::KernelNodeParams& ro_Params); // → cuGraphAddKernelNode
+		static CUDA_MEMSET_NODE_PARAMS packMemsetNodeParams(const Utils::MemsetNodeParams& ro_Params); // → cuGraphAddMemsetNode
 	};
 }
 

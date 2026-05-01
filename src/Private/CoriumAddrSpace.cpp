@@ -101,6 +101,7 @@ namespace Corium::Memory::Internal {
 	// -------------------------------------------------------------------------
 
 	bool init() {
+		VirtualMemory::init();
 		// ==============================================================================
 		//                  CORIUM VIRTUAL ADDRESS SPACE HIERARCHY
 		//                  512 GiB total — 4 NUMA nodes × 128 GiB per node

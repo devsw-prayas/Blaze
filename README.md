@@ -1,100 +1,157 @@
-# Blaze
+# Corium
 
-**Blaze** is a high-performance, modular multithreading engine for C++. It provides precise control over task orchestration, thread scheduling, and parallel execution — built from the ground up with a zero-overhead mindset. Blaze powers the concurrency layer of Spectra, enabling systems that demand deterministic behavior, fine-grained parallelism, and full control over memory and execution lifecycles.
+A deterministic, high-performance execution runtime for C++. Provides explicit control over task orchestration, thread scheduling, GPU dispatch, and memory lifetimes — built from scratch with zero-overhead execution paths and no external runtime dependencies.
 
----
+Corium is the concurrency and execution substrate for [SpectraRenderer](https://github.com/devsw-prayas/Spectra), and is designed to be used independently as well.
 
-## Capabilities
 
-* **Thread Pooling Architecture**
-  Provides multiple thread pool models including `DefaultThreadPool`, `CachedThreadPool`, `DefaultScheduledThreadPool`, and `CachedScheduledThreadPool`. Designed to balance core utilization, throughput, and responsiveness.
+## What it does
 
-* **Work Stealing Execution**
-  Decentralized task redistribution using `DefaultWorkStealerPool` and the `IWorkStealLoad` interface. Each worker owns a bounded queue with localized scheduling, enabling low-contention and high-throughput dynamic balancing.
+Corium replaces conventional concurrency abstractions (`std::async`, thread pools, task libraries) with an execution model built around three hard invariants:
 
-* **SIMD-Friendly Bulk Execution**
-  Supports batch-oriented, core-pinned execution via `ATaskEngine`, designed for high-density task dispatch. Operates under a shared allocator context with deterministic memory and cache behavior.
+- **Explicit.** Tasks are inert descriptors until submitted. No implicit scheduling, no hidden allocation.
+- **Deterministic.** Execution order, memory layout, and task lifecycle transitions are all explicitly controlled.
+- **Zero overhead on the fast path.** All performance-critical execution resolves statically — no virtual dispatch, no dynamic allocation in hot paths.
 
-* **Composable Execution Chains**
-  Functional-style composition through `IComposer`, `Composable`, and `Compose` modes. Enables declarative task pipelines (e.g. transform → intermediate → reduce), schedulable across pool or batch layers.
 
-* **TLS-Based Execution Contexts**
-  Execution metadata is accessible through static `thread_local` bindings:
+## Task Pipeline
 
-  * `this_thread` → bound to current `IHandle*` (e.g. pool executor)
-  * `this_worker` → active work stealing context
-  * `this_core` → current bulk task engine (`ATaskEngine`)
-  * `this_composition` → current composer context (`IComposer*`)
+Every task passes through three ordered phases. Phase boundaries are enforced at compile time and runtime.
 
-  Each exposes allocator bindings, state metadata, and optional profiling hooks.
+```
+Phase 1 — Induction      Declare schema: parameter types, memory footprint, trait flags
+Phase 2 — Construction   Bind executable closure (CPU lambda or GPU kernel) to the task
+Phase 3 — Execution      Stage parameter values, assign TaskID, submit to pool
+```
 
-* **Instrumentation Hooks**
-  All interfaces expose optional `void*` instrumentation hooks to integrate tracing or logging without overhead when unused. Fully compatible with Stratum for timeline/event stream capture.
+**Phase 1 — `TaskInductor`**  
+Operates on a stack-allocated `TaskDesc`. Declares input/output parameter schemas via `TensorParameter<T, Extents...>`, encodes execution traits via `TaskBitFlag`, and calls `cook()` to freeze the descriptor and produce a `TaskFrame`.
 
-* **Modular & Cross-Boundary Safe**
-  Blaze is designed with strict separation of interfaces, enabling it to be used across DLLs or independent subsystems. ABI-safe boundaries, allocator duplication patterns, and CRTP static dispatch ensure predictability and safety.
+**Phase 2 — `TaskBuilder`**  
+Operates on frozen `TaskDesc` objects. Binds callables (`void(TaskContext&)`), sliced callables (`void(TaskSliceContext&)`), or GPU kernels (`GPUKernel`) to the `TaskFrame`.
 
-* **Zero Dynamic Overhead**
-  All fast paths avoid virtual dispatch and dynamic allocation. Dispatch is static or manually bound. Lifecycle and execution logic is encoded via interfaces such as `IHandle`, `IExecutor`, `IExecutorVirtual`, `IWorkStealLoad`, and `IComposer`.
+**Phase 3 — `Executor`**  
+Stages typed input values into the task's packed buffer, assigns a `TaskID`, and routes the frame to the appropriate pool. Returns a `TaskHandle` for observable submissions.
 
----
+## Pool Hierarchy
 
-## Core Interfaces
+| Pool | Description |
+|---|---|
+| `ThreadExecutorService` | Managed CPU worker thread pool. Baseline execution path. |
+| `WorkStealerService` | Extends `ThreadExecutorService` with per-worker local deques and work stealing. |
+| `ScheduledThreadExecutorService` | Adds time-based deferred and periodic submission. |
+| `AcceleratorService` | CPU + GPU. Owns a dedicated GPU monitor thread and CUDA execution resources. |
 
-* `IHandle` — Root handle abstraction for thread and task pool control
-* `IExecutor` — Compile-time fast-path interface for execution
-* `IExecutorVirtual` — Runtime-bound executor interface (plugin-style)
-* `IWorkStealLoad` — Interface for stealable workloads
-* `IComposer` — Declarative composition interface
-* `ATaskEngine` — Deterministic batch-oriented execution core
+Pool bindings are managed via `ExecutionContract<PoolT>` — task-pool compatibility is validated entirely at compile time against `TaskBitFlag` traits.
 
----
 
-## Design Goals
+## GPU Execution
 
-* **Determinism First**
-  All task execution, scheduling, and lifecycle transitions are explicitly controlled — no implicit yields or dynamic scheduling decisions.
+`AcceleratorService` owns one GPU monitor thread per pool instance. CPU workers hand off GPU `TaskFrame`s via a lockless queue. The monitor thread handles device transfer, kernel dispatch, stream polling, and completion.
 
-* **Cache and Allocator Locality**
-  Memory and task execution are tightly bound to TLS-managed allocators, reducing contention and improving locality across cores.
+GPU kernels are compiled and bound via `GPUKernel`:
 
-* **Extensible and Replaceable**
-  All components (e.g. pools, composers, workloads) can be used independently or replaced with custom implementations without modifying internals.
+```cpp
+// Compile from source at runtime (NVRTC)
+GPUKernel kernel = GPUKernel::fromSource(ptxSource, "myKernel");
 
-* **Debuggable Under Load**
-  Blaze is built for systems where traceability matters: pool state, composition context, and scheduling behavior can all be instrumented with zero impact to fast paths.
+// Load pre-compiled PTX
+GPUKernel kernel = GPUKernel::fromPtx(ptxBlob, "myKernel");
 
----
+// Load from file
+GPUKernel kernel = GPUKernel::fromFile("path/to/kernel.ptx", "myKernel");
+```
 
-## Setup & Build Instructions
+Kernels are bound to tasks via `TaskBuilder::bindGPU()`. All grid/block dimensions and shared memory requirements are validated at bind time against live device properties — no silent fallback.
+
+CPU fallback is automatic unless `ForbidsSoftwareFallback` is set on the task.
+
+
+## Synchronization Primitives
+
+All primitives in `Corium::Sync`. Hybrid wait strategy — userspace spin for short waits, OS primitive fallback for long waits.
+
+| Primitive | Description |
+|---|---|
+| `CountDownLatch` | One-shot. N countdowns unblock all waiters. |
+| `CyclicBarrier` | Reusable. N parties must arrive before any proceed. Optional trip hook. |
+| `Semaphore` | Permit-based resource control. |
+| `ReentrantLock` | Explicit mutex with reentrant semantics. Pairs with `Condition`. |
+| `ReadWriteLock` | Concurrent readers or exclusive writers. Upgradeable. |
+| `StampedLock` | Optimistic read variant — validate-before-lock pattern. |
+| `Phaser` | Dynamic barrier. Parties register/deregister at runtime. Hierarchical. |
+| `Exchanger<T>` | Two-thread rendezvous and value swap. |
+
+Free functions for `TaskHandle` sets: `Sync::waitAll`, `Sync::waitAny`.
+
+
+## Memory Layout
+
+Corium reserves a 512 GiB virtual address space across up to 4 NUMA nodes (128 GiB per node). Physical page affinity is set at reserve time via `VirtualAllocExNuma`. Each node is an independent VA reservation — no shared base.
+
+Per-node regions:
+
+| Region | Size | Contents |
+|---|---|---|
+| `g_RuntimeVA` | 24 GiB | Closures, smart pointer control blocks, pools, allocators |
+| `g_TaskMetadataVA` | 32 GiB | TaskMemoryDesc, TaskContext, parameter layout arrays |
+| `g_TaskPayloadVA` | 56 GiB | Input/output payload buffers, GPU-visible task data |
+| `g_ReservedVA` | ~16 GiB | GPU staging, GPUKernel storage, DMA windows |
+
+Guard pages between all regions. Worker threads are NUMA-bound — allocations stay node-local.
+
+## Composer API
+
+High-level convenience layer that hides the three-phase pipeline. Suitable for non-critical paths.
+
+```cpp
+// Fire and forget
+Composer::run([](TaskContext& ctx) { /* work */ });
+
+// Observable async
+auto handle = Composer::async<MyIO>(inputA, inputB,
+    [](TaskContext& ctx) { ctx.put<Result>(compute(ctx.get<A>(), ctx.get<B>())); });
+
+// GPU dispatch with CPU fallback
+auto handle = Composer::kernel<MyIO>(inputA, inputB, gpuKernel,
+    [](TaskContext& ctx) { /* cpu fallback */ });
+```
+
+
+## Build
 
 ### Requirements
 
-* C++20-compliant compiler (GCC 12+, MSVC 2022+, Clang 14+)
-* No external dependencies
-* CMake 3.20+ (optional)
+- Windows 10/11 (x64) or Linux (x86_64)
+- Visual Studio 2022 (MSVC) on Windows, GCC 12+ or Clang 14+ on Linux
+- CMake 3.20+
+- CUDA Toolkit 12.4+ (required for GPU execution path)
 
----
+### Standalone
 
-### Building with CMake
-
+**Windows:**
 ```bash
-git clone https://github.com/your-org/blaze.git
-cd blaze
+git clone https://github.com/devsw-prayas/Corium.git
+cd Corium
 mkdir build && cd build
-cmake ..
+cmake .. -G "Visual Studio 17 2022"
+cmake --build . --config Release_win64
+```
+
+**Linux:**
+```bash
+git clone https://github.com/devsw-prayas/Corium.git
+cd Corium
+mkdir build && cd build
+cmake .. -G "Ninja"
 cmake --build . --config Release
 ```
 
-You can also embed Blaze directly into your own project by including the `include/` and `src/` folders and linking the Blaze core statically.
+### As part of SpectraRenderer
 
----
+Corium is a git submodule in `common/Corium`. Follow the [SpectraRenderer build instructions](../../README.md
 
-### Platform Support
 
-* ✅ Windows 10/11 (x64)
-* ✅ Linux (glibc, musl, x86\_64)
-* ⛔ macOS (not officially supported or tested)
-* 🔶 Cross-platform builds assume no reliance on OS-specific threading APIs outside POSIX/Win32
+## License
 
----
+MIT License. See [LICENSE](LICENSE) for details.

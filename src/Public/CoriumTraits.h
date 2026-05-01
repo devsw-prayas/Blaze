@@ -33,7 +33,7 @@ namespace Corium::Backend::Traits {
 	struct CORIUM_RUNTIME_API name final : std::false_type {};\
 	\
 	template<typename T> \
-	CORIUM_FORCEINLINE bool CORIUM_RUNTIME_API constexpr name##V = name<T>::value; \
+	bool CORIUM_RUNTIME_API constexpr name##V = name<T>::value; \
 
 #endif
 																					

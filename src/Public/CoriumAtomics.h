@@ -35,10 +35,13 @@ namespace Corium::Core::Atomics {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
 			AtomicStore_Relaxed(p_Memory, v_Value);
+			break;
 		case MemoryOrder::SEQ_CST:
 			AtomicStore_SeqCst(p_Memory, v_Value);
+			break;
 		case MemoryOrder::RELEASE:
 			AtomicStore_Release(p_Memory, v_Value);
+			break;
 		case MemoryOrder::ACQ_REL: 
 		case MemoryOrder::ACQUIRE: 
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();

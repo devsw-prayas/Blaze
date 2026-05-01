@@ -1,22 +1,26 @@
 #pragma once
 #include "Corium.h"
 #include "CoriumCompiler.h"
+#include "CudaUtils.h"
 
 namespace Corium::Cuda::Streams {
-	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuStream final {
-		void* m_StreamHandle = nullptr;
+	using namespace Utils;
 
-		GpuStream() = default;
-		~GpuStream() = default;
+	class CORIUM_RUNTIME_API DeviceStreams final {
+	public:
+		// Core Stream Management
+		static GpuStream createStream(StreamFlags v_Flags);
+		static GpuStream createStreamWithPriority(StreamFlags v_Flags, int v_Priority);
+		static void      destroyStream(GpuStream& ro_Stream);
+		static void      syncStream(const GpuStream& ro_Stream);
+		static bool      queryStream(const GpuStream& ro_Stream);
 
-		GpuStream(const GpuStream&) = default;
-		GpuStream& operator=(const GpuStream&) = default;
+		// Synchronization
+		static void streamWaitEvent(GpuStream& ro_Stream, const GpuEvent& ro_Event);
+		static void addStreamCallback(GpuStream& ro_Stream, void* p_Callback, void* p_UserData);
 
-		GpuStream(GpuStream&&) noexcept = default;
-		GpuStream& operator=(GpuStream&&) noexcept = default;
-
-		CORIUM_NODISCARD bool isValid() const {
-			return m_StreamHandle != nullptr;
-		}
+		// Graph Capture
+		static void     beginStreamCapture(GpuStream& ro_Stream, StreamCaptureMode v_Mode);
+		static GpuGraph endStreamCapture(GpuStream& ro_Stream);
 	};
 }
