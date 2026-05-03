@@ -56,8 +56,8 @@ namespace Corium::Core::Atomic {
 		}
 
 		CORIUM_FORCEINLINE
-			Valid increment(Valid v_Value = 1, Atomics::MemoryOrder v_Ordering = Atomics::MemoryOrder::SEQ_CST) noexcept {
-			return Atomics::atomicIncrement32<Valid>(&m_Value, v_Value, v_Ordering
+			Valid increment(Atomics::MemoryOrder v_Ordering = Atomics::MemoryOrder::SEQ_CST) noexcept {
+			return Atomics::atomicIncrement32<Valid>(&m_Value, v_Ordering
 			);
 		}
 
