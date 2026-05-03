@@ -43,9 +43,12 @@ namespace Corium::Intrinsic {
 #define __ATOMIC_SEQ_CST 0
 #endif
 
+	CORIUM_FORCEINLINE CORIUM_RUNTIME_API  void Pause() {
+		_mm_pause(); // Hardware pause
+	}
+
 	// Section containing hardware fences.
 
-	// ============================================================================
 	// FullFence
 	//
 	// Establishes a global hardware ordering point.
@@ -55,11 +58,10 @@ namespace Corium::Intrinsic {
 	//
 	// This is a heavyweight synchronization primitive intended only for
 	// global phase transitions, device boundaries, or shutdown paths.
-	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void FullFence() {
 #if CORIUM_COMPILER_MSVC
-		_mm_mfence();
+		::_mm_mfence();
 #elif CORIUM_COMPILER_GCC
 #if defined(__has_builtin)
 #if __has_builtin(__atomic_thread_fence)
@@ -77,7 +79,6 @@ namespace Corium::Intrinsic {
 #endif
 	}
 
-	// ============================================================================
 	// LoadFence
 	//
 	// Establishes ordering for load operations.
@@ -86,7 +87,6 @@ namespace Corium::Intrinsic {
 	// Does not impose ordering on stores.
 	//
 	// Intended for explicit consumption of published data.
-	// ============================================================================
 
 	CORIUM_FORCEINLINE	CORIUM_RUNTIME_API void LoadFence() {
 #if CORIUM_COMPILER_MSVC
@@ -107,7 +107,6 @@ namespace Corium::Intrinsic {
 #endif
 	}
 
-	// ============================================================================
 	// StoreFence
 	//
 	// Establishes ordering for store operations.
@@ -116,7 +115,6 @@ namespace Corium::Intrinsic {
 	// Does not impose ordering on loads.
 	//
 	// Commonly used when publishing data followed by a visibility flag.
-	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void StoreFence() {
 #if CORIUM_COMPILER_MSVC
@@ -139,7 +137,6 @@ namespace Corium::Intrinsic {
 
 	// (Why is this even necessary?) Compiler hint fences
 
-	// ============================================================================
 	// RWCompileBarrier
 	//
 	// Compiler-only barrier for both loads and stores.
@@ -148,7 +145,6 @@ namespace Corium::Intrinsic {
 	// this point, without emitting any CPU instructions.
 	//
 	// Does NOT provide inter-thread synchronization.
-	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RWCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
@@ -169,7 +165,6 @@ namespace Corium::Intrinsic {
 #endif
 	}
 
-	// ============================================================================
 	// RCompileBarrier
 	//
 	// Compiler-only barrier for load operations.
@@ -178,7 +173,6 @@ namespace Corium::Intrinsic {
 	// stores to move freely.
 	//
 	// Intended for rare, read-only ordering constraints.
-	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void RCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
@@ -199,7 +193,6 @@ namespace Corium::Intrinsic {
 #endif
 	}
 
-	// ============================================================================
 	// WCompileBarrier
 	//
 	// Compiler-only barrier for store operations.
@@ -208,7 +201,6 @@ namespace Corium::Intrinsic {
 	// loads to move freely.
 	//
 	// Commonly used before publishing shared state.
-	// ============================================================================
 
 	CORIUM_FORCEINLINE CORIUM_RUNTIME_API void WCompileBarrier() {
 #if CORIUM_COMPILER_MSVC
@@ -248,18 +240,16 @@ namespace Corium::Intrinsic {
 		);
 	};
 
-		// Moving on to a wall of macros, fuck!!
+	// Moving on to a wall of macros, fuck!!
 
-		// ============================================================================
-		// AtomicLoad
-		//
-		// Atomically reads the value stored at the target address.
-		//
-		// Guarantees that the value is read as a single, indivisible operation
-		// even in the presence of concurrent writers.
-		//
-		// Does not modify the stored value.
-		// ============================================================================
+	// AtomicLoad
+	//
+	// Atomically reads the value stored at the target address.
+	//
+	// Guarantees that the value is read as a single, indivisible operation
+	// even in the presence of concurrent writers.
+	//
+	// Does not modify the stored value.
 
 #ifndef AtomicLoad_Relaxed
 #if CORIUM_COMPILER_MSVC
@@ -345,7 +335,6 @@ namespace Corium::Intrinsic {
 
 #endif
 
-	// ============================================================================
 	// AtomicStore
 	//
 	// Atomically writes a value to the target address.
@@ -354,7 +343,6 @@ namespace Corium::Intrinsic {
 	// to all threads observing the location.
 	//
 	// Overwrites the previous value.
-	// ============================================================================
 
 #ifndef AtomicStore_Relaxed
 #if CORIUM_COMPILER_MSVC
@@ -419,7 +407,6 @@ namespace Corium::Intrinsic {
 
 #endif
 
-	// ============================================================================
 	// AtomicExchange
 	//
 	// Atomically replaces the value at the target address with a new value.
@@ -427,7 +414,6 @@ namespace Corium::Intrinsic {
 	// Returns the previous value stored at the address.
 	//
 	// Commonly used for state transitions, flags, and lock primitives.
-	// ============================================================================
 
 #ifndef AtomicExchange32_Relaxed
 #if CORIUM_COMPILER_MSVC
@@ -531,7 +517,6 @@ namespace Corium::Intrinsic {
 #endif
 #endif
 
-	// ============================================================================
 	// AtomicCompareExchange
 	//
 	// Atomically compares the current value at the target address with an
@@ -541,7 +526,6 @@ namespace Corium::Intrinsic {
 	// value on failure.
 	//
 	// Fundamental primitive for lock-free algorithms.
-	// ============================================================================
 
 #ifndef AtomicCompareExchange32
 #if CORIUM_COMPILER_MSVC
@@ -695,7 +679,6 @@ namespace Corium::Intrinsic {
 #define AtomicCompareExchange64_SeqCst_SeqCst(p_Ptr, expected, desired, weak) \
         AtomicCompareExchange64((p_Ptr), (expected), (desired), (weak), __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicFetchAdd
 	//
 	// Atomically adds a value to the target address.
@@ -703,7 +686,6 @@ namespace Corium::Intrinsic {
 	// Returns the value that was stored prior to the addition.
 	//
 	// Commonly used for counters and reference tracking.
-	// ============================================================================
 
 #ifndef AtomicFetchAdd32
 #if CORIUM_COMPILER_MSVC
@@ -777,7 +759,6 @@ namespace Corium::Intrinsic {
 #define AtomicFetchAdd64_SeqCst(p_Ptr, v_Value) \
         AtomicFetchAdd64((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicFetchAdd
 	//
 	// Atomically adds a value to the target address.
@@ -785,7 +766,6 @@ namespace Corium::Intrinsic {
 	// Returns the value that was stored prior to the addition.
 	//
 	// Commonly used for counters and reference tracking.
-	// ============================================================================
 
 #ifndef AtomicAddFetch32
 #if CORIUM_COMPILER_MSVC
@@ -859,7 +839,6 @@ namespace Corium::Intrinsic {
 #define AtomicAddFetch64_SeqCst(p_Ptr, v_Value) \
         AtomicAddFetch64((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicIncrement
 	//
 	// Atomically increments the value at the target address by one.
@@ -867,7 +846,6 @@ namespace Corium::Intrinsic {
 	// Equivalent to an atomic add of +1.
 	//
 	// Frequently used for reference counts and event counters.
-	// ============================================================================
 
 #ifndef AtomicIncrement32
 #if CORIUM_COMPILER_MSVC
@@ -977,7 +955,6 @@ namespace Corium::Intrinsic {
 #define AtomicIncrement64_SeqCst(p_Ptr) \
         AtomicIncrement64((p_Ptr), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicDecrement
 	//
 	// Atomically decrements the value at the target address by one.
@@ -985,7 +962,6 @@ namespace Corium::Intrinsic {
 	// Equivalent to an atomic add of -1.
 	//
 	// Often paired with lifetime or ownership tracking.
-	// ============================================================================
 
 #ifndef AtomicDecrement64
 #if CORIUM_COMPILER_MSVC
@@ -1023,7 +999,6 @@ namespace Corium::Intrinsic {
 #define AtomicDecrement64_SeqCst(p_Ptr) \
         AtomicDecrement64((p_Ptr), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicFetchAnd
 	//
 	// Atomically applies a bitwise AND between the stored value and the
@@ -1032,7 +1007,6 @@ namespace Corium::Intrinsic {
 	// Returns the previous value.
 	//
 	// Commonly used for flag clearing and masked state updates.
-	// ============================================================================
 
 #ifndef AtomicFetchAnd
 #if CORIUM_COMPILER_MSVC
@@ -1070,7 +1044,6 @@ namespace Corium::Intrinsic {
 #define AtomicFetchAnd_SeqCst(p_Ptr, v_Value) \
         AtomicFetchAnd((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicFetchOr
 	//
 	// Atomically applies a bitwise OR between the stored value and the
@@ -1079,7 +1052,6 @@ namespace Corium::Intrinsic {
 	// Returns the previous value.
 	//
 	// Commonly used for flag setting and capability masks.
-	// ============================================================================
 
 #ifndef AtomicFetchOr
 #if CORIUM_COMPILER_MSVC
@@ -1117,7 +1089,6 @@ namespace Corium::Intrinsic {
 #define AtomicFetchOr_SeqCst(p_Ptr, v_Value) \
         AtomicFetchOr((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicFetchXor
 	//
 	// Atomically applies a bitwise XOR between the stored value and the
@@ -1126,7 +1097,6 @@ namespace Corium::Intrinsic {
 	// Returns the previous value.
 	//
 	// Useful for toggling bits or parity-style state changes.
-	// ============================================================================
 
 #ifndef AtomicFetchXor
 #if CORIUM_COMPILER_MSVC
@@ -1164,7 +1134,6 @@ namespace Corium::Intrinsic {
 #define AtomicFetchXor_SeqCst(p_Ptr, v_Value) \
         AtomicFetchXor((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicFetchNand
 	//
 	// Atomically applies a bitwise NAND between the stored value and the
@@ -1173,7 +1142,6 @@ namespace Corium::Intrinsic {
 	// Returns the previous value.
 	//
 	// Rarely used directly, but provided for completeness and symmetry.
-	// ============================================================================
 
 #ifndef AtomicFetchNand
 #if CORIUM_COMPILER_MSVC
@@ -1211,7 +1179,6 @@ namespace Corium::Intrinsic {
 #define AtomicFetchNand_SeqCst(p_Ptr, v_Value) \
         AtomicFetchNand((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicMinFetch (Signed)
 	//
 	// Atomically replaces the stored value with the smaller of the current
@@ -1220,7 +1187,6 @@ namespace Corium::Intrinsic {
 	// Returns the resulting value after the operation.
 	//
 	// Intended for monotonic lower-bound tracking.
-	// ============================================================================
 
 #ifndef AtomicMinFetchLong
 #if CORIUM_COMPILER_MSVC
@@ -1258,7 +1224,6 @@ namespace Corium::Intrinsic {
 #define AtomicMinFetchLong_SeqCst(p_Ptr, v_Value) \
         AtomicMinFetchLong((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicMaxFetch (Signed)
 	//
 	// Atomically replaces the stored value with the larger of the current
@@ -1267,7 +1232,6 @@ namespace Corium::Intrinsic {
 	// Returns the resulting value after the operation.
 	//
 	// Intended for monotonic upper-bound tracking.
-	// ============================================================================
 
 #ifndef AtomicMaxFetchLong
 #if CORIUM_COMPILER_MSVC
@@ -1305,14 +1269,12 @@ namespace Corium::Intrinsic {
 #define AtomicMaxFetchLong_SeqCst(p_Ptr, v_Value) \
         AtomicMaxFetchLong((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicMinFetch (Unsigned)
 	//
 	// Atomically replaces the stored value with the smaller of the current
 	// value and the provided value, using unsigned comparison.
 	//
 	// Returns the resulting value after the operation.
-	// ============================================================================
 
 #ifndef AtomicMinFetchULong
 #if CORIUM_COMPILER_MSVC
@@ -1350,14 +1312,12 @@ namespace Corium::Intrinsic {
 #define AtomicMinFetchULong_SeqCst(p_Ptr, v_Value) \
         AtomicMinFetchULong((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicMaxFetch (Unsigned)
 	//
 	// Atomically replaces the stored value with the larger of the current
 	// value and the provided value, using unsigned comparison.
 	//
 	// Returns the resulting value after the operation.
-	// ============================================================================
 
 #ifndef AtomicMaxFetchULong
 #if CORIUM_COMPILER_MSVC
@@ -1395,14 +1355,12 @@ namespace Corium::Intrinsic {
 #define AtomicMaxFetchULong_SeqCst(p_Ptr, v_Value) \
         AtomicMaxFetchULong((p_Ptr), (v_Value), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicTestAndSet
 	//
 	// Atomically sets a single bit and returns its previous state.
 	//
 	// Commonly used to implement simple spinlocks, flags, or once-only
 	// execution guards.
-	// ============================================================================
 
 #ifndef AtomicTestAndSet
 #if CORIUM_COMPILER_MSVC
@@ -1440,13 +1398,11 @@ namespace Corium::Intrinsic {
 #define AtomicTestAndSet_SeqCst(p_Ptr, bit) \
         AtomicTestAndSet((p_Ptr), (bit), __ATOMIC_SEQ_CST)
 
-	// ============================================================================
 	// AtomicClear
 	//
 	// Atomically clears a single bit and returns its previous state.
 	//
 	// Typically paired with AtomicTestAndSet to manage bit-level flags.
-	// ============================================================================
 
 #ifndef AtomicClear
 #if CORIUM_COMPILER_MSVC

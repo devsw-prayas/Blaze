@@ -278,7 +278,7 @@ namespace Corium::Core::Atomics {
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic increment")
-		Valid atomicIncrement32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		Valid atomicIncrement32(Valid* p_Memory, MemoryOrder v_Ordering) {
 		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement32_Relaxed(p_Raw));
@@ -310,7 +310,7 @@ namespace Corium::Core::Atomics {
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement")
-		Valid atomicDecrement32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		Valid atomicDecrement32(Valid* p_Memory, MemoryOrder v_Ordering) {
 		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement32_Relaxed(p_Raw));

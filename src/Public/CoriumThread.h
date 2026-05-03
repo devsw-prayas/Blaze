@@ -23,7 +23,7 @@ namespace Corium::Core {
 		static bool terminateThread(const ThreadHandle& ro_Handle) noexcept;
 		static bool joinThread(const ThreadHandle& ro_Handle) noexcept;
 
-		static void waitOnAddress(ParkHandle& ro_Permit) noexcept;
+		static void waitOnAddress(ParkHandle& ro_Permit, uint32_t expected) noexcept;
 		static void wakeOnAddress(ParkHandle& ro_Permit) noexcept;
 		static void wakeAllOnAddress(ParkHandle& ro_Permit) noexcept;
 

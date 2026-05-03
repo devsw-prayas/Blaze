@@ -64,6 +64,8 @@ target_precompile_headers(Corium PRIVATE
 
 target_compile_definitions(Corium PRIVATE  CORIUM_SHARED)
 target_compile_definitions(Corium PUBLIC   CORIUM_VA_ALLOCATION=524288)
+target_compile_definitions(Corium PUBLIC   CORIUM_TIMEOUT=50)
+target_compile_definitions(Corium PUBLIC   CORIUM_SPIN_COUNT=450)
 
 if (MSVC)
     set_property(TARGET Corium PROPERTY

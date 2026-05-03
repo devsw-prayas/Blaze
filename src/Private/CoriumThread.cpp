@@ -392,17 +392,17 @@ namespace Corium::Core {
 		return false;
 #endif
 	}
-
-	void NativeThread::waitOnAddress(ParkHandle& ro_Permit) noexcept {
+	void NativeThread::waitOnAddress(ParkHandle& ro_Permit, uint32_t expected) noexcept {
 #ifdef _WIN32
-		uint32_t v_Unparked = 0u;
-		WaitOnAddress(ro_Permit.m_ParkingPermit.data(),
-					  &v_Unparked,
-					  sizeof(uint32_t),
-					  INFINITE);
+		WaitOnAddress(
+			ro_Permit.m_ParkingPermit.data(),
+			&expected,
+			sizeof(uint32_t),
+			INFINITE
+		);
 #else
-		// TODO: Linux (futex) implementation
-#endif
+		// futex(..., FUTEX_WAIT, expected, ...)
+#endif									    
 	}
 
 	void NativeThread::wakeOnAddress(ParkHandle& ro_Permit) noexcept {
