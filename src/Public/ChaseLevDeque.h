@@ -18,7 +18,7 @@ namespace Corium::Runtime::WorkStealers {
 
 			Memory::Internal::VARegionSlicer slicer{ m_DequeRegion };
 			CORIUM_UNUSED(Memory::VirtualMemory::protectMem(Memory::createSegment(slicer.slice(Memory::PAGE_SIZE))));
-			m_DequeRegion = Memory::createSegment(slicer.slice(m_DequeRegion.v_TotalSize - 2 * Memory::PAGE_SIZE));
+			m_DequeRegion = Memory::createSegment(slicer.slice(m_DequeRegion.m_TotalSize - 2 * Memory::PAGE_SIZE));
 			CORIUM_UNUSED(Memory::VirtualMemory::protectMem(Memory::createSegment(slicer.slice(Memory::PAGE_SIZE))));
 		}
 

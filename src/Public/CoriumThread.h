@@ -1,6 +1,7 @@
 #pragma once
 #include "Corium.h"
 #include "ThreadUtils.h"
+#include "CoriumChrono.h"
 
 namespace Corium::Core {
 
@@ -23,17 +24,10 @@ namespace Corium::Core {
 		static bool terminateThread(const ThreadHandle& ro_Handle) noexcept;
 		static bool joinThread(const ThreadHandle& ro_Handle) noexcept;
 
-		static void waitOnAddress(ParkHandle& ro_Permit, uint32_t expected) noexcept;
+		static void waitOnAddress(ParkHandle& ro_Permit, uint32_t expected = 0u) noexcept;
 		static void wakeOnAddress(ParkHandle& ro_Permit) noexcept;
 		static void wakeAllOnAddress(ParkHandle& ro_Permit) noexcept;
 
-		template<typename T>
-		static void waitOnAddressFor(ParkHandle& ro_Handle, T&& u_Duration) noexcept {
-#ifdef _WIN32
-			// TODO: timed WaitOnAddress implementation
-#else
-			// TODO: Linux (futex) implementation
-#endif
-		}
+		static void waitOnAddressFor(ParkHandle& ro_Handle, Chrono::Instant v_Deadline) noexcept;
 	};
 }

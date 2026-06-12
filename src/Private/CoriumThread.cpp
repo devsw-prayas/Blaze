@@ -422,4 +422,18 @@ namespace Corium::Core {
 		// TODO: Linux (futex) implementation
 #endif
 	}
+
+	void NativeThread::waitOnAddressFor(ParkHandle& ro_Handle, Chrono::Instant v_Deadline) noexcept {
+#ifdef _WIN32
+		const int64_t v_Ms = v_Deadline.remainingMilliseconds();
+		const DWORD v_Timeout = (v_Ms <= 0) ? 0u
+			: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
+		uint32_t v_Expected = 0u;
+		WaitOnAddress(ro_Handle.m_ParkingPermit.data(), &v_Expected, sizeof(uint32_t), v_Timeout);
+#else
+		// TODO: Linux futex with timeout
+		(void)ro_Handle;
+		(void)v_Deadline;
+#endif
+	}
 }
