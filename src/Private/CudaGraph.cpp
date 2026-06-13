@@ -129,7 +129,7 @@ namespace Corium::Cuda::Graphs {
 		return GpuGraphNode{};
 	}
 
-	void DeviceGraphs::addDependencies(GpuGraph& ro_Graph, const GpuGraphNode* p_From, const GpuGraphNode* p_To, uint32_t v_Count) {
+	void DeviceGraphs::addDependencies(GpuGraph& ro_Graph, const GpuGraphNode* p_From, const GpuGraphNode* p_To, const GpuGraphEdgeData* p_Data, uint32_t v_Count) {
 		CORIUM_ASSERT(ro_Graph.isValid());
 		CORIUM_ASSERT(p_From != nullptr);
 		CORIUM_ASSERT(p_To != nullptr);
@@ -142,10 +142,17 @@ namespace Corium::Cuda::Graphs {
 			toBuf[i]   = static_cast<CUgraphNode>(p_To[i].m_NodeHandle);
 		}
 
+		CUgraphEdgeData data{};
+		if (p_Data) {
+			data.from_port = p_Data->m_FromPort;
+			data.to_port   = p_Data->m_ToPort;
+			data.type      = p_Data->m_Type;
+		}
 		const CUresult result = cuGraphAddDependencies(
 			static_cast<CUgraph>(ro_Graph.m_GraphHandle),
 			fromBuf,
 			toBuf,
+			static_cast<const CUgraphEdgeData*>(&data),
 			static_cast<size_t>(v_Count)
 		);
 

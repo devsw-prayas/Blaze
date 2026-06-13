@@ -512,6 +512,42 @@ namespace Corium::Cuda::Utils {
 	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<GpuGraphNode>, "GpuGraphNode must be trivially copyable");
 	CORIUM_STATIC_ASSERT(std::is_trivially_move_assignable_v<GpuGraphNode>, "GpuGraphNode must be trivially move assignable");
 
+	enum class CORIUM_RUNTIME_API ExecAffinityType : uint8_t {
+		SM_COUNT = 0
+	};
+
+	struct CORIUM_RUNTIME_API ExecAffinitySmCount final {
+		uint32_t m_Val = 0;
+	};
+
+	struct CORIUM_RUNTIME_API ExecAffinityParam final {
+		ExecAffinityType    m_Type;
+		ExecAffinitySmCount m_SmCount;
+	};
+
+	// CIG (CUDA in Graphics) params are opaque at this abstraction level.
+	// Cast to CUctxCigParam* at the call site when needed.
+	struct CORIUM_RUNTIME_API CtxCreateParams final {
+		ExecAffinityParam* m_ExecAffinityParams    = nullptr;
+		int                m_NumExecAffinityParams = 0;
+		void*              m_CigParams             = nullptr;
+	};
+
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(8) GpuGraphEdgeData final {
+		unsigned char m_FromPort = 0;
+		unsigned char m_ToPort   = 0;
+		unsigned char m_Type     = 0;
+
+		GpuGraphEdgeData() = default;
+		~GpuGraphEdgeData() = default;
+
+		GpuGraphEdgeData(const GpuGraphEdgeData&) = default;
+		GpuGraphEdgeData& operator=(const GpuGraphEdgeData&) = default;
+
+		GpuGraphEdgeData(GpuGraphEdgeData&&) noexcept = default;
+		GpuGraphEdgeData& operator=(GpuGraphEdgeData&&) noexcept = default;
+	};
+
 	// Params for cuGraphAddKernelNode. m_Function must be a valid CUfunction handle from a loaded module.
 	struct CORIUM_RUNTIME_API KernelNodeParams final {
 		void*    m_Function       = nullptr; // CUfunction

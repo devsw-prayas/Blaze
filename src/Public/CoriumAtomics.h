@@ -99,13 +99,13 @@ namespace Corium::Core::Atomics {
 		case MemoryOrder::RELAXED:
 			switch (v_OrderingFailure) {
 			case MemoryOrder::RELAXED:
-				return AtomicCompareExchange32_Relaxed_Relaxed(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+				return AtomicCompareExchange32_Relaxed_Relaxed(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 
 			case MemoryOrder::ACQUIRE:
-				return AtomicCompareExchange32_Relaxed_Acquire(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+				return AtomicCompareExchange32_Relaxed_Acquire(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 
 			case MemoryOrder::SEQ_CST:
-				return AtomicCompareExchange32_Relaxed_SeqCst(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+				return AtomicCompareExchange32_Relaxed_SeqCst(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 
 			case MemoryOrder::RELEASE: 
 			case MemoryOrder::ACQ_REL: 
@@ -115,9 +115,9 @@ namespace Corium::Core::Atomics {
 
 		case MemoryOrder::ACQUIRE:
 			switch (v_OrderingFailure) {
-			case MemoryOrder::RELAXED: return AtomicCompareExchange32_Acquire_Relaxed(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
-			case MemoryOrder::ACQUIRE: return AtomicCompareExchange32_Acquire_Acquire(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
-			case MemoryOrder::SEQ_CST: return AtomicCompareExchange32_Acquire_SeqCst(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::RELAXED: return AtomicCompareExchange32_Acquire_Relaxed(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::ACQUIRE: return AtomicCompareExchange32_Acquire_Acquire(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::SEQ_CST: return AtomicCompareExchange32_Acquire_SeqCst(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 			case MemoryOrder::RELEASE: 
 			case MemoryOrder::ACQ_REL: 
 			case MemoryOrder::CONSUME:
@@ -127,13 +127,13 @@ namespace Corium::Core::Atomics {
 		case MemoryOrder::RELEASE:
 			switch (v_OrderingFailure) {
 			case MemoryOrder::RELAXED:
-				return AtomicCompareExchange32_Release_Relaxed(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+				return AtomicCompareExchange32_Release_Relaxed(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 
 			case MemoryOrder::ACQUIRE:
-				return AtomicCompareExchange32_Release_Acquire(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+				return AtomicCompareExchange32_Release_Acquire(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 
 			case MemoryOrder::SEQ_CST:
-				return AtomicCompareExchange32_Release_SeqCst(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+				return AtomicCompareExchange32_Release_SeqCst(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 
 			case MemoryOrder::RELEASE: 
 			case MemoryOrder::ACQ_REL: 
@@ -143,9 +143,9 @@ namespace Corium::Core::Atomics {
 
 		case MemoryOrder::ACQ_REL:
 			switch (v_OrderingFailure) {
-			case MemoryOrder::RELAXED: return AtomicCompareExchange32_AcqRel_Relaxed(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
-			case MemoryOrder::ACQUIRE: return AtomicCompareExchange32_AcqRel_Acquire(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
-			case MemoryOrder::SEQ_CST: return AtomicCompareExchange32_AcqRel_SeqCst(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::RELAXED: return AtomicCompareExchange32_AcqRel_Relaxed(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::ACQUIRE: return AtomicCompareExchange32_AcqRel_Acquire(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::SEQ_CST: return AtomicCompareExchange32_AcqRel_SeqCst(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 			case MemoryOrder::RELEASE: 
 			case MemoryOrder::ACQ_REL: 
 			case MemoryOrder::CONSUME:
@@ -154,9 +154,9 @@ namespace Corium::Core::Atomics {
 
 		case MemoryOrder::SEQ_CST:
 			switch (v_OrderingFailure) {
-			case MemoryOrder::RELAXED: return AtomicCompareExchange32_SeqCst_Relaxed(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
-			case MemoryOrder::ACQUIRE: return AtomicCompareExchange32_SeqCst_Acquire(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
-			case MemoryOrder::SEQ_CST: return AtomicCompareExchange32_SeqCst_SeqCst(reinterpret_cast<volatile __int64*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::RELAXED: return AtomicCompareExchange32_SeqCst_Relaxed(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::ACQUIRE: return AtomicCompareExchange32_SeqCst_Acquire(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
+			case MemoryOrder::SEQ_CST: return AtomicCompareExchange32_SeqCst_SeqCst(reinterpret_cast<volatile long*>(p_Memory), v_Expected, v_Desired, false);
 			case MemoryOrder::RELEASE: 
 			case MemoryOrder::ACQ_REL: 
 			case MemoryOrder::CONSUME:
@@ -294,7 +294,7 @@ namespace Corium::Core::Atomics {
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic increment")
-		Valid atomicIncrement64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		Valid atomicIncrement64(Valid* p_Memory, MemoryOrder v_Ordering) {
 		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement64_Relaxed(p_Raw));
@@ -326,7 +326,7 @@ namespace Corium::Core::Atomics {
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement")
-		Valid atomicDecrement64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		Valid atomicDecrement64(Valid* p_Memory, MemoryOrder v_Ordering) {
 		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement64_Relaxed(p_Raw));

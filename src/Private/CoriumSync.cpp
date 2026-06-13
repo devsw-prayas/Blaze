@@ -679,7 +679,7 @@ namespace Corium::Runtime::Sync {
 			m_Lock.unlock();
 
 #ifdef _WIN32
-		WaitOnAddress(m_Seq.data(), &v_Seq, sizeof(uint32_t), INFINITE);
+		WaitOnAddress(m_Seq.data(), const_cast<uint32_t*>(&v_Seq), sizeof(uint32_t), INFINITE);
 #else
 		// TODO: Linux futex
 #endif
@@ -702,7 +702,7 @@ namespace Corium::Runtime::Sync {
 			const int64_t v_Ms = v_Deadline.remainingMilliseconds();
 			const DWORD v_Timeout = (v_Ms <= 0) ? 0u
 				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Seq.data(), &v_Seq, sizeof(uint32_t), v_Timeout);
+			WaitOnAddress(m_Seq.data(), const_cast<uint32_t*>(&v_Seq), sizeof(uint32_t), v_Timeout);
 #else
 			// TODO: Linux futex with timeout
 #endif
@@ -849,7 +849,7 @@ namespace Corium::Runtime::Sync {
 			const uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE) != v_Phase) return m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), const_cast<uint32_t*>(&v_Gate), sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -872,7 +872,7 @@ namespace Corium::Runtime::Sync {
 			const int64_t v_Ms      = v_Deadline.remainingMilliseconds();
 			const DWORD   v_Timeout = (v_Ms <= 0) ? 0u
 				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), v_Timeout);
+			WaitOnAddress(m_Gate.data(), const_cast<uint32_t*>(&v_Gate), sizeof(uint32_t), v_Timeout);
 #else
 			// TODO: Linux futex with timeout
 			return false;

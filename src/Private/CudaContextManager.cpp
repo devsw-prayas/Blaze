@@ -12,7 +12,8 @@ namespace Corium::Cuda::Context {
 	Utils::CudaContext ContextManager::createCudaContext(
 		Utils::DeviceHandle v_Handle,
 		Utils::ContextSchedulingFlags v_SchedFlag,
-		Utils::ContextCreationFlags v_CreateFlag) {
+		Utils::ContextCreationFlags v_CreateFlag,
+		const Utils::CtxCreateParams* p_Params) {
 		CORIUM_ASSERT(Internal::CUDA_DeviceRegistry::validateDevice(v_Handle.m_HandleValue));
 		CUcontext context{};
 		uint32_t flags = 0;
@@ -25,7 +26,21 @@ namespace Corium::Cuda::Context {
 
 		Utils::CudaContext ctx;
 		ctx.m_Handle = nullptr;
-		CUresult result = cuCtxCreate_v2(&context, flags, Internal::CUDA_DeviceRegistry::s_Devices[v_Handle.m_HandleValue]);
+		CUctxCreateParams params{};
+		CUexecAffinityParam affinityBuf[8] = {};
+		if (p_Params) {
+			if (p_Params->m_ExecAffinityParams && p_Params->m_NumExecAffinityParams > 0) {
+				const int v_Count = p_Params->m_NumExecAffinityParams;
+				for (int i = 0; i < v_Count; ++i) {
+					affinityBuf[i].type               = static_cast<CUexecAffinityType>(p_Params->m_ExecAffinityParams[i].m_Type);
+					affinityBuf[i].param.smCount.val  = p_Params->m_ExecAffinityParams[i].m_SmCount.m_Val;
+				}
+				params.execAffinityParams    = affinityBuf;
+				params.numExecAffinityParams = v_Count;
+			}
+			params.cigParams = static_cast<CUctxCigParam*>(p_Params->m_CigParams);
+		}
+		CUresult result = cuCtxCreate(&context, &params, flags, Internal::CUDA_DeviceRegistry::s_Devices[v_Handle.m_HandleValue]);
 		if (result == CUDA_SUCCESS) {
 			ctx.m_Handle = context;
 			return ctx;

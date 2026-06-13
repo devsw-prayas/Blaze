@@ -2,11 +2,13 @@
 #include "AtomicVariable.h"
 #include "ThreadUtils.h"
 #include "CoriumChrono.h"
+#include "CoriumThread.h"
 
 // Some of my favorites from java.util.concurrent now in C++!
 // I'm lazy to fix some bugs, once that's done I'll add the TODOS :)
 
 namespace Corium::Runtime::Sync {
+	using namespace Core;
 
 	class CORIUM_RUNTIME_API CountDownLatch final {
 		// We are using ParkHandle here since all the NativeThread wait-on-address and wake-on-address 
@@ -282,7 +284,7 @@ namespace Corium::Runtime::Sync {
 					T v_Result = std::move(*reinterpret_cast<T*>(v_Slot.m_WaiterBuf));
 					reinterpret_cast<T*>(v_Slot.m_WaiterBuf)->~T();
 					new (v_Slot.m_FulfillerBuf) T(std::move(v_Value));
-					Core::NativeThread::wakeOnAddress(v_Slot.m_Gate);
+					NativeThread::wakeOnAddress(v_Slot.m_Gate);
 					return v_Result;
 				}
 			}

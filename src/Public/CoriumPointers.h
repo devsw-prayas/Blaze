@@ -171,11 +171,11 @@ namespace Corium::Memory {
 			SharedControlBlock& operator=(SharedControlBlock&&) = delete;
 
 			void addRef() noexcept {
-				CORIUM_UNUSED(m_StrongCount.increment(1u, MemoryOrder::RELAXED));
+				CORIUM_UNUSED(m_StrongCount.increment(MemoryOrder::RELAXED));
 			}
 
 			bool release() noexcept {
-				uint64_t v_NewCount = m_StrongCount.decrement(1u, MemoryOrder::ACQ_REL);
+				uint64_t v_NewCount = m_StrongCount.decrement(MemoryOrder::ACQ_REL);
 				return v_NewCount == 0u;
 			}
 
