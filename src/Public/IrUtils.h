@@ -190,10 +190,12 @@ namespace Corium::IntermediateRepresentation {
 		// slot_table[compressed_hash] = pack index of the matching parameter
 		template<size_t N, size_t TableSize>
 		consteval std::array<uint8_t, TableSize> buildSlotTable(
-			const std::array<uint64_t, N>& v_Hashes, uint64_t v_D, int v_Shift) {
+			const std::array<uint64_t, N>& v_Hashes,
+			const std::array<size_t,   N>& v_SortedIdx,
+			uint64_t v_D, int v_Shift) {
 			std::array<uint8_t, TableSize> table{};
 			for (size_t i = 0; i < N; ++i)
-				table[(v_Hashes[i] * v_D) >> v_Shift] = static_cast<uint8_t>(i);
+				table[(v_Hashes[i] * v_D) >> v_Shift] = static_cast<uint8_t>(v_SortedIdx[i]);
 			return table;
 		}
 
@@ -309,7 +311,7 @@ namespace Corium::IntermediateRepresentation {
 
 		// slot_table[(hash * D) >> Shift] = slot in sorted order
 		static constexpr std::array<uint8_t, TableSize> SlotTable =
-			Internal::buildSlotTable<N, TableSize>(s_SortedHashes, D, Shift);
+			Internal::buildSlotTable<N, TableSize>(s_SortedHashes, s_SortedIdx, D, Shift);
 
 		// offset_table[original_pack_index] = byte offset in packed buffer
 		static constexpr std::array<size_t, N> OffsetTable =

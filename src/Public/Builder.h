@@ -20,50 +20,50 @@
 */
 #pragma once
 #include <Corium.h>
-
 #include "CoriumMemory.h"
 #include "Inductor.h"
+#include "PipelineUtils.h"
 
 namespace Corium::Execution::Builder {
 
-	struct TaskMemory final {
-		TaskMemory() = default;
-		~TaskMemory() = default;
-
-		TaskMemory(const TaskMemory&) = delete;
-		TaskMemory& operator=(const TaskMemory&) = delete;
-
-		TaskMemory(TaskMemory&&) noexcept = default;
-		TaskMemory& operator=(TaskMemory&&) noexcept = default;
-
-	private:
-		Memory::UniquePtr<void> m_InputMemBuffer;
-		Memory::UniquePtr<void> m_OutputMemBuffer;
-	};
-
-	struct CORIUM_RUNTIME_API TaskFrame final {
-		TaskFrame() = default;
-		~TaskFrame() = default;
-
-		explicit TaskFrame(
-			Memory::WeakPtr<Inductor::TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> sw_Desc
-		) noexcept : m_MemDesc(std::move(sw_Desc)) {}
-
-		TaskFrame(const TaskFrame&) = default;
-		TaskFrame& operator=(const TaskFrame&) = delete;
-
-		TaskFrame(TaskFrame&&) noexcept = default;
-		TaskFrame& operator=(TaskFrame&&) noexcept = delete;
-
-	private:
-		Memory::WeakPtr<Inductor::TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> m_MemDesc;
-
-		friend class TaskBuilder;
-	};
-
 	class CORIUM_RUNTIME_API TaskBuilder final {
 	public:
-		static TaskFrame build(const Inductor::TaskDesc& ro_Desc);
+
+		// Lowers a void(TaskContext&) callable into a ClosureFunction allocated
+		// in g_ClosureRange. Writes type-erased closure pointers into ro_Frame.
+		// Returns false if the frame is invalid, already built, or allocation fails.
+		template<typename Callable>
+			requires std::is_invocable_v<std::decay_t<Callable>, TaskContext&>
+		CORIUM_NODISCARD static bool build(TaskFrame& ro_Frame, const Inductor::TaskDesc& ro_Desc, Callable&& u_Fn) {
+			if (!ro_Frame.isValid()) return false;
+			if (ro_Frame.isBuilt())  return false;
+
+			using CF    = Core::Utils::ClosureFunction<Memory::Allocators::ClosureAllocator, void(TaskContext&)>;
+			auto* p_Alloc = Memory::Internal::AtomicAllocators::instance()
+				.s_ClosureAllocator[ro_Desc.m_NumaNode].load();
+
+			CF* p_Fn = p_Alloc->template emplace<CF>(std::forward<Callable>(u_Fn), p_Alloc);
+			if (!p_Fn || !p_Fn->isCallable()) return false;
+
+			ro_Frame.m_pClosure     = p_Fn;
+			ro_Frame.m_pfnDestroy   = [](void* p) { static_cast<CF*>(p)->~CF(); };
+			ro_Frame.m_pfnCpuInvoke = [](void* p, TaskContext& ctx) { (*static_cast<CF*>(p))(ctx); };
+
+			return true;
+		}
+
+		// Destroys the bound closure and resets all closure fields.
+		// Frame must not be submitted. Safe to call on an unbuilt frame.
+		static void destroy(TaskFrame& ro_Frame) noexcept;
+
+		// Replaces bound closure. Equivalent to destroy() + build().
+		// Frame must not be submitted.
+		template<typename Callable>
+			requires std::is_invocable_v<std::decay_t<Callable>, TaskContext&>
+		CORIUM_NODISCARD static bool rebind(TaskFrame& ro_Frame, const Inductor::TaskDesc& ro_Desc, Callable&& u_Fn) {
+			destroy(ro_Frame);
+			return build(ro_Frame, ro_Desc, std::forward<Callable>(u_Fn));
+		}
 	};
 
 } // namespace Corium::Execution::Builder

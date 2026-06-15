@@ -26,6 +26,7 @@
 #include <CoriumMemory.h>
 #include "CoriumPointers.h"
 #include "CoriumTraitsSemantics.h"
+#include "PipelineUtils.h"
 
 namespace Corium::Execution::Inductor {
 	namespace IR = Corium::IntermediateRepresentation;
@@ -79,6 +80,7 @@ namespace Corium::Execution::Inductor {
 		TaskBitFlag   m_Flag;
 
 		friend class TaskInductor;
+		friend class ::Corium::Execution::Builder::TaskBuilder;
 	};
 
 	class CORIUM_RUNTIME_API TaskInductor final {
@@ -129,9 +131,9 @@ namespace Corium::Execution::Inductor {
 			return true;
 		}
 
-		static bool validate(const TaskDesc& ro_Desc);
-		static bool cook(TaskDesc& ro_Desc);
-		static bool reset(TaskDesc& ro_Desc);
+		static bool      validate(const TaskDesc& ro_Desc);
+		static TaskFrame cook(TaskDesc& ro_Desc);
+		static bool      reset(TaskDesc& ro_Desc);
 
 		friend struct TaskDesc;
 	};

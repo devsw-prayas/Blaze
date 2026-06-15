@@ -1,7 +1,10 @@
 #include "Corium.h"
 #include "Inductor.h"
+#include "PipelineUtils.h"
 #include "CoriumEnvironment.h"
 #include "CoriumRuntime.h"
+
+#include <cstring>
 
 namespace Corium::Execution::Inductor {
 
@@ -30,10 +33,30 @@ namespace Corium::Execution::Inductor {
         return true;
     }
 
-    bool TaskInductor::cook(TaskDesc& ro_Desc) {
-        if (!validate(ro_Desc)) return false;
+    TaskFrame TaskInductor::cook(TaskDesc& ro_Desc) {
+        if (!validate(ro_Desc)) return TaskFrame{};
+
+        const uint32_t v_Node   = ro_Desc.m_NumaNode;
+        const uint32_t v_InSz   = ro_Desc.m_MemDesc->m_InputBufferSize;
+        const uint32_t v_OutSz  = ro_Desc.m_MemDesc->m_OutputBufferSize;
+
+        auto& r_Allocs   = Memory::Internal::AtomicAllocators::instance();
+        auto* p_PayAlloc = r_Allocs.s_TaskPayloadAllocator[v_Node].load();
+
+        void* p_In  = p_PayAlloc->allocateImpl(v_InSz,  32);
+        void* p_Out = p_PayAlloc->allocateImpl(v_OutSz, 32);
+        if (!p_In || !p_Out) return TaskFrame{};
+
+        std::memset(p_Out, 0, sizeof(Corium::Execution::TaskError));
+
         ro_Desc.m_State = TaskDescState::FROZEN;
-        return true;
+
+        Memory::WeakPtr<TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> v_Wp{ ro_Desc.m_MemDesc };
+
+        Memory::Internal::VARegion v_InBuf { static_cast<uint8_t*>(p_In),  v_InSz  };
+        Memory::Internal::VARegion v_OutBuf{ static_cast<uint8_t*>(p_Out), v_OutSz };
+
+        return TaskFrame{ std::move(v_Wp), v_InBuf, v_OutBuf };
     }
 
     bool TaskInductor::reset(TaskDesc& ro_Desc) {
