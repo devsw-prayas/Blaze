@@ -13,6 +13,7 @@
 
 namespace Corium::Core {
 	using namespace Corium::Core::Atomics;
+	using namespace Corium::Memory::Literals;
 
 	// Internal constants
 
@@ -53,6 +54,7 @@ namespace Corium::Core {
 		uint64_t                        m_Generation{ 0 };
 		Atomic::AtomicValue64<uint64_t> m_TokenMask{};
 		Atomic::AtomicValue32<uint32_t> m_State{};
+		uint32_t						m_NumaNode{};
 
 		RegistryEntry() noexcept {
 			m_State.store(static_cast<uint32_t>(ThreadState::REAPED), MemoryOrder::RELAXED);
@@ -206,14 +208,56 @@ namespace Corium::Core {
 #ifdef _WIN32
 		const DWORD v_CreateFlags = u_LaunchDesc.m_IsPreSuspended ? CREATE_SUSPENDED : 0u;
 
+		const uint32_t attrCount = (ro_ExecDesc.m_Mask != 0 ? 1u : 0u)
+			+ (ro_ExecDesc.m_SupportsIdealProcessor ? 1u : 0u);
+
+		LPPROC_THREAD_ATTRIBUTE_LIST attrList = nullptr;
+		LPVOID attrListBuf = nullptr;
+
+		if (attrCount > 0) {
+			SIZE_T attrListSize = 0;
+			InitializeProcThreadAttributeList(nullptr, attrCount, 0, &attrListSize);
+			attrListBuf = HeapAlloc(GetProcessHeap(), 0, attrListSize);
+			if (!attrListBuf) {
+				p_Ctx->~LaunchContext();
+				p_Alloc->deallocate(p_Ctx, sizeof(LaunchContext));
+				r_Entry.releaseToken(v_Token);
+				return ThreadHandle::getInvalidThread();
+			}
+			attrList = static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrListBuf);
+			InitializeProcThreadAttributeList(attrList, attrCount, 0, &attrListSize);
+
+			if (ro_ExecDesc.m_Mask != 0) {
+				GROUP_AFFINITY groupAffinity{};
+				groupAffinity.Mask = ro_ExecDesc.m_Mask;
+				groupAffinity.Group = static_cast<WORD>(ro_ExecDesc.m_GroupId);
+				UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY,
+										  &groupAffinity, sizeof(groupAffinity), nullptr, nullptr);
+			}
+			if (ro_ExecDesc.m_SupportsIdealProcessor) {
+				PROCESSOR_NUMBER procNum{};
+				procNum.Group = static_cast<WORD>(ro_ExecDesc.m_GroupId);
+				procNum.Number = static_cast<BYTE>(ro_ExecDesc.m_IdealProcessor);
+				UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR,
+										  &procNum, sizeof(procNum), nullptr, nullptr);
+			}
+		}
+
 		DWORD  v_OsThreadId = 0;
-		HANDLE v_OsHandle = CreateThread(
+		HANDLE v_OsHandle = CreateRemoteThreadEx(
+			GetCurrentProcess(),
 			nullptr,
-			u_LaunchDesc.m_VaSize,
+			CORIUM_DEFAULT_OS_TLS_SIZE * 1_MiB,
 			Internal::ThreadLaunchHelper::WinThreadThunk,
 			p_Ctx,
 			v_CreateFlags,
+			attrList,
 			&v_OsThreadId);
+
+		if (attrList) {
+			DeleteProcThreadAttributeList(attrList);
+			HeapFree(GetProcessHeap(), 0, attrListBuf);
+		}
 
 		if (!v_OsHandle || v_OsHandle == INVALID_HANDLE_VALUE) {
 			p_Ctx->~LaunchContext();
@@ -221,13 +265,6 @@ namespace Corium::Core {
 			r_Entry.releaseToken(v_Token);
 			return ThreadHandle::getInvalidThread();
 		}
-
-		// Post-creation attribute application.
-		if (ro_ExecDesc.m_Mask != 0)
-			SetThreadAffinityMask(v_OsHandle, ro_ExecDesc.m_Mask);
-
-		if (ro_ExecDesc.m_SupportsIdealProcessor)
-			SetThreadIdealProcessor(v_OsHandle, ro_ExecDesc.m_IdealProcessor);
 
 		// Thread priority.
 		int v_WinPriority = THREAD_PRIORITY_NORMAL;
@@ -253,10 +290,12 @@ namespace Corium::Core {
 		// Commit registry entry.
 		r_Entry.m_OsHandle = v_OsHandle;
 		r_Entry.m_OsThreadId = v_OsThreadId;
+		r_Entry.m_NumaNode = ro_ExecDesc.m_NumaNode;
 		++r_Entry.m_Generation;
 		r_Entry.setState(ThreadState::CREATED);
 
-		return ThreadHandle(v_Slot, r_Entry.m_Generation, v_Token, ThreadState::CREATED);
+		// Perfrom cleanup
+
 #else
 		// TODO: Linux (pthreads) implementation
 		p_Ctx->~LaunchContext();
@@ -264,6 +303,9 @@ namespace Corium::Core {
 		r_Entry.releaseToken(v_Token);
 		return ThreadHandle::getInvalidThread();
 #endif
+
+		// TODO Kill me for this TLS upgrade
+		return { v_Slot, r_Entry.m_Generation, v_Token, ThreadState::CREATED };
 	}
 
 	bool NativeThread::detachThread(const ThreadHandle& ro_Handle) noexcept {
@@ -392,6 +434,12 @@ namespace Corium::Core {
 		return false;
 #endif
 	}
+
+	uint32_t NativeThread::getNumaNode(const ThreadHandle& ro_Handle) noexcept {
+		if (!isValidHandle(ro_Handle)) return UINT32_MAX;
+		return g_Registry[ro_Handle.m_ThreadId].m_NumaNode;
+	}
+
 	void NativeThread::waitOnAddress(ParkHandle& ro_Permit, uint32_t expected) noexcept {
 #ifdef _WIN32
 		WaitOnAddress(
@@ -402,7 +450,7 @@ namespace Corium::Core {
 		);
 #else
 		// futex(..., FUTEX_WAIT, expected, ...)
-#endif									    
+#endif
 	}
 
 	void NativeThread::wakeOnAddress(ParkHandle& ro_Permit) noexcept {

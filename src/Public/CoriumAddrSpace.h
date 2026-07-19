@@ -24,9 +24,9 @@
 
 /**
 ==============================================================================
-             CORIUM VIRTUAL ADDRESS SPACE  —  512 GiB total
-             4 NUMA nodes × 128 GiB per node, identical layout per node
-             (TLS IS PER-THREAD, NOT HERE)
+|             CORIUM VIRTUAL ADDRESS SPACE  —  512 GiB total
+|             4 NUMA nodes × 128 GiB per node, identical layout per node
+|             (BY-DEFAULT ALL THE THREAD TLS IS MANAGED BY CORIUM)
 ==============================================================================
 
 Each node owns a fully independent 128 GiB VA reservation made via
@@ -36,8 +36,8 @@ The layout below is replicated identically for every node.
 Per-node VA layout (128 GiB):
 
 VA grows upward
-^                                                                           ^
-|                                                                           |
+^                                                                          ^
+|                                                                          |
 +--------------------------------------------------------------------------+
 |                         UPPER GUARD REGION                               |
 |                            (2 MiB, unmapped)                             |
@@ -45,11 +45,23 @@ VA grows upward
 
 +--------------------------------------------------------------------------+
 |                        RESERVED / FUTURE VA                              |
-|                              (~16 GiB)                                   |
+|                              (~12 GiB)                                   |
 |  - GPU staging / DMA windows                                             |
 |  - NUMA-local staging buffers                                            |
 |  - Sanitizer / shadow memory                                             |
 |  - RDMA / remote memory                                                  |
++--------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------+
+|                          LARGE PAGE GUARD                                |
+|                              (2 MiB)                                     |
++--------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------+
+|						CORIUM THREAD LOCAL STORAGE (TLS)				   |
+|							  (4 GiB)									   |	
+|																		   |
+|							TODO!										   |
 +--------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------+
@@ -115,7 +127,9 @@ VA grows downward
 NOTES:
   - Each NUMA node holds an independent reservation — no shared VA base.
   - VirtualAllocExNuma is used per node; physical affinity is set at reserve.
-  - TLS memory is owned by worker threads and is NOT part of this VA.
+  - TLS memory is split into 2 parts, OS owned TLS that is reserved for call 
+  - stacks and Corium TLS that Corium will allocate manually for each thread that
+  - is launched
   - Tasks may request TLS size, but TLS allocators are thread-owned.
   - Number of TLS allocators equals number of active worker threads.
   - All regions are contiguous and cache-line aligned internally.
@@ -127,38 +141,36 @@ NOTES:
 ==============================================================================
 */
 
-
-
 namespace Corium::Memory::Internal {
-
 	using namespace Corium::Memory::Literals;
 
 	// -------------------------------------------------------------------------
 	// NUMA topology constants
 	// -------------------------------------------------------------------------
 
-	constexpr uint32_t MAX_NUMA_NODES = 4;                              // maximum supported NUMA nodes
-	constexpr Bytes    g_TotalVA      = CORIUM_VA_ALLOCATION * 1_MiB;  // 512 GiB total VA budget
-	constexpr Bytes    NodeVASize     = g_TotalVA / MAX_NUMA_NODES;     // 128 GiB per node
+	constexpr uint32_t MAX_NUMA_NODES = CORIUM_MAX_NUMA;          // maximum supported NUMA nodes
+	constexpr Bytes    g_TotalVA = CORIUM_VA_ALLOCATION * 1_MiB;  // 512 GiB total VA budget
+	constexpr Bytes    NodeVASize = g_TotalVA / MAX_NUMA_NODES;     // 128 GiB per node
 
 	// -------------------------------------------------------------------------
 	// Guard and section sizes
 	// -------------------------------------------------------------------------
 
-	constexpr Bytes NullGuardSize    = Bytes{ 2_MiB };
+	constexpr Bytes NullGuardSize = Bytes{ 2_MiB };
 	constexpr Bytes SectionGuardSize = Bytes{ 2_MiB };
 
 	// -------------------------------------------------------------------------
 	// Per-node task capacity and layout constants
 	// -------------------------------------------------------------------------
 
-	constexpr size_t   MaxTasks      = 2'000'000;  // maximum concurrent tasks per node
+	constexpr size_t   MaxTasks = 2'000'000;  // maximum concurrent tasks per node
 	constexpr uint32_t ParamsPerTask = 8;
 
 	// Per-node region sizes — proportionally scaled 4× from the original 32 GiB layout
-	constexpr Bytes RuntimeVASize      = Bytes{ 24_GiB };
+	constexpr Bytes ThreadLocalStorageSize = Bytes{ 4_GiB };
+	constexpr Bytes RuntimeVASize = Bytes{ 24_GiB };
 	constexpr Bytes TaskMetadataVASize = Bytes{ 32_GiB };
-	constexpr Bytes TaskPayloadVASize  = Bytes{ 56_GiB };
+	constexpr Bytes TaskPayloadVASize = Bytes{ 56_GiB };
 
 	// Reserved VA per node — computed as whatever is left after all named regions and guards
 	constexpr Bytes NodeReservedVASize = NodeVASize
@@ -169,7 +181,10 @@ namespace Corium::Memory::Internal {
 		- SectionGuardSize       // task metadata guard
 		- TaskPayloadVASize
 		- SectionGuardSize       // task payload guard
-		- NullGuardSize;         // lower guard
+		- NullGuardSize		     // lower guard
+		// Addition for FRAME API
+		- ThreadLocalStorageSize
+		- SectionGuardSize;
 
 	// -------------------------------------------------------------------------
 	// Per-node base reservations — one independent VA block per NUMA node
@@ -188,6 +203,8 @@ namespace Corium::Memory::Internal {
 	extern VARegion g_TaskMetadataGuard[MAX_NUMA_NODES];
 	extern VARegion g_TaskPayloadVA[MAX_NUMA_NODES];
 	extern VARegion g_TaskPayloadGuard[MAX_NUMA_NODES];
+	extern VARegion g_ThreadLocalStorage[MAX_NUMA_NODES];
+	extern VARegion g_TLSGuard[MAX_NUMA_NODES];
 	extern VARegion g_ReservedVA[MAX_NUMA_NODES];
 	extern VARegion g_LowerNullGuard[MAX_NUMA_NODES];
 

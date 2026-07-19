@@ -2,6 +2,8 @@
 #include <ThreadUtils.h>
 
 namespace Corium::Core {
+	using namespace Corium::Memory::Literals;
+
 	void init(ThreadAttrDesc& ro_Desc) {
 		if (ro_Desc.m_State == DescriptorState::FROZEN) return;
 		ro_Desc.m_State = DescriptorState::UNINITIALIZED;
@@ -44,7 +46,14 @@ namespace Corium::Core {
 		ro_Desc.m_IsGuardPageEnabled = v_Permission;
 	}
 
-#ifdef _WIN32
+	void setNumaNode(ThreadAttrDesc& ro_Desc, uint32_t v_Node) {
+		if (isFrozen(ro_Desc)) return;
+		promoteMutable(ro_Desc);
+		CORIUM_ASSERT(v_Node < CORIUM_MAX_NUMA);
+		ro_Desc.m_NumaNode = v_Node;
+	}
+
+#ifdef _WIN32																		 
 	void setThreadGroup(ThreadAttrDesc& ro_Desc, Dword v_GroupId) {
 		ro_Desc.m_SupportsGroup = true;
 		ro_Desc.m_GroupId = v_GroupId;
@@ -64,7 +73,7 @@ namespace Corium::Core {
 		ro_Desc.m_IsPreSuspended = false;
 		ro_Desc.m_Name = "";
 		ro_Desc.m_State = DescriptorState::UNINITIALIZED;
-		// TODO stuff
+		ro_Desc.m_VaSize = CORIUM_SPACE_TLS_MIN_SIZE * 1_MiB;
 		ro_Desc.m_StartPoint = Closure<void()>([](){}, nullptr);
 	}
 
@@ -73,6 +82,10 @@ namespace Corium::Core {
 	}
 
 	void setVaSize(ThreadLaunchDesc& ro_Desc, size_t v_VaSize) {
+		// Create Corium Space TLS
+		CORIUM_DEBUG_ASSERT(v_VaSize >= CORIUM_SPACE_TLS_MIN_SIZE * 1_MiB &&
+							v_VaSize <= CORIUM_SPACE_TLS_MAX_SIZE * 1_MiB);
+
 		ro_Desc.m_VaSize = v_VaSize;
 	}
 

@@ -62,6 +62,7 @@ namespace Corium::Core {
 		AffinityMask m_Mask;
 		ProcessorIdx m_IdealProcessor;
 		ThreadPriority m_ThreadPriority;
+		uint32_t m_NumaNode;
 		DescriptorState m_State = DescriptorState::UNINITIALIZED;
 		Flag m_isDetached;
 		Flag m_SupportsIdealProcessor;
@@ -86,6 +87,7 @@ namespace Corium::Core {
 	void CORIUM_RUNTIME_API setIdealProcessor(ThreadAttrDesc& ro_Desc, ProcessorIdx v_Idx);
 	void CORIUM_RUNTIME_API canDetach(ThreadAttrDesc& ro_Desc, Flag v_Permission);
 	void CORIUM_RUNTIME_API vaGuardEnabled(ThreadAttrDesc& ro_Desc, Flag v_Permission);
+	void CORIUM_RUNTIME_API setNumaNode(ThreadAttrDesc& ro_Desc, uint32_t v_Node);
 #ifdef _WIN32
 	void CORIUM_RUNTIME_API setThreadGroup(ThreadAttrDesc& ro_Desc, Dword v_GroupId);
 #endif

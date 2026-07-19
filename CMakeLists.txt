@@ -63,9 +63,17 @@ target_precompile_headers(Corium PRIVATE
 )
 
 target_compile_definitions(Corium PRIVATE  CORIUM_SHARED)
-target_compile_definitions(Corium PUBLIC   CORIUM_VA_ALLOCATION=524288)
-target_compile_definitions(Corium PUBLIC   CORIUM_TIMEOUT=50)
-target_compile_definitions(Corium PUBLIC   CORIUM_SPIN_COUNT=450)
+target_compile_definitions(Corium PRIVATE  CORIUM_MAX_NUMA=4)
+target_compile_definitions(Corium PRIVATE  CORIUM_VA_ALLOCATION=524288)
+target_compile_definitions(Corium PRIVATE  CORIUM_TIMEOUT=50)
+target_compile_definitions(Corium PRIVATE  CORIUM_SPIN_COUNT=450)
+target_compile_definitions(Corium PRIVATE  CORIUM_DEFAULT_OS_TLS_SIZE=2)
+
+target_compile_definitions(Corium PUBLIC  CORIUM_SPACE_TLS_MIN_SIZE=2)
+target_compile_definitions(Corium PUBLIC  CORIUM_SPACE_TLS_MAX_SIZE=100)
+
+option(CORIUM_ENABLE_DEBUG_CHECKS "Enable Corium debug asserts/checks" ON)
+target_compile_definitions(Corium PUBLIC $<$<BOOL:${CORIUM_ENABLE_DEBUG_CHECKS}>:DEBUG>)
 
 if (MSVC)
     set_property(TARGET Corium PROPERTY
