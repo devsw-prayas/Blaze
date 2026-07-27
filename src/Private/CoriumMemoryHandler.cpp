@@ -19,6 +19,9 @@ namespace Corium::Memory::Internal {
 	VirtualSegment                    AllocatorRegistry::s_RuntimeCoreObjectsMemory[MAX_NUMA_NODES]{};
 	Allocators::GeneralAllocator      AllocatorRegistry::s_GeneralAllocator[MAX_NUMA_NODES]{};
 
+	VirtualSegment                    AllocatorRegistry::s_FrameStorageMemory[MAX_NUMA_NODES]{};
+	Allocators::GeneralAllocator      AllocatorRegistry::s_FrameAllocator[MAX_NUMA_NODES]{};
+
 	// -------------------------------------------------------------------------
 	// Task Metadata - Object Locations
 	// -------------------------------------------------------------------------

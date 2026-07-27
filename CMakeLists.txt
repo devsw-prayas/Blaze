@@ -35,6 +35,17 @@ add_library(Corium SHARED
     $<$<BOOL:${CORIUM_ENABLE_CUDA}>:${CORIUM_CUDA}>
 )
 
+# Listed unconditionally (not through the $<BOOL:...> guard above) -
+# source_group only registers a virtual-folder mapping, it doesn't need
+# the generator-expression gate add_library uses to conditionally compile
+# these files.
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES
+    ${CORIUM_PUBLIC}
+    ${CORIUM_PRIVATE}
+    ${CORIUM_INTERNAL}
+    ${CORIUM_CUDA}
+)
+
 target_include_directories(Corium PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Public
 )

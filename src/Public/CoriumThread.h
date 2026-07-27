@@ -1,6 +1,7 @@
 #pragma once
 #include "Corium.h"
 #include "ThreadUtils.h"
+#include "ThreadSupport.h"
 #include "CoriumChrono.h"
 
 namespace Corium::Core {
@@ -26,10 +27,10 @@ namespace Corium::Core {
 
 		static uint32_t getNumaNode(const ThreadHandle& ro_Handle) noexcept;
 
-		static void waitOnAddress(ParkHandle& ro_Permit, uint32_t expected = 0u) noexcept;
-		static void wakeOnAddress(ParkHandle& ro_Permit) noexcept;
-		static void wakeAllOnAddress(ParkHandle& ro_Permit) noexcept;
+		static void waitOnAddress(ParkingSupport& ro_Support, uint32_t expected = 0u) noexcept;
+		static void wakeOnAddress(ParkingSupport& ro_Support) noexcept;
+		static void wakeAllOnAddress(ParkingSupport& ro_Support) noexcept;
 
-		static void waitOnAddressFor(ParkHandle& ro_Handle, Chrono::Instant v_Deadline) noexcept;
+		static void waitOnAddressFor(ParkingSupport& ro_Support, Chrono::Instant v_Deadline) noexcept;
 	};
 }

@@ -29,6 +29,9 @@ namespace Corium::Memory::Internal {
 		static VirtualSegment                   s_RuntimeCoreObjectsMemory[MAX_NUMA_NODES];
 		static Allocators::GeneralAllocator     s_GeneralAllocator[MAX_NUMA_NODES];
 
+		static VirtualSegment                   s_FrameStorageMemory[MAX_NUMA_NODES];
+		static Allocators::GeneralAllocator     s_FrameAllocator[MAX_NUMA_NODES];
+
 		// ------------------------------------------------------------------------
 		// Task Metadata - Object Locations
 		// ------------------------------------------------------------------------
@@ -96,6 +99,10 @@ namespace Corium::Memory::Internal {
 				s_RuntimeCoreObjectsMemory[node].m_NumaNode = numaNode;
 				s_GeneralAllocator[node].init(&s_RuntimeCoreObjectsMemory[node]);
 
+				s_FrameStorageMemory[node]            = createSegment(g_FrameStorage[node]);
+				s_FrameStorageMemory[node].m_NumaNode = numaNode;
+				s_FrameAllocator[node].init(&s_FrameStorageMemory[node]);
+
 				s_TaskMemoryDescMemory[node]            = createSegment(g_TaskMemoryDescRange[node]);
 				s_TaskMemoryDescMemory[node].m_NumaNode = numaNode;
 				s_TaskMemoryDescAllocator[node].init(&s_TaskMemoryDescMemory[node]);
@@ -156,6 +163,7 @@ namespace Corium::Memory::Internal {
 		Core::Atomic::AtomicPointer<Allocators::ClosureAllocator>      s_ClosureAllocator[MAX_NUMA_NODES];
 		Core::Atomic::AtomicPointer<Allocators::ControlBlockAllocator> s_ControlBlockAllocator[MAX_NUMA_NODES];
 		Core::Atomic::AtomicPointer<Allocators::GeneralAllocator>      s_GeneralAllocator[MAX_NUMA_NODES];
+		Core::Atomic::AtomicPointer<Allocators::GeneralAllocator>      s_FrameAllocator[MAX_NUMA_NODES];
 
 		// ---------------------------------------------------------------------
 		// Task Metadata - Object Locations
@@ -196,6 +204,8 @@ namespace Corium::Memory::Internal {
 					&AllocatorRegistry::s_ControlBlockAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
 				s_GeneralAllocator[node].store(
 					&AllocatorRegistry::s_GeneralAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
+				s_FrameAllocator[node].store(
+					&AllocatorRegistry::s_FrameAllocator[node], Core::Atomics::MemoryOrder::RELAXED);
 
 				s_TaskMemoryDescAllocator[node].store(
 					&AllocatorRegistry::s_TaskMemoryDescAllocator[node], Core::Atomics::MemoryOrder::RELAXED);

@@ -109,10 +109,11 @@ namespace Corium::Core::Utils {
 
 				obj->~LambdaT();
 
-				if constexpr (Memory::Allocators::ResolveAllocation<AllocatorType>::trait !=
-							  Memory::Allocators::AllocationTrait::Persistent) {
-					alloc->deallocate(obj, sizeof(LambdaT));
-				}
+				// Always safe: raw allocators over a pure-bump arena have a real
+				// (no-op) deallocate body, so this was only ever skipping a call
+				// that would do nothing anyway. Mechanism is no longer something
+				// callers branch on - see AllocatorMetadata in CoriumAllocator.h.
+				alloc->deallocate(obj, sizeof(LambdaT));
 				};
 		}
 

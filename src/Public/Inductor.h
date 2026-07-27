@@ -22,15 +22,12 @@
 #include <Corium.h>
 
 #include "IrUtils.h"
-#include "CoriumTraits.h"
 #include <CoriumMemory.h>
 #include "CoriumPointers.h"
-#include "CoriumTraitsSemantics.h"
 #include "PipelineUtils.h"
 
 namespace Corium::Execution::Inductor {
 	namespace IR = Corium::IntermediateRepresentation;
-	using TaskBitFlag = size_t;
 
 	enum class ParamMemState : uint8_t {
 		UNINITIALIZED, UPDATING, FROZEN
@@ -64,7 +61,7 @@ namespace Corium::Execution::Inductor {
 	};
 
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(32) TaskDesc final {
-		TaskDesc() : m_MemDesc(), m_NumaNode(0), m_State(TaskDescState::UNINITIALIZED), m_Flag(0) {}
+		TaskDesc() : m_MemDesc(), m_NumaNode(0), m_State(TaskDescState::UNINITIALIZED) {}
 		~TaskDesc() = default;
 
 		TaskDesc(const TaskDesc&) = delete;
@@ -77,7 +74,6 @@ namespace Corium::Execution::Inductor {
 		Memory::SharedPtr<TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> m_MemDesc;
 		uint32_t      m_NumaNode;
 		TaskDescState m_State;
-		TaskBitFlag   m_Flag;
 
 		friend class TaskInductor;
 		friend class ::Corium::Execution::Builder::TaskBuilder;
@@ -87,19 +83,8 @@ namespace Corium::Execution::Inductor {
 	public:
 		static bool init(TaskDesc& ro_Desc, uint32_t v_Node);
 
-		template<typename Mutator, bool Permissions>
-			requires Backend::Traits::IsMutatorConditional<Mutator, Permissions>::value
-		static bool mutate(TaskDesc& ro_Desc) {
-			if (ro_Desc.m_State != TaskDescState::MUTABLE) return false;
-			constexpr Backend::Traits::TaskBits bit = Backend::Traits::TraitToBit<Mutator>::value;
-			CORIUM_STATIC_ASSERT(bit != Backend::Traits::TaskBits::Invalid, "Mutator maps to Invalid bit");
-			if (Permissions) ro_Desc.m_Flag |= Backend::Traits::toMask(bit);
-			else             ro_Desc.m_Flag &= ~Backend::Traits::toMask(bit);
-			return true;
-		}
-
 		template<typename InPack>
-		static bool parameterize(TaskDesc& ro_Desc) {
+		static bool input(TaskDesc& ro_Desc) {
 			if (ro_Desc.m_State != TaskDescState::MUTABLE) return false;
 			if (!ro_Desc.m_MemDesc) return false;
 			if (ro_Desc.m_MemDesc->m_MemState != ParamMemState::UNINITIALIZED) return false;
@@ -115,7 +100,7 @@ namespace Corium::Execution::Inductor {
 		}
 
 		template<typename OutPack>
-		static bool induce(TaskDesc& ro_Desc) {
+		static bool output(TaskDesc& ro_Desc) {
 			if (ro_Desc.m_State != TaskDescState::MUTABLE) return false;
 			if (!ro_Desc.m_MemDesc) return false;
 			if (ro_Desc.m_MemDesc->m_MemState != ParamMemState::UPDATING) return false;

@@ -125,7 +125,7 @@ auto handle = Composer::kernel<MyIO>(inputA, inputB, gpuKernel,
 - Windows 10/11 (x64) or Linux (x86_64)
 - Visual Studio 2022 (MSVC) on Windows, GCC 12+ or Clang 14+ on Linux
 - CMake 3.20+
-- CUDA Toolkit 12.4+ (required for GPU execution path)
+- CUDA Toolkit 13.2+ (required for GPU execution path)
 
 ### Standalone
 

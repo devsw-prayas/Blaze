@@ -63,7 +63,6 @@ namespace Corium::Execution::Inductor {
         ro_Desc.m_MemDesc.reset();
         ro_Desc.m_State    = TaskDescState::UNINITIALIZED;
         ro_Desc.m_NumaNode = 0;
-        ro_Desc.m_Flag     = 0;
         return true;
     }
 }

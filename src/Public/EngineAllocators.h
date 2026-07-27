@@ -5,7 +5,7 @@
 #include "CoriumMemory.h"
 
 namespace Corium::Memory::Allocators {
-	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) BumpAllocator : IArenaAllocator<BumpAllocator> {
+	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) BumpAllocator : IArena<BumpAllocator> {
 		Core::Atomic::AtomicValue64<size_t> m_Bump{ 0 };
 		VirtualSegment* m_Base = nullptr;
 		size_t m_Size = 0;
@@ -29,40 +29,28 @@ namespace Corium::Memory::Allocators {
 		CORIUM_NODISCARD_MSG("Cannot discard allocated block pointer")
 			void* allocateImpl(size_t v_Bytes) noexcept;
 
+		// Whole-arena reset - the real Tier 0 reclaim, not a no-op stub.
 		void deallocateImpl() noexcept {
-			// No-op
-		}
-
-		void deallocateImpl(void* p_Memory, size_t v_Size) noexcept {
-			// No-op
+			m_Bump.store(0, Core::Atomics::MemoryOrder::RELAXED);
 		}
 	};
 
-	struct CORIUM_RUNTIME_API TaskMetadataAllocator final : BumpAllocator {
-		template<typename T, typename... Args>
-		CORIUM_FORCEINLINE
-			T* emplace(Args&&... args) noexcept {
-			void* mem = allocateImpl(sizeof(T), alignof(T));
-			if (!mem) return nullptr;
+	// The four Task/ControlBlock/Closure allocators were identical hand-copies of
+	// the same raw bump-backed emplace<T>() body. Collapsed into one template +
+	// tag-based aliases so they stay distinct named types (arrays of them,
+	// AllocatorRegistry fields, etc. all still work unchanged) while sharing one
+	// definition, inherited unchanged from IAllocator<void, BumpAllocator, D>.
+	template<typename Tag>
+	struct RawBumpAllocator final : IAllocator<void, BumpAllocator, RawBumpAllocator<Tag>> {};
 
-			return ::new (mem) T(std::forward<Args>(args)...);
-		}
-	};
+	using TaskMetadataAllocator = RawBumpAllocator<struct TaskMetadataTag>;
+	using TaskPayloadAllocator  = RawBumpAllocator<struct TaskPayloadTag>;
+	using ControlBlockAllocator = RawBumpAllocator<struct ControlBlockTag>;
+	using ClosureAllocator      = RawBumpAllocator<struct ClosureTag>;
 
 	template<>
 	struct CORIUM_RUNTIME_API ResolveAllocation<TaskMetadataAllocator> final {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
-	};
-
-	struct CORIUM_RUNTIME_API TaskPayloadAllocator final : BumpAllocator {
-		template<typename T, typename... Args>
-		CORIUM_FORCEINLINE
-			T* emplace(Args&&... args) noexcept {
-			void* mem = allocateImpl(sizeof(T), alignof(T));
-			if (!mem) return nullptr;
-
-			return ::new (mem) T(std::forward<Args>(args)...);
-		}
 	};
 
 	template<>
@@ -70,31 +58,9 @@ namespace Corium::Memory::Allocators {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
 	};
 
-	struct CORIUM_RUNTIME_API ControlBlockAllocator final : BumpAllocator {
-		template<typename T, typename... Args>
-		CORIUM_FORCEINLINE
-			T* emplace(Args&&... args) noexcept {
-			void* mem = allocateImpl(sizeof(T), alignof(T));
-			if (!mem) return nullptr;
-
-			return ::new (mem) T(std::forward<Args>(args)...);
-		}
-	};
-
 	template<>
 	struct CORIUM_RUNTIME_API ResolveAllocation<ControlBlockAllocator> final {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
-	};
-
-	struct CORIUM_RUNTIME_API ClosureAllocator final : BumpAllocator {
-		template<typename T, typename... Args>
-		CORIUM_FORCEINLINE
-			T* emplace(Args&&... args) noexcept {
-			void* mem = allocateImpl(sizeof(T), alignof(T));
-			if (!mem) return nullptr;
-
-			return ::new (mem) T(std::forward<Args>(args)...);
-		}
 	};
 
 	template<>
@@ -102,7 +68,7 @@ namespace Corium::Memory::Allocators {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
 	};
 
-	struct alignas(64) CORIUM_RUNTIME_API GeneralAllocator final : IArenaAllocator<GeneralAllocator>{
+	struct alignas(64) CORIUM_RUNTIME_API GeneralAllocator final : IAllocator<void, BumpAllocator, GeneralAllocator> {
 	private:
 		struct alignas(16) BlockHeader final {
 			size_t m_SizeAndFlags;   // lower bit = free flag
@@ -129,15 +95,21 @@ namespace Corium::Memory::Allocators {
 		};
 
 	private:
-		VirtualSegment* m_Segment = nullptr;
-		uint8_t* m_Base = nullptr;
-		uint8_t* m_Cursor = nullptr;
-		size_t m_Size = 0;
 		BlockHeader* m_FreeList = nullptr;
 
 	private:
 		static CORIUM_FORCEINLINE uintptr_t alignUp(uintptr_t v, size_t a) {
 			return (v + a - 1) & ~(a - 1);
+		}
+
+		// Byte-level view into the composed BumpAllocator's own state, since
+		// GeneralAllocator no longer keeps its own duplicate base/cursor bookkeeping.
+		CORIUM_FORCEINLINE uint8_t* arenaBase() const {
+			return static_cast<uint8_t*>(m_UnderlyingArena.m_Base->m_Memory);
+		}
+
+		CORIUM_FORCEINLINE uint8_t* arenaCursor() const {
+			return arenaBase() + m_UnderlyingArena.m_Bump.load(Core::Atomics::MemoryOrder::RELAXED);
 		}
 
 		static CORIUM_FORCEINLINE BlockFooter* footer(BlockHeader* h) {
@@ -211,13 +183,13 @@ namespace Corium::Memory::Allocators {
 		BlockHeader* coalesce(BlockHeader* b) {
 			// next
 			auto* n = next(b);
-			if (reinterpret_cast<uint8_t*>(n) < m_Cursor && n->isFree()) {
+			if (reinterpret_cast<uint8_t*>(n) < arenaCursor() && n->isFree()) {
 				removeFree(n);
 				b->set(b->size() + n->size(), true);
 			}
 
 			// prev
-			if (reinterpret_cast<uint8_t*>(b) > m_Base) {
+			if (reinterpret_cast<uint8_t*>(b) > arenaBase()) {
 				auto* p = prev(b);
 				if (p->isFree()) {
 					removeFree(p);
@@ -231,51 +203,35 @@ namespace Corium::Memory::Allocators {
 		}
 
 	public:
-		template<typename T, typename... Args>
-		CORIUM_FORCEINLINE
-		T* emplace(Args&&... args) noexcept {
-			void* mem = allocateImpl(sizeof(T), alignof(T));
-			if (!mem) return nullptr;
-
-			return ::new (mem) T(std::forward<Args>(args)...);
-		}
-
+		// Own init: forwards to the base (which inits the composed BumpAllocator),
+		// then resets the freelist - the one piece of state the base doesn't know
+		// about.
 		void init(VirtualSegment* seg) {
-			CORIUM_ASSERT(seg && seg->isValid());
-
-			m_Segment = seg;
-			m_Base = static_cast<uint8_t*>(seg->m_Memory);
-			m_Cursor = m_Base;
-			m_Size = seg->m_TotalSize;
-
+			IAllocator<void, BumpAllocator, GeneralAllocator>::init(seg);
 			m_FreeList = nullptr;
 		}
 
+		// Fast path pulls a fresh block from the composed BumpAllocator (over-sized
+		// by worst-case alignment slack so a correctly-aligned user pointer can
+		// always be carved out after the header); falls back to the freelist when
+		// the arena is exhausted.
 		void* allocateImpl(size_t size, size_t alignment) {
-			if (!m_Segment) return nullptr;
+			if (!m_UnderlyingArena.m_Base) return nullptr;
 
-			uintptr_t raw = reinterpret_cast<uintptr_t>(m_Cursor);
-			uintptr_t aligned = alignUp(raw + sizeof(BlockHeader), alignment);
+			const size_t slack = alignment > alignof(BlockHeader) ? alignment - alignof(BlockHeader) : 0;
+			const size_t total = sizeof(BlockHeader) + slack + size + sizeof(BlockFooter);
 
-			auto* header = reinterpret_cast<BlockHeader*>(aligned - sizeof(BlockHeader));
-			uint8_t* userPtr = reinterpret_cast<uint8_t*>(aligned);
+			if (uint8_t* raw = static_cast<uint8_t*>(m_UnderlyingArena.allocate(total, alignof(BlockHeader)))) {
+				uintptr_t aligned = alignUp(reinterpret_cast<uintptr_t>(raw) + sizeof(BlockHeader), alignment);
 
-			size_t total = (userPtr - reinterpret_cast<uint8_t*>(header))
-						 + size
-						 + sizeof(BlockFooter);
+				auto* header = reinterpret_cast<BlockHeader*>(aligned - sizeof(BlockHeader));
+				uint8_t* userPtr = reinterpret_cast<uint8_t*>(aligned);
 
-			uint8_t* end = reinterpret_cast<uint8_t*>(header) + total;
+				size_t used = (userPtr - reinterpret_cast<uint8_t*>(header)) + size + sizeof(BlockFooter);
 
-			if (end <= m_Base + m_Size) {
-				size_t offset = static_cast<size_t>(end - m_Base);
+				header->set(used, false);
+				footer(header)->m_Size = used;
 
-				if (!VirtualMemory::commitPageIfNeeded(*m_Segment, offset))
-					return nullptr;
-
-				header->set(total, false);
-				footer(header)->m_Size = total;
-
-				m_Cursor = end;
 				return userPtr;
 			}
 
@@ -293,6 +249,8 @@ namespace Corium::Memory::Allocators {
 			return allocateImpl(size, alignof(std::max_align_t));
 		}
 
+		// Real coalesce-and-cursor-rewind reclaim - unlike the pure-bump
+		// allocators, GeneralAllocator actually reclaims individual blocks.
 		void deallocateImpl(void* ptr, size_t) {
 			if (!ptr) return;
 
@@ -302,18 +260,24 @@ namespace Corium::Memory::Allocators {
 
 			uint8_t* end = reinterpret_cast<uint8_t*>(b) + b->size();
 
-			// cursor rewind
-			if (end == m_Cursor) {
-				m_Cursor = reinterpret_cast<uint8_t*>(b);
+			// Cursor rewind: if this block was the most recent bump allocation,
+			// hand it straight back to the arena instead of parking it on the
+			// freelist.
+			if (end == arenaCursor()) {
+				m_UnderlyingArena.m_Bump.store(
+					static_cast<size_t>(reinterpret_cast<uint8_t*>(b) - arenaBase()),
+					Core::Atomics::MemoryOrder::RELAXED);
 				return;
 			}
 
 			insertFree(b);
 		}
 
-		void deallocateImpl() {
-			m_Cursor = m_Base;
+		// Own reset: the base only knows how to reset the composed BumpAllocator's
+		// bump pointer - the freelist is GeneralAllocator's own state on top of it.
+		void reset() {
 			m_FreeList = nullptr;
+			IAllocator<void, BumpAllocator, GeneralAllocator>::reset();
 		}
 	};
 

@@ -20,6 +20,8 @@ namespace Corium::Memory::Internal {
 	VARegion g_TaskMetadataGuard[MAX_NUMA_NODES];
 	VARegion g_TaskPayloadVA[MAX_NUMA_NODES];
 	VARegion g_TaskPayloadGuard[MAX_NUMA_NODES];
+	VARegion g_ThreadLocalStorage[MAX_NUMA_NODES];
+	VARegion g_TLSGuard[MAX_NUMA_NODES];
 	VARegion g_ReservedVA[MAX_NUMA_NODES];
 	VARegion g_LowerNullGuard[MAX_NUMA_NODES];
 
@@ -31,6 +33,8 @@ namespace Corium::Memory::Internal {
 	VARegion g_ClosureGuard[MAX_NUMA_NODES];
 	VARegion g_SmartPtrControlBlocks[MAX_NUMA_NODES];
 	VARegion g_SmartPtrGuard[MAX_NUMA_NODES];
+	VARegion g_FrameStorage[MAX_NUMA_NODES];
+	VARegion g_FrameStorageGuard[MAX_NUMA_NODES];
 	VARegion g_RuntimeCoreObjects[MAX_NUMA_NODES];
 
 	// -------------------------------------------------------------------------
@@ -97,79 +101,12 @@ namespace Corium::Memory::Internal {
 	VARegion g_TaskPayloadArena[MAX_NUMA_NODES];
 
 	// -------------------------------------------------------------------------
-	// init()
+	// init() — carves g_NodeMemory[node] into the regions declared in
+	// CoriumAddrSpace.h, in the same on-disk order as the box comments there.
 	// -------------------------------------------------------------------------
 
 	bool init() {
 		VirtualMemory::init();
-		// ==============================================================================
-		//                  CORIUM VIRTUAL ADDRESS SPACE HIERARCHY
-		//                  512 GiB total — 4 NUMA nodes × 128 GiB per node
-		// ==============================================================================
-		//
-		// Each node receives a fully independent 128 GiB VA reservation via
-		// VirtualAllocExNuma, so physical pages committed later remain local
-		// to that node. The identical region layout is replicated per node.
-		//
-		// Per-node layout:
-		//
-		// NODE[n] VA (128 GiB reserved)
-		// |
-		// |  UPPER NULL GUARD (2 MiB)
-		// |
-		// |- RUNTIME / INFRASTRUCTURE VA (~24 GiB)
-		// |  |
-		// |  |- ClosureRange
-		// |  |    - ClosureFunction objects
-		// |  |    - 3 closures per task (startup / body / shutdown)
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- SmartPtrControlBlocks (8 GiB)
-		// |  |    - shared_ptr / intrusive control blocks
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- RuntimeCoreObjects (remaining ~14 GiB)
-		// |       - schedulers, executors, pools, global allocators
-		// |
-		// |- RUNTIME GUARD (2 MiB)
-		// |
-		// |- TASK METADATA VA (~32 GiB)
-		// |  |
-		// |  |- Object Locations (12 GiB)
-		// |  |  |- TaskMemoryDescRange, TaskMemoryHeaderRange
-		// |  |  |- TaskContextRange, TaskSliceContextRange, GPUContextRange
-		// |  |  |- Guards (2 MiB each) + ObjectLocationSpare
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- Input Layouts (12 GiB)
-		// |  |  |- InputSizeArrays, InputAlignmentArrays
-		// |  |  |- Guards (2 MiB each) + InputLayoutSpare
-		// |  |
-		// |  |- Guard (2 MiB)
-		// |  |
-		// |  |- Output Layouts (remaining ~8 GiB)
-		// |     |- OutputSizeArrays, OutputAlignmentArrays
-		// |     |- Guards (2 MiB each) + OutputLayoutSpare
-		// |
-		// |- TASK METADATA GUARD (2 MiB)
-		// |
-		// |- TASK PAYLOAD VA (~56 GiB)
-		// |  |- TaskPayloadArena
-		// |       - task payload buffers, input/output data,
-		// |         reductions, GPU-visible payload
-		// |
-		// |- TASK PAYLOAD GUARD (2 MiB)
-		// |
-		// |- RESERVED / FUTURE VA (~16 GiB)
-		// |  - GPU staging / DMA, NUMA-local staging,
-		// |    sanitizer memory, RDMA
-		// |
-		// |- LOWER NULL GUARD (2 MiB)
-		//
-		// ==============================================================================
 
 		for (uint32_t node = 0; node < MAX_NUMA_NODES; ++node) {
 			// Reserve 128 GiB for this NUMA node.
@@ -181,111 +118,266 @@ namespace Corium::Memory::Internal {
 
 			VARegionSlicer slicer{ g_NodeMemory[node] };
 
-			// --- Top-level VA ----------------------------------------------------
+			// +----------------------------------------------------------------+
+			// | UPPER NULL GUARD (2 MiB)                                       |
+			g_UpperNullGuard[node] = slicer.slice(NullGuardSize);
+			// +----------------------------------------------------------------+
 
-			g_UpperNullGuard[node]    = slicer.slice(NullGuardSize);
+			// +======================================================================+
+			//   RUNTIME / INFRA VA  (~24 GiB)
+			g_RuntimeVA[node] = slicer.slice(RuntimeVASize);
+			// +======================================================================+
 
-			g_RuntimeVA[node]         = slicer.slice(RuntimeVASize);
-			g_RuntimeGuard[node]      = slicer.slice(SectionGuardSize);
+			// +----------------------------------------------------------------+
+			// | RUNTIME GUARD (2 MiB)                                          |
+			g_RuntimeGuard[node] = slicer.slice(SectionGuardSize);
+			// +----------------------------------------------------------------+
 
-			g_TaskMetadataVA[node]    = slicer.slice(TaskMetadataVASize);
+			// +======================================================================+
+			//   TASK METADATA VA  (~32 GiB)
+			g_TaskMetadataVA[node] = slicer.slice(TaskMetadataVASize);
+			// +======================================================================+
+
+			// +----------------------------------------------------------------+
+			// | TASK METADATA GUARD (2 MiB)                                    |
 			g_TaskMetadataGuard[node] = slicer.slice(SectionGuardSize);
+			// +----------------------------------------------------------------+
 
-			g_TaskPayloadVA[node]     = slicer.slice(TaskPayloadVASize);
-			g_TaskPayloadGuard[node]  = slicer.slice(SectionGuardSize);
+			// +======================================================================+
+			//   TASK PAYLOAD VA  (~56 GiB)
+			g_TaskPayloadVA[node] = slicer.slice(TaskPayloadVASize);
+			// +======================================================================+
 
-			g_ReservedVA[node]        = slicer.slice(NodeReservedVASize);
-			g_LowerNullGuard[node]    = slicer.slice(NullGuardSize);
+			// +----------------------------------------------------------------+
+			// | TASK PAYLOAD GUARD (2 MiB)                                     |
+			g_TaskPayloadGuard[node] = slicer.slice(SectionGuardSize);
+			// +----------------------------------------------------------------+
 
-			// --- Runtime VA ------------------------------------------------------
+			// +----------------------------------------------------------------+
+			// | CORIUM THREAD LOCAL STORAGE (4 GiB)                            |
+			g_ThreadLocalStorage[node] = slicer.slice(ThreadLocalStorageSize);
+			// +----------------------------------------------------------------+
+
+			// +----------------------------------------------------------------+
+			// | TLS GUARD (2 MiB)                                              |
+			g_TLSGuard[node] = slicer.slice(SectionGuardSize);
+			// +----------------------------------------------------------------+
+
+			// +----------------------------------------------------------------+
+			// | RESERVED / FUTURE VA (~12 GiB)                                 |
+			g_ReservedVA[node] = slicer.slice(NodeReservedVASize);
+			// +----------------------------------------------------------------+
+
+			// +----------------------------------------------------------------+
+			// | LOWER NULL GUARD (2 MiB)                                       |
+			g_LowerNullGuard[node] = slicer.slice(NullGuardSize);
+			// +----------------------------------------------------------------+
+
+			// --- Runtime VA -------------------------------------------------
 
 			{
 				VARegionSlicer rt{ g_RuntimeVA[node] };
 
-				// 3 closures per task × 256 bytes each
-				g_ClosureRange[node]          = rt.slice(Bytes{ MaxTasks * 3 * 256 });
-				g_ClosureGuard[node]          = rt.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
+				//   | ClosureRange — 3 ClosureFunctions/task x 256B each          |
+				g_ClosureRange[node] = rt.slice(Bytes{ MaxTasks * 3 * 256 });
+				//   +------------------------------------------------------------+
 
-				// 8 GiB for smart pointer control blocks (4× the original 2 GiB)
+				//   +------------------------------------------------------------+
+				//   | Guard (2 MiB)                                               |
+				g_ClosureGuard[node] = rt.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
+
+				//   +------------------------------------------------------------+
+				//   | SmartPtrControlBlocks — 8 GiB                              |
 				g_SmartPtrControlBlocks[node] = rt.slice(Bytes{ 8_GiB });
-				g_SmartPtrGuard[node]         = rt.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
 
-				// Remaining VA for schedulers, executors, pools, global allocators
-				g_RuntimeCoreObjects[node]    = rt.slice(rt.remaining());
+				//   +------------------------------------------------------------+
+				//   | Guard (2 MiB)                                               |
+				g_SmartPtrGuard[node] = rt.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
+
+				//   +------------------------------------------------------------+
+				//   | FrameStorage — 4 GiB, pool of 2048 x 2 MiB NativeFrame     |
+				//   | blocks (header + inline execution stack per frame)        |
+				g_FrameStorage[node] = rt.slice(FrameStorageSize);
+				//   +------------------------------------------------------------+
+
+				//   +------------------------------------------------------------+
+				//   | Guard (2 MiB)                                               |
+				g_FrameStorageGuard[node] = rt.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
+
+				//   +------------------------------------------------------------+
+				//   | RuntimeCoreObjects — remaining ~10 GiB                     |
+				g_RuntimeCoreObjects[node] = rt.slice(rt.remaining());
+				//   +------------------------------------------------------------+
 			}
 
-			// --- TaskMetadata VA -------------------------------------------------
+			// --- TaskMetadata VA ---------------------------------------------
 
 			{
 				VARegionSlicer meta{ g_TaskMetadataVA[node] };
 
-				// 12 GiB per section (4× the original 3 GiB)
-				g_TaskObjectLocations[node]  = meta.slice(Bytes{ 12_GiB });
+				//   +------------------------------------------------------------+
+				//   | TaskObjectLocations — 12 GiB                                |
+				g_TaskObjectLocations[node] = meta.slice(Bytes{ 12_GiB });
+				//   +------------------------------------------------------------+
+
+				//   +------------------------------------------------------------+
+				//   | Guard (2 MiB)                                               |
 				g_ObjectLocationsGuard[node] = meta.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
 
-				g_TaskInputLayouts[node]     = meta.slice(Bytes{ 12_GiB });
-				g_InputLayoutsGuard[node]    = meta.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
+				//   | TaskInputLayouts — 12 GiB                                   |
+				g_TaskInputLayouts[node] = meta.slice(Bytes{ 12_GiB });
+				//   +------------------------------------------------------------+
 
-				// Remaining ~8 GiB goes to output layouts
-				g_TaskOutputLayouts[node]    = meta.slice(meta.remaining());
+				//   +------------------------------------------------------------+
+				//   | Guard (2 MiB)                                               |
+				g_InputLayoutsGuard[node] = meta.slice(SectionGuardSize);
+				//   +------------------------------------------------------------+
+
+				//   +------------------------------------------------------------+
+				//   | TaskOutputLayouts — remaining ~8 GiB                        |
+				g_TaskOutputLayouts[node] = meta.slice(meta.remaining());
+				//   +------------------------------------------------------------+
 			}
 
-			// --- Object Locations ------------------------------------------------
+			// --- Object Locations ---------------------------------------------
 
 			{
 				VARegionSlicer obj{ g_TaskObjectLocations[node] };
 
-				g_TaskMemoryDescRange[node]   = obj.slice(Bytes{ MaxTasks * sizeof(TaskMemoryDescHeader) });
-				g_TaskMemoryDescGuard[node]   = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+				//     | TaskMemoryDescRange — MaxTasks x sizeof(TaskMemoryDescHeader) |
+				g_TaskMemoryDescRange[node] = obj.slice(Bytes{ MaxTasks * sizeof(TaskMemoryDescHeader) });
+				//     +----------------------------------------------------------+
 
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_TaskMemoryDescGuard[node] = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | TaskMemoryHeaderRange — MaxTasks x sizeof(TaskMemoryHeader) |
 				g_TaskMemoryHeaderRange[node] = obj.slice(Bytes{ MaxTasks * sizeof(TaskMemoryHeader) });
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
 				g_TaskMemoryHeaderGuard[node] = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
 
-				g_TaskContextRange[node]      = obj.slice(Bytes{ MaxTasks * sizeof(TaskContextHeader) });
-				g_TaskContextGuard[node]      = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+				//     | TaskContextRange — MaxTasks x sizeof(TaskContextHeader)  |
+				g_TaskContextRange[node] = obj.slice(Bytes{ MaxTasks * sizeof(TaskContextHeader) });
+				//     +----------------------------------------------------------+
 
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_TaskContextGuard[node] = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | TaskSliceContextRange — MaxTasks x sizeof(TaskSliceContextHeader) |
 				g_TaskSliceContextRange[node] = obj.slice(Bytes{ MaxTasks * sizeof(TaskSliceContextHeader) });
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
 				g_TaskSliceContextGuard[node] = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
 
-				g_GPUContextRange[node]       = obj.slice(Bytes{ MaxTasks * sizeof(GPUContextHeader) });
-				g_GPUContextGuard[node]       = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+				//     | GPUContextRange — MaxTasks x sizeof(GPUContextHeader)    |
+				g_GPUContextRange[node] = obj.slice(Bytes{ MaxTasks * sizeof(GPUContextHeader) });
+				//     +----------------------------------------------------------+
 
-				g_ObjectLocationSpare[node]   = obj.slice(obj.remaining());
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_GPUContextGuard[node] = obj.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | ObjectLocationSpare — remainder                          |
+				g_ObjectLocationSpare[node] = obj.slice(obj.remaining());
+				//     +----------------------------------------------------------+
 			}
 
-			// --- Input Layouts ---------------------------------------------------
+			// --- Input Layouts -------------------------------------------------
 
 			{
 				VARegionSlicer in{ g_TaskInputLayouts[node] };
 
-				g_InputSizeArrays[node]      = in.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-				g_InputSizeGuard[node]       = in.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+				//     | InputSizeArrays — MaxTasks x ParamsPerTask x sizeof(size_t) |
+				g_InputSizeArrays[node] = in.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
+				//     +----------------------------------------------------------+
 
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_InputSizeGuard[node] = in.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | InputAlignmentArrays — MaxTasks x ParamsPerTask x sizeof(size_t) |
 				g_InputAlignmentArrays[node] = in.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-				g_InputAlignmentGuard[node]  = in.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
 
-				g_InputLayoutSpare[node]     = in.slice(in.remaining());
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_InputAlignmentGuard[node] = in.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | InputLayoutSpare — remainder                             |
+				g_InputLayoutSpare[node] = in.slice(in.remaining());
+				//     +----------------------------------------------------------+
 			}
 
-			// --- Output Layouts --------------------------------------------------
+			// --- Output Layouts ------------------------------------------------
 
 			{
 				VARegionSlicer out{ g_TaskOutputLayouts[node] };
 
-				g_OutputSizeArrays[node]      = out.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-				g_OutputSizeGuard[node]       = out.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+				//     | OutputSizeArrays — MaxTasks x ParamsPerTask x sizeof(size_t) |
+				g_OutputSizeArrays[node] = out.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
+				//     +----------------------------------------------------------+
 
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_OutputSizeGuard[node] = out.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | OutputAlignmentArrays — MaxTasks x ParamsPerTask x sizeof(size_t) |
 				g_OutputAlignmentArrays[node] = out.slice(Bytes{ MaxTasks * ParamsPerTask * sizeof(size_t) });
-				g_OutputAlignmentGuard[node]  = out.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
 
-				g_OutputLayoutSpare[node]     = out.slice(out.remaining());
+				//     +----------------------------------------------------------+
+				//     | Guard (2 MiB)                                             |
+				g_OutputAlignmentGuard[node] = out.slice(SectionGuardSize);
+				//     +----------------------------------------------------------+
+
+				//     +----------------------------------------------------------+
+				//     | OutputLayoutSpare — remainder                            |
+				g_OutputLayoutSpare[node] = out.slice(out.remaining());
+				//     +----------------------------------------------------------+
 			}
 
 			// --- Payload VA ------------------------------------------------------
 
 			{
 				VARegionSlicer payload{ g_TaskPayloadVA[node] };
+
+				//   +------------------------------------------------------------+
+				//   | TaskPayloadArena — entire TaskPayloadVA                    |
 				g_TaskPayloadArena[node] = payload.slice(payload.remaining());
+				//   +------------------------------------------------------------+
 			}
 
 			// --- Lock guard regions for this node --------------------------------
@@ -294,10 +386,12 @@ namespace Corium::Memory::Internal {
 			lockGuard(g_RuntimeGuard[node]);
 			lockGuard(g_TaskMetadataGuard[node]);
 			lockGuard(g_TaskPayloadGuard[node]);
+			lockGuard(g_TLSGuard[node]);
 			lockGuard(g_LowerNullGuard[node]);
 
 			lockGuard(g_ClosureGuard[node]);
 			lockGuard(g_SmartPtrGuard[node]);
+			lockGuard(g_FrameStorageGuard[node]);
 
 			lockGuard(g_ObjectLocationsGuard[node]);
 			lockGuard(g_InputLayoutsGuard[node]);

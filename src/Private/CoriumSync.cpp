@@ -15,7 +15,8 @@ namespace Corium::Runtime::Sync {
 		CORIUM_DEBUG_ASSERT(next != UINT32_MAX);
 #endif
 		if (next == 0) {// Last Thread
-			Core::NativeThread::wakeAllOnAddress(m_Counter);
+			Core::ParkingSupport v_Support(&m_Counter);
+			Core::NativeThread::wakeAllOnAddress(v_Support);
 		}
 	}
 
@@ -29,7 +30,8 @@ namespace Corium::Runtime::Sync {
 				expected = m_Counter.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			}
 			if (expected == 0) return;
-			Core::NativeThread::waitOnAddress(m_Counter, expected); // Blocking wait
+			Core::ParkingSupport v_Support(&m_Counter);
+			Core::NativeThread::waitOnAddress(v_Support, expected); // Blocking wait
 		}
 	}
 
@@ -43,7 +45,8 @@ namespace Corium::Runtime::Sync {
 			}
 			if (expected == 0) return true;
 			if (v_Deadline.isExpired()) return false;
-			Core::NativeThread::waitOnAddressFor(m_Counter, v_Deadline);
+			Core::ParkingSupport v_Support(&m_Counter);
+			Core::NativeThread::waitOnAddressFor(v_Support, v_Deadline);
 		}
 	}
 
@@ -58,37 +61,39 @@ namespace Corium::Runtime::Sync {
 	uint32_t CyclicBarrier::await() {
 		uint32_t gen = m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 		uint32_t rem = m_Remaining.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
+		Core::ParkingSupport v_Support(&m_Generation);
 
 		if (rem == 0) {
 			m_Remaining.store(m_Parties, Core::Atomics::MemoryOrder::RELEASE);
 			m_Generation.m_ParkingPermit.increment(Core::Atomics::MemoryOrder::ACQ_REL);
-			Core::NativeThread::wakeAllOnAddress(m_Generation);
+			Core::NativeThread::wakeAllOnAddress(v_Support);
 			return 0;
 		}
 
 		while (m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE) == gen && !isBroken())
-			Core::NativeThread::waitOnAddress(m_Generation, gen);
+			Core::NativeThread::waitOnAddress(v_Support, gen);
 		return 0;
 	}
 
 	bool CyclicBarrier::await(Chrono::Instant v_Deadline) {
 		uint32_t gen = m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 		uint32_t rem = m_Remaining.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
+		Core::ParkingSupport v_Support(&m_Generation);
 
 		if (rem == 0) {
 			m_Remaining.store(m_Parties, Core::Atomics::MemoryOrder::RELEASE);
 			m_Generation.m_ParkingPermit.increment(Core::Atomics::MemoryOrder::ACQ_REL);
-			Core::NativeThread::wakeAllOnAddress(m_Generation);
+			Core::NativeThread::wakeAllOnAddress(v_Support);
 			return true;
 		}
 
 		while (m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE) == gen && !isBroken()) {
 			if (v_Deadline.isExpired()) {
 				m_IsBroken.store(true, Core::Atomics::MemoryOrder::RELEASE);
-				Core::NativeThread::wakeAllOnAddress(m_Generation);
+				Core::NativeThread::wakeAllOnAddress(v_Support);
 				return false;
 			}
-			Core::NativeThread::waitOnAddressFor(m_Generation, v_Deadline);
+			Core::NativeThread::waitOnAddressFor(v_Support, v_Deadline);
 		}
 		return !isBroken();
 	}
@@ -97,7 +102,8 @@ namespace Corium::Runtime::Sync {
 		m_Remaining.store(m_Parties, Core::Atomics::MemoryOrder::RELEASE);
 		m_IsBroken.store(false, Core::Atomics::MemoryOrder::RELEASE);
 		m_Generation.m_ParkingPermit.increment(Core::Atomics::MemoryOrder::ACQ_REL);
-		Core::NativeThread::wakeAllOnAddress(m_Generation);
+		Core::ParkingSupport v_Support(&m_Generation);
+		Core::NativeThread::wakeAllOnAddress(v_Support);
 	}
 
 	bool CyclicBarrier::isBroken() const {
@@ -129,7 +135,10 @@ namespace Corium::Runtime::Sync {
 				Intrinsic::Pause();
 			}
 			v = m_Permits.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v == 0) Core::NativeThread::waitOnAddress(m_Permits, 0);
+			if (v == 0) {
+				Core::ParkingSupport v_Support(&m_Permits);
+				Core::NativeThread::waitOnAddress(v_Support, 0);
+			}
 		}
 	}
 
@@ -148,7 +157,10 @@ namespace Corium::Runtime::Sync {
 				Intrinsic::Pause();
 			}
 			v = m_Permits.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v < v_Permits) Core::NativeThread::waitOnAddress(m_Permits, v);
+			if (v < v_Permits) {
+				Core::ParkingSupport v_Support(&m_Permits);
+				Core::NativeThread::waitOnAddress(v_Support, v);
+			}
 		}
 	}
 
@@ -169,18 +181,23 @@ namespace Corium::Runtime::Sync {
 				if (old == v) return true;
 			}
 			if (v_Deadline.isExpired()) return false;
-			Core::NativeThread::waitOnAddressFor(m_Permits, v_Deadline);
+			Core::ParkingSupport v_Support(&m_Permits);
+			Core::NativeThread::waitOnAddressFor(v_Support, v_Deadline);
 		}
 	}
 
 	void Semaphore::release() {
 		uint32_t prev = m_Permits.m_ParkingPermit.fetchAdd(1, Core::Atomics::MemoryOrder::ACQ_REL);
-		if (prev == 0) Core::NativeThread::wakeOnAddress(m_Permits);
+		if (prev == 0) {
+			Core::ParkingSupport v_Support(&m_Permits);
+			Core::NativeThread::wakeOnAddress(v_Support);
+		}
 	}
 
 	void Semaphore::release(uint32_t v_Permits) {
 		uint32_t prev = m_Permits.m_ParkingPermit.fetchAdd(v_Permits, Core::Atomics::MemoryOrder::ACQ_REL);
-		Core::NativeThread::wakeAllOnAddress(m_Permits);
+		Core::ParkingSupport v_Support(&m_Permits);
+		Core::NativeThread::wakeAllOnAddress(v_Support);
 	}
 
 	uint32_t Semaphore::availablePermits() const {

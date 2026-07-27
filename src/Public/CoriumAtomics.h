@@ -249,12 +249,13 @@ namespace Corium::Core::Atomics {
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch add")
 		Valid atomicFetchAdd32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED: return AtomicFetchAdd32_Relaxed(p_Memory, v_Value);
-		case MemoryOrder::ACQUIRE: return AtomicFetchAdd32_Acquire(p_Memory, v_Value);
-		case MemoryOrder::RELEASE: return AtomicFetchAdd32_Release(p_Memory, v_Value);
-		case MemoryOrder::ACQ_REL: return AtomicFetchAdd32_AcqRel(p_Memory, v_Value);
-		case MemoryOrder::SEQ_CST: return AtomicFetchAdd32_SeqCst(p_Memory, v_Value);
+		case MemoryOrder::RELAXED: return static_cast<Valid>(AtomicFetchAdd32_Relaxed(p_Raw, v_Value));
+		case MemoryOrder::ACQUIRE: return static_cast<Valid>(AtomicFetchAdd32_Acquire(p_Raw, v_Value));
+		case MemoryOrder::RELEASE: return static_cast<Valid>(AtomicFetchAdd32_Release(p_Raw, v_Value));
+		case MemoryOrder::ACQ_REL: return static_cast<Valid>(AtomicFetchAdd32_AcqRel(p_Raw, v_Value));
+		case MemoryOrder::SEQ_CST: return static_cast<Valid>(AtomicFetchAdd32_SeqCst(p_Raw, v_Value));
 
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
@@ -264,12 +265,13 @@ namespace Corium::Core::Atomics {
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
 	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch")
 		Valid atomicFetchAdd64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
+		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return AtomicFetchAdd64_Relaxed(p_Memory, v_Value);
-		case MemoryOrder::ACQUIRE:return AtomicFetchAdd64_Acquire(p_Memory, v_Value);
-		case MemoryOrder::RELEASE:return AtomicFetchAdd64_Release(p_Memory, v_Value);
-		case MemoryOrder::ACQ_REL:return AtomicFetchAdd64_AcqRel(p_Memory, v_Value);
-		case MemoryOrder::SEQ_CST:return AtomicFetchAdd64_SeqCst(p_Memory, v_Value);
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicFetchAdd64_Relaxed(p_Raw, v_Value));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicFetchAdd64_Acquire(p_Raw, v_Value));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicFetchAdd64_Release(p_Raw, v_Value));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicFetchAdd64_AcqRel(p_Raw, v_Value));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicFetchAdd64_SeqCst(p_Raw, v_Value));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 

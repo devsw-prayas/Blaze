@@ -62,7 +62,7 @@ namespace Corium::IntermediateRepresentation {
 
 	// Type hash — FNV-1a over __FUNCSIG__ / __PRETTY_FUNCTION__
 	// Encodes T and Extents only. Position is NOT part of TensorParameter.
-	// Position is mixed in separately at parameterize/induce and get/put call sites.
+	// Position is mixed in separately at input/output and get/put call sites.
 
 	template<typename T, size_t... Extents>
 	consteval uint64_t computeTypeHash() {
@@ -78,7 +78,7 @@ namespace Corium::IntermediateRepresentation {
 	}
 
 	// Mix a pack position into a raw TypeHash to produce a unique positioned key.
-	// Same formula used on both sides: parameterize/induce expansion AND get/put call sites.
+	// Same formula used on both sides: input/output expansion AND get/put call sites.
 	consteval uint64_t mixPositionHash(uint64_t v_TypeHash, size_t v_Pos) {
 		return v_TypeHash ^ (static_cast<uint64_t>(v_Pos) * 0x9e3779b97f4a7c15ULL);
 	}
@@ -123,7 +123,7 @@ namespace Corium::IntermediateRepresentation {
 
 	// In<Types...> / Out<Types...>
 	//
-	// Variadic parameter list wrappers for parameterize() and induce().
+	// Variadic parameter list wrappers for input() and output().
 	// Each type at pack index N gets positioned hash = mixPositionHash(TypeHash, N).
 	// get<T, N>() / put<T, N>() use the same formula to look up the correct slot.
 	// Max 8 parameters per pack (matches ParamsPerTask).
@@ -261,7 +261,7 @@ namespace Corium::IntermediateRepresentation {
 	} // namespace Internal
 
 	// MphTable — runtime MPH lookup structure.
-	// Stored inline in TaskMemoryDesc. Populated by parameterize() / induce().
+	// Stored inline in TaskMemoryDesc. Populated by input() / output().
 
 	struct CORIUM_RUNTIME_API MphTable final {
 		uint64_t m_D = 0;

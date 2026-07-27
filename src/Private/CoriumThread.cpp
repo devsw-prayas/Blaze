@@ -99,6 +99,12 @@ namespace Corium::Core {
 			return m_TokenMask.load(MemoryOrder::ACQUIRE) != 0u;
 		}
 
+		bool hasToken(size_t v_Token) const noexcept {
+			if (v_Token >= 64u) return false;
+			const uint64_t v_Bit = 1ull << v_Token;
+			return (m_TokenMask.load(MemoryOrder::ACQUIRE) & v_Bit) != 0u;
+		}
+
 		ThreadState state() const noexcept {
 			return static_cast<ThreadState>(m_State.load(MemoryOrder::ACQUIRE));
 		}
@@ -132,6 +138,7 @@ namespace Corium::Core {
 		const RegistryEntry& r_Entry = g_Registry[v_Slot];
 		if (r_Entry.m_Generation != ro_Handle.m_Generation) return false;
 		if (r_Entry.state() == ThreadState::REAPED) return false;
+		if (!r_Entry.hasToken(ro_Handle.m_AccessToken)) return false;
 		return true;
 	}
 
@@ -440,10 +447,10 @@ namespace Corium::Core {
 		return g_Registry[ro_Handle.m_ThreadId].m_NumaNode;
 	}
 
-	void NativeThread::waitOnAddress(ParkHandle& ro_Permit, uint32_t expected) noexcept {
+	void NativeThread::waitOnAddress(ParkingSupport& ro_Support, uint32_t expected) noexcept {
 #ifdef _WIN32
 		WaitOnAddress(
-			ro_Permit.m_ParkingPermit.data(),
+			ro_Support.data(),
 			&expected,
 			sizeof(uint32_t),
 			INFINITE
@@ -453,34 +460,34 @@ namespace Corium::Core {
 #endif
 	}
 
-	void NativeThread::wakeOnAddress(ParkHandle& ro_Permit) noexcept {
+	void NativeThread::wakeOnAddress(ParkingSupport& ro_Support) noexcept {
 #ifdef _WIN32
-		ro_Permit.m_ParkingPermit.store(1u, MemoryOrder::RELEASE);
-		WakeByAddressSingle(ro_Permit.m_ParkingPermit.data());
+		ro_Support.store(1u, MemoryOrder::RELEASE);
+		WakeByAddressSingle(ro_Support.data());
 #else
 		// TODO: Linux (futex) implementation
 #endif
 	}
 
-	void NativeThread::wakeAllOnAddress(ParkHandle& ro_Permit) noexcept {
+	void NativeThread::wakeAllOnAddress(ParkingSupport& ro_Support) noexcept {
 #ifdef _WIN32
-		ro_Permit.m_ParkingPermit.store(1u, MemoryOrder::RELEASE);
-		WakeByAddressAll(ro_Permit.m_ParkingPermit.data());
+		ro_Support.store(1u, MemoryOrder::RELEASE);
+		WakeByAddressAll(ro_Support.data());
 #else
 		// TODO: Linux (futex) implementation
 #endif
 	}
 
-	void NativeThread::waitOnAddressFor(ParkHandle& ro_Handle, Chrono::Instant v_Deadline) noexcept {
+	void NativeThread::waitOnAddressFor(ParkingSupport& ro_Support, Chrono::Instant v_Deadline) noexcept {
 #ifdef _WIN32
 		const int64_t v_Ms = v_Deadline.remainingMilliseconds();
 		const DWORD v_Timeout = (v_Ms <= 0) ? 0u
 			: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
 		uint32_t v_Expected = 0u;
-		WaitOnAddress(ro_Handle.m_ParkingPermit.data(), &v_Expected, sizeof(uint32_t), v_Timeout);
+		WaitOnAddress(ro_Support.data(), &v_Expected, sizeof(uint32_t), v_Timeout);
 #else
 		// TODO: Linux futex with timeout
-		(void)ro_Handle;
+		(void)ro_Support;
 		(void)v_Deadline;
 #endif
 	}

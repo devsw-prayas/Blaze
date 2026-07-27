@@ -4,7 +4,7 @@
 
 namespace Corium::Runtime::WorkStealers {
 	template<typename T>
-	class ChaseLevAllocator final :  public Corium::Memory::Allocators::IArenaAllocator<ChaseLevAllocator<T>> {
+	class ChaseLevAllocator final :  public Corium::Memory::Allocators::IArena<ChaseLevAllocator<T>> {
 		Memory::VirtualSegment m_DequeRegion;
 		static constexpr size_t s_TotalLength = 1024;
 
