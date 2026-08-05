@@ -2,7 +2,7 @@
 #include "CudaUtils.h"
 
 #define ALLOW_HELPERS
-#include "CudaInternalHelpers.h"
+#include "InternalUtils.h"
 
 namespace Corium::Cuda::Utils {
 	DeviceHandle DeviceHandle::makeCpu() {

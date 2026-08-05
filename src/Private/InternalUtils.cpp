@@ -1,8 +1,35 @@
 #include "Corium.h"
-#define ALLOW_HELPERS
-#include "CudaInternalHelpers.h"
 
-#ifdef ALLOW_HELPERS
+#define ALLOW_SYSCALL
+#include "CoriumSyscalls.h"
+#define ALLOW_HELPERS
+#include "InternalUtils.h"
+
+namespace Corium::Internal {
+	int32_t toWin32Priority(Core::ThreadPriority v_Priority) {
+		switch (v_Priority) {
+		case Core::ThreadPriority::ZERO:          return THREAD_PRIORITY_IDLE;
+		case Core::ThreadPriority::LOW:           return THREAD_PRIORITY_LOWEST;
+		case Core::ThreadPriority::BELOW_NORMAL:  return THREAD_PRIORITY_BELOW_NORMAL;
+		case Core::ThreadPriority::NORMAL:        return THREAD_PRIORITY_NORMAL;
+		case Core::ThreadPriority::ABOVE_NORMAL:  return THREAD_PRIORITY_ABOVE_NORMAL;
+		case Core::ThreadPriority::HIGH:          return THREAD_PRIORITY_HIGHEST;
+		case Core::ThreadPriority::TIME_CRITICAL: return THREAD_PRIORITY_TIME_CRITICAL;
+		}
+		CORIUM_UNREACHABLE();
+	}
+
+	Memory::MemState fromWin32MemState(uint32_t v_State) {
+		switch (v_State) {
+		case MEM_RESERVE: return Memory::MemState::Reserved;
+		case MEM_COMMIT:  return Memory::MemState::Committed;
+		case MEM_FREE:    return Memory::MemState::Freed;
+		}
+		CORIUM_UNREACHABLE();
+	}
+}
+
+#ifdef CORIUM_CUDA_AVAILABLE
 namespace Corium::Cuda::Internal {
 	CUdevice_attribute CUDA_InternalHelpers::toCudaAttr(Utils::CudaDeviceAttribute attr) {
 		switch (attr) {

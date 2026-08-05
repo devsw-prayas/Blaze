@@ -3,6 +3,7 @@
 #include <CoriumMemory.h>
 #define ALLOW_SYSCALL
 #include <CoriumSyscalls.h>
+#include <InternalUtils.h>
 
 namespace {
 	struct VmInfo {
@@ -244,16 +245,7 @@ namespace Corium::Memory {
 		MEMORY_BASIC_INFORMATION memInfo;
 		void* offsetMem = static_cast<std::byte*>(segment.m_Memory) + v_Offset;
 		VirtualQuery(offsetMem, &memInfo, sizeof(MEMORY_BASIC_INFORMATION));
-		switch (memInfo.State) {
-		case MEM_RESERVE:
-			return MemState::Reserved;
-		case MEM_COMMIT:
-			return MemState::Committed;
-		case MEM_FREE:
-			return MemState::Freed;
-		default:
-			CORIUM_UNREACHABLE();
-		}
+		return Corium::Internal::fromWin32MemState(memInfo.State);
 #elif defined(__linux__)
 #if defined(CORIUM_DEBUG)
 		CORIUM_UNREACHABLE(); // TODO: /proc/self/maps + mincore

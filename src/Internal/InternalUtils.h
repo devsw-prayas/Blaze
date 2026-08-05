@@ -1,5 +1,17 @@
 #pragma once
 #include "Corium.h"
+#include "ThreadUtils.h"
+#include "CoriumMemory.h"
+
+// Enum <-> raw value conversions, centralized here so no Public header ever
+// needs to see OS or CUDA driver types. Definitions live in InternalUtils.cpp
+// (behind ALLOW_SYSCALL) - never inline these in the header.
+namespace Corium::Internal {
+	int32_t toWin32Priority(Core::ThreadPriority v_Priority);
+	Memory::MemState fromWin32MemState(uint32_t v_State);
+}
+
+#ifdef CORIUM_CUDA_AVAILABLE
 #include "CudaUtils.h"
 
 #define CUDA_ERROR_TRAP(result)	 \
@@ -61,6 +73,5 @@ namespace Corium::Cuda::Internal {
 	};
 }
 
-#else
-#error "This is an internal backend header. To use, define ALLOW_HELPERS before inclusion"
-#endif
+#endif // ALLOW_HELPERS
+#endif // CORIUM_CUDA_AVAILABLE

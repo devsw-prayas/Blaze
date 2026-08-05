@@ -5,7 +5,7 @@
 #include "CoriumSyscalls.h"
 
 #define ALLOW_HELPERS
-#include "CudaInternalHelpers.h"
+#include "InternalUtils.h"
 
 namespace Corium::Cuda::Memory {
     Utils::GpuAddress GpuVirtualMemory::reserveAddress(

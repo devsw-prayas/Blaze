@@ -5,7 +5,7 @@
 #include "CoriumSyscalls.h"
 
 #define ALLOW_HELPERS
-#include "CudaInternalHelpers.h"
+#include "InternalUtils.h"
 
 namespace Corium::Cuda::Events {
 	GpuEvent DeviceEvents::createEvent(uint32_t v_Flags) {

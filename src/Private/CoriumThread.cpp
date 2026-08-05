@@ -6,6 +6,7 @@
 #include "CoriumDiagnostics.h"
 #include "CoriumThread.h"
 #include "CoriumMemoryHandler.h"
+#include "InternalUtils.h"
 
 #if CORIUM_COMPILER_MSVC
 #pragma comment(lib, "synchronization.lib")
@@ -274,16 +275,7 @@ namespace Corium::Core {
 		}
 
 		// Thread priority.
-		int v_WinPriority = THREAD_PRIORITY_NORMAL;
-		switch (ro_ExecDesc.m_ThreadPriority) {
-		case ThreadPriority::ZERO:          v_WinPriority = THREAD_PRIORITY_IDLE;          break;
-		case ThreadPriority::LOW:           v_WinPriority = THREAD_PRIORITY_LOWEST;        break;
-		case ThreadPriority::BELOW_NORMAL:  v_WinPriority = THREAD_PRIORITY_BELOW_NORMAL;  break;
-		case ThreadPriority::NORMAL:        v_WinPriority = THREAD_PRIORITY_NORMAL;        break;
-		case ThreadPriority::ABOVE_NORMAL:  v_WinPriority = THREAD_PRIORITY_ABOVE_NORMAL;  break;
-		case ThreadPriority::HIGH:          v_WinPriority = THREAD_PRIORITY_HIGHEST;       break;
-		case ThreadPriority::TIME_CRITICAL: v_WinPriority = THREAD_PRIORITY_TIME_CRITICAL; break;
-		}
+		int v_WinPriority = Corium::Internal::toWin32Priority(ro_ExecDesc.m_ThreadPriority);
 		SetThreadPriority(v_OsHandle, v_WinPriority);
 
 		// Thread name (debugger-visible).

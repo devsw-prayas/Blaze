@@ -5,7 +5,7 @@
 #include "CoriumSyscalls.h"
 
 #define ALLOW_HELPERS
-#include "CudaInternalHelpers.h"
+#include "InternalUtils.h"
 
 namespace Corium::Cuda::Graphs {
 	GpuGraph DeviceGraphs::createGraph() {
