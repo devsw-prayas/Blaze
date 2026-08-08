@@ -11,14 +11,14 @@ namespace Corium::Runtime::Sync {
 	using namespace Core;
 
 	class CORIUM_RUNTIME_API CountDownLatch final {
-		// We are using ParkHandle here since all the NativeThread wait-on-address and wake-on-address 
+		// We are using ParkHandle here since all the NativeThread wait-on-address and wake-on-address
 		// implemenations are defined on ParkHandle
 		Core::ParkHandle m_Counter;
 
 	public:
 		explicit CountDownLatch(uint32_t v_Count);
 
-		CountDownLatch(const CountDownLatch&)            = delete;
+		CountDownLatch(const CountDownLatch&) = delete;
 		CountDownLatch& operator=(const CountDownLatch&) = delete;
 		CountDownLatch(CountDownLatch&&)            noexcept = default;
 		CountDownLatch& operator=(CountDownLatch&&) noexcept = default;
@@ -77,10 +77,10 @@ namespace Corium::Runtime::Sync {
 	public:
 		CriticalSection() noexcept;
 		~CriticalSection();
-		CriticalSection(const CriticalSection&)            = delete;
+		CriticalSection(const CriticalSection&) = delete;
 		CriticalSection& operator=(const CriticalSection&) = delete;
-		CriticalSection(CriticalSection&&)                 = delete;
-		CriticalSection& operator=(CriticalSection&&)      = delete;
+		CriticalSection(CriticalSection&&) = delete;
+		CriticalSection& operator=(CriticalSection&&) = delete;
 
 		void lock()    noexcept;
 		void unlock()  noexcept;
@@ -94,8 +94,8 @@ namespace Corium::Runtime::Sync {
 		Core::Atomic::AtomicValue32<uint32_t> m_Gate{ 0 };
 	public:
 		ReentrantLock()  noexcept = default;
-		~ReentrantLock()          = default;
-		ReentrantLock(const ReentrantLock&)            = delete;
+		~ReentrantLock() = default;
+		ReentrantLock(const ReentrantLock&) = delete;
 		ReentrantLock& operator=(const ReentrantLock&) = delete;
 
 		void     lock()                              noexcept;
@@ -113,8 +113,8 @@ namespace Corium::Runtime::Sync {
 		Core::Atomic::AtomicValue32<uint32_t> m_Gate{ 0 };
 	public:
 		ReadWriteLock()  noexcept = default;
-		~ReadWriteLock()          = default;
-		ReadWriteLock(const ReadWriteLock&)            = delete;
+		~ReadWriteLock() = default;
+		ReadWriteLock(const ReadWriteLock&) = delete;
 		ReadWriteLock& operator=(const ReadWriteLock&) = delete;
 
 		void lockRead()                               noexcept;
@@ -140,11 +140,11 @@ namespace Corium::Runtime::Sync {
 	public:
 		StampedLock() noexcept : m_State(0x100ULL), m_Gate(0) {}
 		~StampedLock() = default;
-		StampedLock(const StampedLock&)            = delete;
+		StampedLock(const StampedLock&) = delete;
 		StampedLock& operator=(const StampedLock&) = delete;
 
 		CORIUM_NODISCARD uint64_t writeLock()                          noexcept;
-		bool                      tryWriteLock(uint64_t& ro_Stamp)     noexcept;
+		bool tryWriteLock(uint64_t& ro_Stamp)     noexcept;
 		void                      unlockWrite(uint64_t v_Stamp)        noexcept;
 
 		CORIUM_NODISCARD uint64_t readLock()                           noexcept;
@@ -168,7 +168,7 @@ namespace Corium::Runtime::Sync {
 		Core::Atomic::AtomicValue32<uint32_t> m_Terminated{ 0 };
 		uint32_t m_Registered{ 0 };
 		uint32_t m_Arrived{ 0 };
-		Phaser*  m_pParent{ nullptr };
+		Phaser* m_pParent{ nullptr };
 
 		void doAdvance() noexcept;
 
@@ -178,10 +178,10 @@ namespace Corium::Runtime::Sync {
 		Phaser(Phaser& ro_Parent, uint32_t v_Parties) noexcept;
 		virtual ~Phaser() = default;
 
-		Phaser(const Phaser&)            = delete;
+		Phaser(const Phaser&) = delete;
 		Phaser& operator=(const Phaser&) = delete;
-		Phaser(Phaser&&)                 = delete;
-		Phaser& operator=(Phaser&&)      = delete;
+		Phaser(Phaser&&) = delete;
+		Phaser& operator=(Phaser&&) = delete;
 
 		uint32_t register_()                                           noexcept;
 		uint32_t bulkRegister(uint32_t v_Parties)                      noexcept;
@@ -207,12 +207,12 @@ namespace Corium::Runtime::Sync {
 	// then parks on WaitOnAddress — a signal that fires between release and park
 	// is not lost because the counter already changed.
 	class CORIUM_RUNTIME_API Condition final {
-		ReentrantLock&                        m_Lock;
+		ReentrantLock& m_Lock;
 		Core::Atomic::AtomicValue32<uint32_t> m_Seq{ 0 };
 	public:
 		explicit Condition(ReentrantLock& ro_Lock) noexcept : m_Lock(ro_Lock) {}
 		~Condition() = default;
-		Condition(const Condition&)            = delete;
+		Condition(const Condition&) = delete;
 		Condition& operator=(const Condition&) = delete;
 
 		void await()                           noexcept;
@@ -225,8 +225,8 @@ namespace Corium::Runtime::Sync {
 	// Per-thread slots from g_RuntimeVA via GeneralAllocator. T must be movable.
 	template<typename T>
 	class Exchanger final {
-		static constexpr uint32_t SLOT_EMPTY     = 0u;
-		static constexpr uint32_t SLOT_WAITING   = 1u;
+		static constexpr uint32_t SLOT_EMPTY = 0u;
+		static constexpr uint32_t SLOT_WAITING = 1u;
 		static constexpr uint32_t SLOT_FULFILLED = 2u;
 
 		struct alignas(64) Slot {
@@ -236,7 +236,7 @@ namespace Corium::Runtime::Sync {
 			alignas(alignof(T)) uint8_t            m_FulfillerBuf[sizeof(T)];
 		};
 
-		Slot*    m_pSlots{ nullptr };
+		Slot* m_pSlots{ nullptr };
 		uint32_t m_SlotCount{ 0 };
 
 		CORIUM_FORCEINLINE uint32_t pickSlot() const noexcept {
@@ -251,7 +251,7 @@ namespace Corium::Runtime::Sync {
 			m_SlotCount = Memory::Internal::AllocatorRegistry::s_NodeCount * 8u;
 			if (m_SlotCount < 8u) m_SlotCount = 8u;
 			void* v_Mem = Memory::Internal::AllocatorRegistry::s_GeneralAllocator[0]
-			                  .allocateImpl(sizeof(Slot) * m_SlotCount, alignof(Slot));
+				.allocateImpl(sizeof(Slot) * m_SlotCount, alignof(Slot));
 			CORIUM_ASSERT(v_Mem);
 			m_pSlots = static_cast<Slot*>(v_Mem);
 			for (uint32_t i = 0; i < m_SlotCount; ++i)
@@ -263,24 +263,24 @@ namespace Corium::Runtime::Sync {
 				for (uint32_t i = 0; i < m_SlotCount; ++i)
 					m_pSlots[i].~Slot();
 				Memory::Internal::AllocatorRegistry::s_GeneralAllocator[0]
-				    .deallocateImpl(m_pSlots, sizeof(Slot) * m_SlotCount);
+					.deallocateImpl(m_pSlots, sizeof(Slot) * m_SlotCount);
 			}
 		}
 
-		Exchanger(const Exchanger&)            = delete;
+		Exchanger(const Exchanger&) = delete;
 		Exchanger& operator=(const Exchanger&) = delete;
-		Exchanger(Exchanger&&)                 = delete;
-		Exchanger& operator=(Exchanger&&)      = delete;
+		Exchanger(Exchanger&&) = delete;
+		Exchanger& operator=(Exchanger&&) = delete;
 
 		T exchange(T&& v_Value) {
 			const uint32_t v_Start = pickSlot();
 			// Try fulfiller: scan for a WAITING slot
 			for (uint32_t i = 0; i < m_SlotCount; ++i) {
-				Slot& v_Slot    = m_pSlots[(v_Start + i) % m_SlotCount];
-				uint32_t v_Exp  = SLOT_WAITING;
+				Slot& v_Slot = m_pSlots[(v_Start + i) % m_SlotCount];
+				uint32_t v_Exp = SLOT_WAITING;
 				if (v_Slot.m_State.compareExchange(&v_Exp, SLOT_FULFILLED,
-						Core::Atomics::MemoryOrder::ACQ_REL,
-						Core::Atomics::MemoryOrder::RELAXED) == SLOT_WAITING) {
+					Core::Atomics::MemoryOrder::ACQ_REL,
+					Core::Atomics::MemoryOrder::RELAXED) == SLOT_WAITING) {
 					T v_Result = std::move(*reinterpret_cast<T*>(v_Slot.m_WaiterBuf));
 					reinterpret_cast<T*>(v_Slot.m_WaiterBuf)->~T();
 					new (v_Slot.m_FulfillerBuf) T(std::move(v_Value));
@@ -290,11 +290,11 @@ namespace Corium::Runtime::Sync {
 			}
 			// Become waiter on preferred slot
 			for (;;) {
-				Slot&    v_Slot = m_pSlots[v_Start];
-				uint32_t v_Exp  = SLOT_EMPTY;
+				Slot& v_Slot = m_pSlots[v_Start];
+				uint32_t v_Exp = SLOT_EMPTY;
 				if (v_Slot.m_State.compareExchange(&v_Exp, SLOT_WAITING,
-						Core::Atomics::MemoryOrder::ACQ_REL,
-						Core::Atomics::MemoryOrder::RELAXED) == SLOT_EMPTY) {
+					Core::Atomics::MemoryOrder::ACQ_REL,
+					Core::Atomics::MemoryOrder::RELAXED) == SLOT_EMPTY) {
 					new (v_Slot.m_WaiterBuf) T(std::move(v_Value));
 					while (v_Slot.m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) != SLOT_FULFILLED)
 						Core::NativeThread::waitOnAddress(v_Slot.m_Gate);
@@ -311,11 +311,11 @@ namespace Corium::Runtime::Sync {
 			const uint32_t v_Start = pickSlot();
 			// Try fulfiller: scan for a WAITING slot
 			for (uint32_t i = 0; i < m_SlotCount; ++i) {
-				Slot&    v_Slot = m_pSlots[(v_Start + i) % m_SlotCount];
-				uint32_t v_Exp  = SLOT_WAITING;
+				Slot& v_Slot = m_pSlots[(v_Start + i) % m_SlotCount];
+				uint32_t v_Exp = SLOT_WAITING;
 				if (v_Slot.m_State.compareExchange(&v_Exp, SLOT_FULFILLED,
-						Core::Atomics::MemoryOrder::ACQ_REL,
-						Core::Atomics::MemoryOrder::RELAXED) == SLOT_WAITING) {
+					Core::Atomics::MemoryOrder::ACQ_REL,
+					Core::Atomics::MemoryOrder::RELAXED) == SLOT_WAITING) {
 					ro_Result = std::move(*reinterpret_cast<T*>(v_Slot.m_WaiterBuf));
 					reinterpret_cast<T*>(v_Slot.m_WaiterBuf)->~T();
 					new (v_Slot.m_FulfillerBuf) T(std::move(v_Value));
@@ -326,19 +326,19 @@ namespace Corium::Runtime::Sync {
 			// Become waiter on preferred slot
 			for (;;) {
 				if (v_Deadline.isExpired()) return false;
-				Slot&    v_Slot = m_pSlots[v_Start];
-				uint32_t v_Exp  = SLOT_EMPTY;
+				Slot& v_Slot = m_pSlots[v_Start];
+				uint32_t v_Exp = SLOT_EMPTY;
 				if (v_Slot.m_State.compareExchange(&v_Exp, SLOT_WAITING,
-						Core::Atomics::MemoryOrder::ACQ_REL,
-						Core::Atomics::MemoryOrder::RELAXED) == SLOT_EMPTY) {
+					Core::Atomics::MemoryOrder::ACQ_REL,
+					Core::Atomics::MemoryOrder::RELAXED) == SLOT_EMPTY) {
 					new (v_Slot.m_WaiterBuf) T(std::move(v_Value));
 					while (v_Slot.m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) != SLOT_FULFILLED) {
 						if (v_Deadline.isExpired()) {
 							// Try to cancel — only succeeds if fulfiller hasn't raced us
 							uint32_t v_W = SLOT_WAITING;
 							if (v_Slot.m_State.compareExchange(&v_W, SLOT_EMPTY,
-									Core::Atomics::MemoryOrder::ACQ_REL,
-									Core::Atomics::MemoryOrder::RELAXED) == SLOT_WAITING) {
+								Core::Atomics::MemoryOrder::ACQ_REL,
+								Core::Atomics::MemoryOrder::RELAXED) == SLOT_WAITING) {
 								reinterpret_cast<T*>(v_Slot.m_WaiterBuf)->~T();
 								return false;
 							}

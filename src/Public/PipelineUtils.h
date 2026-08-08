@@ -28,46 +28,38 @@
 #include "CoriumUtility.h"
 
 namespace Corium::Execution {
-
 	namespace IR = Corium::IntermediateRepresentation;
 
 	// Forward declarations
 	struct TaskContext;                                         // needed for TaskHandle friend
 	namespace Inductor { struct TaskMemoryDesc; class TaskInductor; }
-	namespace Builder  { class TaskBuilder;                         }
-	namespace Executor { class TaskExecutor;                        }
+	namespace Builder { class TaskBuilder; }
+	namespace Executor { class TaskExecutor; }
 
-	// -------------------------------------------------------------------------
 	// TaskID
-	// -------------------------------------------------------------------------
 
 	using TaskID = uint64_t;
 	inline constexpr TaskID INVALID_TASK_ID = 0;
 
-	// -------------------------------------------------------------------------
 	// TaskPriority
-	// -------------------------------------------------------------------------
 
 	enum class CORIUM_RUNTIME_API TaskPriority : uint8_t {
-		Low      = 0,
-		Normal   = 1,
-		High     = 2,
+		Low = 0,
+		Normal = 1,
+		High = 2,
 		Critical = 3,
 	};
 
-	// -------------------------------------------------------------------------
 	// TaskState
-	// -------------------------------------------------------------------------
 
 	enum class CORIUM_RUNTIME_API TaskState : uint8_t {
-		Pending   = 0,
-		Running   = 1,
+		Pending = 0,
+		Running = 1,
 		Completed = 2,
-		Failed    = 3,
+		Failed = 3,
 		Cancelled = 4,
 	};
 
-	// -------------------------------------------------------------------------
 	// TaskError
 	//
 	// Fixed-size, Corium-owned. Always at output buffer offset 0.
@@ -78,63 +70,57 @@ namespace Corium::Execution {
 	//   1  – 999    Corium runtime
 	//   1000 – 1999 Pool layer (cancellation, timeout, scheduling)
 	//   2000+       User task errors from callable
-	// -------------------------------------------------------------------------
 
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) TaskError final {
-		uint32_t v_Code         = 0;
+		uint32_t v_Code = 0;
 		char     v_Message[124] = {};
 	};
 
-	CORIUM_STATIC_ASSERT(sizeof(TaskError) == 128,                "TaskError must be 128 bytes");
-	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<TaskError>,    "TaskError must maintain standard layout");
+	CORIUM_STATIC_ASSERT(sizeof(TaskError) == 128, "TaskError must be 128 bytes");
+	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<TaskError>, "TaskError must maintain standard layout");
 	CORIUM_STATIC_ASSERT(std::is_trivially_copyable_v<TaskError>, "TaskError must be trivially copyable");
 
-	// -------------------------------------------------------------------------
 	// TaskMemory
 	//
 	// VARegion views into g_TaskPayloadArena.
 	// Allocated by TaskInductor::cook() via TaskPayloadAllocator (bump, never freed).
-	// -------------------------------------------------------------------------
 
 	struct CORIUM_RUNTIME_API TaskMemory final {
 		TaskMemory() = default;
 		~TaskMemory() = default;
 
-		TaskMemory(const TaskMemory&)            = delete;
+		TaskMemory(const TaskMemory&) = delete;
 		TaskMemory& operator=(const TaskMemory&) = delete;
 
-		TaskMemory(TaskMemory&&) noexcept            = default;
+		TaskMemory(TaskMemory&&) noexcept = default;
 		TaskMemory& operator=(TaskMemory&&) noexcept = default;
 
 		Memory::Internal::VARegion m_InputMemBuffer;
 		Memory::Internal::VARegion m_OutputMemBuffer;
 	};
 
-	// -------------------------------------------------------------------------
 	// TaskExecutionState
 	//
 	// SharedPtr-managed, allocated from TaskMetadataAllocator per NUMA node.
 	// Pool holds the strong ref; TaskHandle copies hold WeakPtrs.
 	// On task retirement the pool releases the SharedPtr — all WeakPtrs expire.
-	// -------------------------------------------------------------------------
 
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(16) TaskExecutionState final {
 		TaskExecutionState() = default;
 		~TaskExecutionState() = default;
 
-		TaskExecutionState(const TaskExecutionState&)            = delete;
+		TaskExecutionState(const TaskExecutionState&) = delete;
 		TaskExecutionState& operator=(const TaskExecutionState&) = delete;
-		TaskExecutionState(TaskExecutionState&&) noexcept            = delete;
+		TaskExecutionState(TaskExecutionState&&) noexcept = delete;
 		TaskExecutionState& operator=(TaskExecutionState&&) noexcept = delete;
 
 		Core::Atomic::AtomicValue32<uint32_t> m_State{ static_cast<uint32_t>(TaskState::Pending) };
 		uint8_t* m_pOutputBuffer = nullptr;
 	};
 
-	CORIUM_STATIC_ASSERT(sizeof(TaskExecutionState) == 16,              "TaskExecutionState must be 16 bytes");
+	CORIUM_STATIC_ASSERT(sizeof(TaskExecutionState) == 16, "TaskExecutionState must be 16 bytes");
 	CORIUM_STATIC_ASSERT(std::is_standard_layout_v<TaskExecutionState>, "TaskExecutionState must maintain standard layout");
 
-	// -------------------------------------------------------------------------
 	// TaskHandle
 	//
 	// Copyable observer handle returned by Executor::submitObservable().
@@ -143,16 +129,15 @@ namespace Corium::Execution {
 	// Accessing get<>() before isComplete() or on a stale handle is hard UB.
 	//
 	// wait() must not be called from within a task callable.
-	// -------------------------------------------------------------------------
 
 	struct CORIUM_RUNTIME_API TaskHandle final {
 		TaskHandle() = default;
 		~TaskHandle() = default;
 
-		TaskHandle(const TaskHandle&)            = default;
+		TaskHandle(const TaskHandle&) = default;
 		TaskHandle& operator=(const TaskHandle&) = default;
 
-		TaskHandle(TaskHandle&&) noexcept            = default;
+		TaskHandle(TaskHandle&&) noexcept = default;
 		TaskHandle& operator=(TaskHandle&&) noexcept = default;
 
 		CORIUM_NODISCARD TaskID    taskID()  const noexcept { return m_TaskID; }
@@ -166,7 +151,7 @@ namespace Corium::Execution {
 		}
 
 		CORIUM_NODISCARD bool isComplete()  const noexcept { return state() == TaskState::Completed; }
-		CORIUM_NODISCARD bool isFailed()    const noexcept { return state() == TaskState::Failed;    }
+		CORIUM_NODISCARD bool isFailed()    const noexcept { return state() == TaskState::Failed; }
 		CORIUM_NODISCARD bool isCancelled() const noexcept { return state() == TaskState::Cancelled; }
 		CORIUM_NODISCARD bool isPending()   const noexcept {
 			const TaskState v_S = state();
@@ -182,7 +167,7 @@ namespace Corium::Execution {
 		CORIUM_NODISCARD const typename TParam::DataType& get() const noexcept {
 			auto v_Locked = m_wpState.lock();
 			const uint64_t v_Hash = IR::mixPositionHash(TParam::TypeHash, N);
-			const size_t   v_Off  = m_pOutputMPH->lookup(v_Hash);
+			const size_t   v_Off = m_pOutputMPH->lookup(v_Hash);
 			return *reinterpret_cast<const typename TParam::DataType*>(
 				v_Locked->m_pOutputBuffer + v_Off);
 		}
@@ -191,7 +176,7 @@ namespace Corium::Execution {
 		CORIUM_NODISCARD typename TParam::DataType& get() noexcept {
 			auto v_Locked = m_wpState.lock();
 			const uint64_t v_Hash = IR::mixPositionHash(TParam::TypeHash, N);
-			const size_t   v_Off  = m_pOutputMPH->lookup(v_Hash);
+			const size_t   v_Off = m_pOutputMPH->lookup(v_Hash);
 			return *reinterpret_cast<typename TParam::DataType*>(
 				v_Locked->m_pOutputBuffer + v_Off);
 		}
@@ -205,13 +190,12 @@ namespace Corium::Execution {
 	private:
 		Memory::WeakPtr<TaskExecutionState, Memory::Allocators::TaskMetadataAllocator> m_wpState;
 		const IR::MphTable* m_pOutputMPH = nullptr;
-		TaskID              m_TaskID     = INVALID_TASK_ID;
+		TaskID              m_TaskID = INVALID_TASK_ID;
 
 		friend struct TaskContext;
 		friend class Executor::TaskExecutor;
 	};
 
-	// -------------------------------------------------------------------------
 	// TaskContext
 	//
 	// Execution-time view of a running task supplied to void(TaskContext&)
@@ -219,16 +203,15 @@ namespace Corium::Execution {
 	// invoking the closure, destroyed immediately after return.
 	//
 	// Non-copyable, non-movable. Only valid during callable execution.
-	// -------------------------------------------------------------------------
 
 	struct CORIUM_RUNTIME_API TaskContext {
 		TaskContext() = delete;
 		~TaskContext() = default;
 
-		TaskContext(const TaskContext&)            = delete;
+		TaskContext(const TaskContext&) = delete;
 		TaskContext& operator=(const TaskContext&) = delete;
-		TaskContext(TaskContext&&)                 = delete;
-		TaskContext& operator=(TaskContext&&)      = delete;
+		TaskContext(TaskContext&&) = delete;
+		TaskContext& operator=(TaskContext&&) = delete;
 
 		// Read input parameter at pack position N. Hard UB on miss.
 		template<typename TParam, size_t N>
@@ -260,20 +243,20 @@ namespace Corium::Execution {
 
 	protected:
 		explicit TaskContext(
-			uint8_t*            p_InputBuffer,
-			uint8_t*            p_OutputBuffer,
+			uint8_t* p_InputBuffer,
+			uint8_t* p_OutputBuffer,
 			const IR::MphTable* p_InputMPH,
 			const IR::MphTable* p_OutputMPH,
 			TaskHandle          v_Handle
 		) noexcept
-			: m_pInputBuffer (p_InputBuffer)
+			: m_pInputBuffer(p_InputBuffer)
 			, m_pOutputBuffer(p_OutputBuffer)
-			, m_pInputMPH    (p_InputMPH)
-			, m_pOutputMPH   (p_OutputMPH)
-			, m_Handle       (std::move(v_Handle)) {}
+			, m_pInputMPH(p_InputMPH)
+			, m_pOutputMPH(p_OutputMPH)
+			, m_Handle(std::move(v_Handle)) {}
 
-		uint8_t*            m_pInputBuffer;
-		uint8_t*            m_pOutputBuffer;
+		uint8_t* m_pInputBuffer;
+		uint8_t* m_pOutputBuffer;
 		const IR::MphTable* m_pInputMPH;
 		const IR::MphTable* m_pOutputMPH;
 		TaskHandle          m_Handle;
@@ -281,7 +264,6 @@ namespace Corium::Execution {
 		friend class Executor::TaskExecutor;
 	};
 
-	// -------------------------------------------------------------------------
 	// TaskFrame
 	//
 	// Lightweight, move-only handle produced by TaskInductor::cook().
@@ -296,16 +278,15 @@ namespace Corium::Execution {
 	//
 	// m_pfnSliceInvoke — reserved for WorkStealableTask / TaskSliceContext path
 	//                    (not implemented; set to nullptr until that layer lands).
-	// -------------------------------------------------------------------------
 
 	struct CORIUM_RUNTIME_API TaskFrame final {
 		TaskFrame() = default;
 		~TaskFrame() = default;
 
-		TaskFrame(const TaskFrame&)            = delete;
+		TaskFrame(const TaskFrame&) = delete;
 		TaskFrame& operator=(const TaskFrame&) = delete;
 
-		TaskFrame(TaskFrame&&) noexcept            = default;
+		TaskFrame(TaskFrame&&) noexcept = default;
 		TaskFrame& operator=(TaskFrame&&) noexcept = default;
 
 		CORIUM_NODISCARD bool isValid() const noexcept {
@@ -322,8 +303,8 @@ namespace Corium::Execution {
 			Memory::Internal::VARegion v_InputBuf,
 			Memory::Internal::VARegion v_OutputBuf
 		) noexcept
-			: m_MemDesc     (std::move(sw_Desc))
-			, m_InputBuffer (v_InputBuf)
+			: m_MemDesc(std::move(sw_Desc))
+			, m_InputBuffer(v_InputBuf)
 			, m_OutputBuffer(v_OutputBuf) {}
 
 		Memory::WeakPtr<Inductor::TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> m_MemDesc;
@@ -333,14 +314,13 @@ namespace Corium::Execution {
 		// Closure section — all null until build() is called.
 		// m_pClosure and m_pfnDestroy always set together.
 		// Exactly one invoke pointer is non-null at runtime.
-		void*  m_pClosure                                   = nullptr;  // ClosureFunction<...>* in g_ClosureRange
-		void(* m_pfnDestroy    )(void*)                    = nullptr;
-		void(* m_pfnCpuInvoke  )(void*, TaskContext&)      = nullptr;
-		void*  m_pfnSliceInvoke                            = nullptr;  // reserved — TaskSliceContext path
+		void* m_pClosure = nullptr;  // ClosureFunction<...>* in g_ClosureRange
+		void(*m_pfnDestroy)(void*) = nullptr;
+		void(*m_pfnCpuInvoke)(void*, TaskContext&) = nullptr;
+		void* m_pfnSliceInvoke = nullptr;  // reserved — TaskSliceContext path
 
 		friend class Inductor::TaskInductor;
 		friend class Builder::TaskBuilder;
 		friend class Executor::TaskExecutor;
 	};
-
-} // namespace Corium::Execution
+}

@@ -1,8 +1,8 @@
-	#include "Corium.h"
+#include "Corium.h"
 #include "CoriumAddrSpace.h"
+#include "CoriumEnvironment.h"
 
 namespace Corium::Memory::Internal {
-
 	// -------------------------------------------------------------------------
 	// Per-node base reservations
 	// -------------------------------------------------------------------------
@@ -105,16 +105,22 @@ namespace Corium::Memory::Internal {
 	// CoriumAddrSpace.h, in the same on-disk order as the box comments there.
 	// -------------------------------------------------------------------------
 
-	bool init() {
+	bool init(uint32_t v_NodeCount) {
 		VirtualMemory::init();
 
-		for (uint32_t node = 0; node < MAX_NUMA_NODES; ++node) {
+		CORIUM_ASSERT(v_NodeCount <= MAX_NUMA_NODES);
+
+		for (uint32_t node = 0; node < v_NodeCount; ++node) {
 			// Reserve 128 GiB for this NUMA node.
 			// Setting m_NumaNode on the input segment signals VirtualAllocExNuma.
 			VirtualSegment req{};
 			req.m_NumaNode = static_cast<uint8_t>(node);
 
 			g_NodeMemory[node] = VirtualMemory::virtualAlloc(req, NodeVASize, MemoryOperation::Reserve);
+
+			if (!g_NodeMemory[node].isValid())
+				Environment::CoriumTermination::terminate("Failed to allocate memory, VirtualAlloc Failure",
+					__FILE__, __LINE__);
 
 			VARegionSlicer slicer{ g_NodeMemory[node] };
 
@@ -411,5 +417,4 @@ namespace Corium::Memory::Internal {
 
 		return true;
 	}
-
 } // namespace Corium::Memory::Internal

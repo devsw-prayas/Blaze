@@ -59,10 +59,10 @@ namespace Corium::Core::Atomics {
 			return AtomicExchange32_Relaxed(p_Memory, v_Value);
 		case MemoryOrder::SEQ_CST:
 			return AtomicExchange32_SeqCst(p_Memory, v_Value);
-		case MemoryOrder::RELEASE: 
-		case MemoryOrder::CONSUME: 
+		case MemoryOrder::RELEASE:
+		case MemoryOrder::CONSUME:
 		case MemoryOrder::ACQUIRE:
-			CORIUM_ASSERT(false && "Invalid memory order for atomic store");
+			CORIUM_ASSERT(false && "Invalid memory order for atomic exchange");
 			CORIUM_UNREACHABLE();
 		}
 		CORIUM_UNREACHABLE();

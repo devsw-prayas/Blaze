@@ -1,6 +1,24 @@
 #include <Corium.h>
 #include <ThreadUtils.h>
 
+namespace Corium::Core::this_thread {
+	thread_local ThreadHandle t_Handle = ThreadHandle::getInvalidThread();
+	thread_local ParkHandle t_Permit{ 0u };
+	thread_local Memory::Allocators::TlsAllocator t_ThreadLocalAllocator{};
+
+	Memory::Allocators::TlsAllocator& allocator() noexcept {
+		return t_ThreadLocalAllocator;
+	}
+
+	ThreadHandle& currentHandle() noexcept {
+		return t_Handle;
+	}
+
+	ParkHandle& currentPermit() noexcept {
+		return t_Permit;
+	}
+}
+
 namespace Corium::Core {
 	using namespace Corium::Memory::Literals;
 
@@ -20,6 +38,12 @@ namespace Corium::Core {
 		if (isFrozen(ro_Desc)) return;
 		promoteMutable(ro_Desc);
 		ro_Desc.m_Mask = v_Mask;
+	}
+
+	void setPriority(ThreadAttrDesc& ro_Desc, ThreadPriority v_Priority) {
+		if (isFrozen(ro_Desc)) return;
+		promoteMutable(ro_Desc);
+		ro_Desc.m_ThreadPriority = v_Priority;
 	}
 
 	void setIdealProcessor(ThreadAttrDesc& ro_Desc, ProcessorIdx v_Idx) {
@@ -98,9 +122,10 @@ namespace Corium::Core {
 	}
 
 	bool validate(ThreadLaunchDesc& ro_Desc) {
-		if (!ro_Desc.m_VaSize) return false;
 		if (ro_Desc.m_State == DescriptorState::FROZEN) return false;
 		if (!ro_Desc.m_StartPoint.isCallable()) return false;
+		if (ro_Desc.m_VaSize < CORIUM_SPACE_TLS_MIN_SIZE * 1_MiB) return false;
+		if (ro_Desc.m_VaSize > CORIUM_SPACE_TLS_MAX_SIZE * 1_MiB) return false;
 		ro_Desc.m_State = DescriptorState::FROZEN;
 		return true;
 	}

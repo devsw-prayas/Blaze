@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 option(CORIUM_ENABLE_CUDA "Enable CUDA GPU backend" ON)
+option(CORIUM_BUILD_SHARED "Build Corium as a shared library (DLL/SO); OFF builds a static library" ON)
 
 if (CORIUM_ENABLE_CUDA)
     project(Corium LANGUAGES CXX CUDA)
@@ -28,7 +29,13 @@ if (CORIUM_ENABLE_CUDA)
     )
 endif()
 
-add_library(Corium SHARED
+if (CORIUM_BUILD_SHARED)
+    set(CORIUM_LIB_TYPE SHARED)
+else()
+    set(CORIUM_LIB_TYPE STATIC)
+endif()
+
+add_library(Corium ${CORIUM_LIB_TYPE}
     ${CORIUM_PUBLIC}
     ${CORIUM_PRIVATE}
     ${CORIUM_INTERNAL}
@@ -57,7 +64,7 @@ target_include_directories(Corium PRIVATE
 if (CORIUM_ENABLE_CUDA)
     find_package(CUDAToolkit REQUIRED)
     target_include_directories(Corium PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/Cuda
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Cuda/Public
     )
     target_link_libraries(Corium PRIVATE CUDA::cuda_driver)
     target_compile_definitions(Corium PRIVATE CORIUM_CUDA_AVAILABLE)
@@ -73,15 +80,26 @@ target_precompile_headers(Corium PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Public/Corium.h
 )
 
-target_compile_definitions(Corium PRIVATE  CORIUM_SHARED)
-target_compile_definitions(Corium PRIVATE  CORIUM_MAX_NUMA=4)
-target_compile_definitions(Corium PRIVATE  CORIUM_VA_ALLOCATION=524288)
-target_compile_definitions(Corium PRIVATE  CORIUM_TIMEOUT=50)
-target_compile_definitions(Corium PRIVATE  CORIUM_SPIN_COUNT=450)
-target_compile_definitions(Corium PRIVATE  CORIUM_DEFAULT_OS_TLS_SIZE=2)
+if (CORIUM_BUILD_SHARED)
+    target_compile_definitions(Corium PRIVATE CORIUM_SHARED)
+else()
+    target_compile_definitions(Corium PUBLIC CORIUM_STATIC)
+endif()
+target_compile_definitions(Corium PUBLIC CORIUM_MAX_NUMA=4)
+target_compile_definitions(Corium PUBLIC CORIUM_VA_ALLOCATION=524288)
+target_compile_definitions(Corium PUBLIC CORIUM_TIMEOUT=50)
+target_compile_definitions(Corium PUBLIC CORIUM_SPIN_COUNT=450)
+target_compile_definitions(Corium PUBLIC CORIUM_DEFAULT_OS_TLS_SIZE=2)
 
 target_compile_definitions(Corium PUBLIC  CORIUM_SPACE_TLS_MIN_SIZE=2)
 target_compile_definitions(Corium PUBLIC  CORIUM_SPACE_TLS_MAX_SIZE=100)
+
+# Total per-node TLS VA region, in MiB. Default 4 GiB; capped at 10 GiB (see
+# static_assert in CoriumAddrSpace.h) to leave headroom in the per-node
+# reserved/future VA slice.
+target_compile_definitions(Corium PUBLIC  CORIUM_SPACE_TLS_TOTAL=4096)
+
+target_compile_definitions(Corium PUBLIC  CORIUM_DEFAULT_FRAME_STACK_SIZE=2)
 
 option(CORIUM_ENABLE_DEBUG_CHECKS "Enable Corium debug asserts/checks" ON)
 target_compile_definitions(Corium PUBLIC $<$<BOOL:${CORIUM_ENABLE_DEBUG_CHECKS}>:DEBUG>)

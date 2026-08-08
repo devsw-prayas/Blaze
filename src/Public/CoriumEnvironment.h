@@ -11,6 +11,10 @@ namespace Corium::Environment {
 		uint32_t m_L3CacheSize = 0;
 		uint32_t m_CacheLineSize = 0;
 
+		// Per-node processor affinity mask (KAFFINITY), indexed by NUMA node
+		// number. Only entries below m_NumaNodeCount are meaningful.
+		uint64_t m_NumaNodeMasks[CORIUM_MAX_NUMA] = {};
+
 		CpuInfo() = default;
 		~CpuInfo() = default;
 

@@ -25,8 +25,8 @@ namespace Corium {
 			                             ? rawNodes
 			                             : Memory::Internal::MAX_NUMA_NODES;
 
-			// Reserve all per-node VA regions.
-			Memory::Internal::init();
+			// Reserve VA regions for the real, detected NUMA nodes only.
+			Memory::Internal::init(nodeCount);
 
 			// Wire allocators to their node VA regions.
 			Memory::Internal::AllocatorRegistry::initRegistry(nodeCount);

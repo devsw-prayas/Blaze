@@ -41,7 +41,7 @@ namespace Corium::Memory {
 	}
 
 	VirtualSegment VirtualMemory::virtualAlloc(VirtualSegment& segment, Bytes v_Size, MemoryOperation v_Operation) {
-#ifdef CORIYM_DEBUG
+#ifdef CORIUM_DEBUG
 		CORIUM_ASSERT(v_Size > 0);
 #endif
 #ifdef _WIN32
@@ -116,7 +116,7 @@ namespace Corium::Memory {
 		MemoryOperation v_Operation
 	) {
 		if (!segment.isValid()) return false;
-#ifdef CORIYM_DEBUG
+#ifdef CORIUM_DEBUG
 		CORIUM_ASSERT(v_Size > 0);
 #endif
 		v_Size = alignToPage(v_Size);

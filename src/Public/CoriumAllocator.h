@@ -26,9 +26,7 @@ namespace Corium::Memory {
 }
 
 namespace Corium::Memory::Allocators {
-	// Shared CRTP-free base. `track()` is a locked seam for future tagging/scope
-	// instrumentation (Data Class enforcement) - a no-op today so every concrete
-	// allocator already participates once a real body is filled in here.
+	// track() is a deliberate no-op seam for future allocation tagging/instrumentation.
 	struct AllocatorTrackingBase {
 	protected:
 		void track() noexcept {}
@@ -63,6 +61,7 @@ namespace Corium::Memory::Allocators {
 	// at the point its own base-specifier list (`: IArena<D>`) is instantiated, so
 	// none of D's member functions are visible yet. The check is deferred to first
 	// construction instead, by which point D is complete.
+
 	template<typename D>
 	class IArena : public AllocatorTrackingBase {
 		using derived_ = D;

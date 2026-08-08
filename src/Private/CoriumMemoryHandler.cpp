@@ -68,7 +68,12 @@ namespace Corium::Memory::Internal {
 	VirtualSegment                   AllocatorRegistry::s_TaskPayloadMemory[MAX_NUMA_NODES]{};
 	Allocators::TaskPayloadAllocator AllocatorRegistry::s_TaskPayloadAllocator[MAX_NUMA_NODES]{};
 
-	// -------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	// Frame API and TLS allocators
+	// ------------------------------------------------------------------------
+
+	VirtualSegment	           	     AllocatorRegistry::s_TlsMemory[MAX_NUMA_NODES]{};
+	Allocators::TlsAllocator         AllocatorRegistry::s_TlsMemoryAllocator[MAX_NUMA_NODES]{};
 
 	AtomicAllocators& AtomicAllocators::instance() {
 		static AtomicAllocators inst;

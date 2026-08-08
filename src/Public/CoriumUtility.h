@@ -25,6 +25,19 @@
 #include "EngineAllocators.h"
 
 namespace Corium::Core::Utils {
+	CORIUM_FORCEINLINE constexpr uint64_t fibonacciHash(uint64_t v_Key, uint32_t v_ShiftBits = 0) noexcept {
+		return (v_Key >> v_ShiftBits) * 0x9e3779b97f4a7c15ULL;
+	}
+
+	CORIUM_FORCEINLINE constexpr uint64_t murmurHash(uint64_t v_Key) noexcept {
+		v_Key ^= v_Key >> 33;
+		v_Key *= 0xff51afd7ed558ccdULL;
+		v_Key ^= v_Key >> 33;
+		v_Key *= 0xc4ceb9fe1a85ec53ULL;
+		v_Key ^= v_Key >> 33;
+		return v_Key;
+	}
+
 	template<typename R, typename... Args>
 	struct Trampoline {
 		template<typename L>

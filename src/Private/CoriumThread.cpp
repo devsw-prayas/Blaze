@@ -31,14 +31,14 @@ namespace Corium::Core {
 		Closure<void()>                       m_Closure;
 		Memory::Allocators::GeneralAllocator* m_Allocator;
 		size_t                                m_Slot;
+		size_t								  m_TlsSize;
 
 		LaunchContext(Closure<void()>&& u_Closure,
-					  Memory::Allocators::GeneralAllocator* p_Allocator,
-					  size_t                                  v_Slot) noexcept
+			Memory::Allocators::GeneralAllocator* p_Allocator, size_t v_Slot, size_t v_TlsSize) noexcept
 			: m_Closure(std::move(u_Closure))
 			, m_Allocator(p_Allocator)
-			, m_Slot(v_Slot) {
-		}
+			, m_Slot(v_Slot)
+			, m_TlsSize(v_TlsSize) {}
 	};
 
 	// RegistryEntry
@@ -116,7 +116,7 @@ namespace Corium::Core {
 	};
 
 	CORIUM_STATIC_ASSERT(sizeof(RegistryEntry) <= 64,
-						 "RegistryEntry must fit in one cache line");
+		"RegistryEntry must fit in one cache line");
 
 	namespace {
 		// Global thread registry — process-lifetime, zero-initialized.
@@ -170,14 +170,28 @@ namespace Corium::Core {
 			ThreadState::RUNNING);
 		this_thread::t_Permit = ParkHandle{ 0u };
 
+		// Carve this thread's TLS slice and initialize the thread_local allocator.
+		// VirtualSegment is heap-allocated from the same GeneralAllocator as LaunchContext —
+		// one-time cost, irrelevant next to the kernel thread creation call.
+		const uint32_t v_NumaNode = g_Registry[v_Slot].m_NumaNode;
+		void* p_TlsMem = Memory::Internal::AtomicAllocators::instance()
+			.s_TlsAllocator[v_NumaNode].load(MemoryOrder::ACQUIRE)->allocate(p_Ctx->m_TlsSize);
+
+		auto* p_TlsSegment = p_Ctx->m_Allocator->emplace<Memory::VirtualSegment>(
+			p_TlsMem, p_Ctx->m_TlsSize, 0u, static_cast<uint8_t>(v_NumaNode));
+		this_thread::t_ThreadLocalAllocator.init(p_TlsSegment);
+
+		// Launch from launch address
 		p_Ctx->m_Closure();
 
 		g_Registry[v_Slot].setState(ThreadState::SEALED);
 
 		auto* p_Alloc = p_Ctx->m_Allocator;
+		p_Alloc->deallocate(p_TlsSegment, sizeof(Memory::VirtualSegment));
 		p_Ctx->~LaunchContext();
 		p_Alloc->deallocate(p_Ctx, sizeof(LaunchContext));
 
+		// TODO Frame
 		return 0;
 #else
 		// TODO: Linux implementation
@@ -189,9 +203,9 @@ namespace Corium::Core {
 
 	ThreadHandle NativeThread::createThread(ThreadLaunchDesc&& u_LaunchDesc, const ThreadAttrDesc& ro_ExecDesc) noexcept {
 		CORIUM_ASSERT(u_LaunchDesc.m_State == DescriptorState::FROZEN
-					  && "ThreadLaunchDesc must be validated (call validate()) before createThread");
+			&& "ThreadLaunchDesc must be validated (call validate()) before createThread");
 		CORIUM_ASSERT(ro_ExecDesc.m_State == DescriptorState::FROZEN
-					  && "ThreadAttrDesc must be validated (call validate()) before createThread");
+			&& "ThreadAttrDesc must be validated (call validate()) before createThread");
 
 		const size_t v_Slot = findFreeSlot();
 		if (v_Slot == INVALID_SLOT) return ThreadHandle::getInvalidThread();
@@ -206,7 +220,8 @@ namespace Corium::Core {
 		auto* p_Ctx = p_Alloc->emplace<LaunchContext>(
 			std::move(u_LaunchDesc.m_StartPoint),
 			p_Alloc,
-			v_Slot);
+			v_Slot,
+			u_LaunchDesc.m_VaSize);
 
 		if (!p_Ctx) {
 			r_Entry.releaseToken(v_Token);
@@ -240,14 +255,14 @@ namespace Corium::Core {
 				groupAffinity.Mask = ro_ExecDesc.m_Mask;
 				groupAffinity.Group = static_cast<WORD>(ro_ExecDesc.m_GroupId);
 				UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY,
-										  &groupAffinity, sizeof(groupAffinity), nullptr, nullptr);
+					&groupAffinity, sizeof(groupAffinity), nullptr, nullptr);
 			}
 			if (ro_ExecDesc.m_SupportsIdealProcessor) {
 				PROCESSOR_NUMBER procNum{};
 				procNum.Group = static_cast<WORD>(ro_ExecDesc.m_GroupId);
 				procNum.Number = static_cast<BYTE>(ro_ExecDesc.m_IdealProcessor);
 				UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR,
-										  &procNum, sizeof(procNum), nullptr, nullptr);
+					&procNum, sizeof(procNum), nullptr, nullptr);
 			}
 		}
 
@@ -479,8 +494,8 @@ namespace Corium::Core {
 		WaitOnAddress(ro_Support.data(), &v_Expected, sizeof(uint32_t), v_Timeout);
 #else
 		// TODO: Linux futex with timeout
-		(void)ro_Support;
-		(void)v_Deadline;
+		(void) ro_Support;
+		(void) v_Deadline;
 #endif
 	}
 }

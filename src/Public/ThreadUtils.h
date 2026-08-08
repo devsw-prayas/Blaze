@@ -58,7 +58,7 @@ namespace Corium::Core {
 
 	enum class DescriptorState : uint8_t { UNINITIALIZED, MUTABLE, FROZEN };
 
-	struct CORIUM_RUNTIME_API alignas(64) ThreadAttrDesc final {
+	struct CORIUM_RUNTIME_API alignas(32) ThreadAttrDesc final {
 		AffinityMask m_Mask;
 		ProcessorIdx m_IdealProcessor;
 		ThreadPriority m_ThreadPriority;
@@ -83,6 +83,7 @@ namespace Corium::Core {
 
 	void CORIUM_RUNTIME_API init(ThreadAttrDesc& ro_Desc);
 	void CORIUM_RUNTIME_API setAffinity(ThreadAttrDesc& ro_Desc, AffinityMask v_Mask);
+	void CORIUM_RUNTIME_API setPriority(ThreadAttrDesc& ro_Desc, ThreadPriority v_Priority);
 	void CORIUM_RUNTIME_API shouldSupportIdealProcessor(ThreadAttrDesc& ro_Desc, Flag v_Permission);
 	void CORIUM_RUNTIME_API setIdealProcessor(ThreadAttrDesc& ro_Desc, ProcessorIdx v_Idx);
 	void CORIUM_RUNTIME_API canDetach(ThreadAttrDesc& ro_Desc, Flag v_Permission);
@@ -140,7 +141,7 @@ namespace Corium::Core {
 		size_t m_AccessToken;
 		ThreadState m_State;
 
-		constexpr ThreadHandle(size_t v_ThreadId, size_t v_Generation, size_t v_AccessToken, ThreadState v_State) 
+		constexpr ThreadHandle(size_t v_ThreadId, size_t v_Generation, size_t v_AccessToken, ThreadState v_State)
 			: m_ThreadId(v_ThreadId), m_Generation(v_Generation), m_AccessToken(v_AccessToken), m_State(v_State) {}
 
 	public:
@@ -155,7 +156,22 @@ namespace Corium::Core {
 	};
 
 	namespace this_thread {
-		static thread_local ThreadHandle t_Handle = ThreadHandle::getInvalidThread();
-		static thread_local ParkHandle   t_Permit { 0u };
+		extern thread_local ThreadHandle                       t_Handle;
+		extern thread_local ParkHandle                         t_Permit;
+		extern thread_local Memory::Allocators::TlsAllocator   t_ThreadLocalAllocator;
+
+		CORIUM_RUNTIME_API Memory::Allocators::TlsAllocator& allocator() noexcept;
+		CORIUM_RUNTIME_API ThreadHandle& currentHandle() noexcept;
+		CORIUM_RUNTIME_API ParkHandle& currentPermit() noexcept;
+
+		template<typename T, typename...Args>
+		CORIUM_NODISCARD T* create(Args&&...u_Args) noexcept {
+			return allocator().emplace<T>(std::forward<Args>(u_Args)...);
+		}
+
+		template<typename T>
+		void destroy(T* p_Loc) noexcept {
+			p_Loc->~T();
+		}
 	}
 }

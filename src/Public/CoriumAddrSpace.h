@@ -56,7 +56,10 @@ namespace Corium::Memory::Internal {
 	constexpr uint32_t ParamsPerTask = 8;
 
 	// Per-node region sizes — proportionally scaled 4x from the original 32 GiB layout
-	constexpr Bytes ThreadLocalStorageSize = Bytes{ 4_GiB };
+	constexpr Bytes ThreadLocalStorageSize = Bytes{ (CORIUM_SPACE_TLS_TOTAL) * 1_MiB };
+	CORIUM_STATIC_ASSERT(ThreadLocalStorageSize <= 10_GiB,
+		"CORIUM_SPACE_TLS_TOTAL must not exceed 10 GiB (4 GiB default + 6 GiB max growth), "
+		"to leave headroom in the per-node reserved/future VA slice");
 	constexpr Bytes FrameStorageSize = Bytes{ 4_GiB };
 	constexpr Bytes RuntimeVASize = Bytes{ 24_GiB };
 	constexpr Bytes TaskMetadataVASize = Bytes{ 32_GiB };
@@ -340,5 +343,7 @@ namespace Corium::Memory::Internal {
 	struct alignas(64) GPUContextHeader       final {};
 
 	// Call this before anything else. Every subsystem depends on it.
-	CORIUM_RUNTIME_API bool init();
+	// v_NodeCount must be <= MAX_NUMA_NODES - VA is only reserved for real,
+	// detected NUMA nodes, not every compile-time slot.
+	CORIUM_RUNTIME_API bool init(uint32_t v_NodeCount);
 }

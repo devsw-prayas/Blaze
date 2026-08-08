@@ -34,19 +34,16 @@ namespace Corium::Memory::Allocators {
 			m_Bump.store(0, Core::Atomics::MemoryOrder::RELAXED);
 		}
 	};
-
-	// The four Task/ControlBlock/Closure allocators were identical hand-copies of
-	// the same raw bump-backed emplace<T>() body. Collapsed into one template +
-	// tag-based aliases so they stay distinct named types (arrays of them,
-	// AllocatorRegistry fields, etc. all still work unchanged) while sharing one
-	// definition, inherited unchanged from IAllocator<void, BumpAllocator, D>.
+	
 	template<typename Tag>
 	struct RawBumpAllocator final : IAllocator<void, BumpAllocator, RawBumpAllocator<Tag>> {};
 
 	using TaskMetadataAllocator = RawBumpAllocator<struct TaskMetadataTag>;
-	using TaskPayloadAllocator  = RawBumpAllocator<struct TaskPayloadTag>;
+	using TaskPayloadAllocator = RawBumpAllocator<struct TaskPayloadTag>;
 	using ControlBlockAllocator = RawBumpAllocator<struct ControlBlockTag>;
-	using ClosureAllocator      = RawBumpAllocator<struct ClosureTag>;
+	using ClosureAllocator = RawBumpAllocator<struct ClosureTag>;
+	using TlsAllocator = RawBumpAllocator<struct TlsTag>;
+	using FrameAllocator = RawBumpAllocator<struct FrameTag>;
 
 	template<>
 	struct CORIUM_RUNTIME_API ResolveAllocation<TaskMetadataAllocator> final {
@@ -68,7 +65,7 @@ namespace Corium::Memory::Allocators {
 		static constexpr AllocationTrait trait = AllocationTrait::Persistent;
 	};
 
-	struct alignas(64) CORIUM_RUNTIME_API GeneralAllocator final : IAllocator<void, BumpAllocator, GeneralAllocator> {
+	struct alignas(64) CORIUM_RUNTIME_API GeneralAllocator final : IAllocator<void, BumpAllocator, GeneralAllocator>{
 	private:
 		struct alignas(16) BlockHeader final {
 			size_t m_SizeAndFlags;   // lower bit = free flag
@@ -280,5 +277,4 @@ namespace Corium::Memory::Allocators {
 			IAllocator<void, BumpAllocator, GeneralAllocator>::reset();
 		}
 	};
-
 }

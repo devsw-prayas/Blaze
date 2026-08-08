@@ -21,7 +21,10 @@
 
 #pragma once
 #ifndef CORIUM_RUNTIME_API
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(CORIUM_STATIC)
+#define CORIUM_RUNTIME_API
+
+#elif defined(_WIN32) || defined(__CYGWIN__)
 #if defined(CORIUM_SHARED)
 #define CORIUM_RUNTIME_API __declspec(dllexport)
 #else

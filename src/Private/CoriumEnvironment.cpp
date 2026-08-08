@@ -67,8 +67,13 @@ namespace Corium::Environment {
 				}
 
 			case RelationNumaNode:
-				g_CpuInfo.m_NumaNodeCount++;
-				break;
+				{
+					const auto& numa = entry->NumaNode;
+					if (numa.NodeNumber < CORIUM_MAX_NUMA)
+						g_CpuInfo.m_NumaNodeMasks[numa.NodeNumber] = numa.GroupMask.Mask;
+					g_CpuInfo.m_NumaNodeCount++;
+					break;
+				}
 
 			case RelationCache:
 				{
@@ -275,6 +280,7 @@ namespace Corium::Environment {
 		CORIUM_UNUSED(p_Reason);
 		CORIUM_UNUSED(p_FileName);
 		CORIUM_UNUSED(v_Line);
+		//TODO
 #ifdef _WIN32
 		TerminateProcess(GetCurrentProcess(), EXIT_FAILURE);
 #else
