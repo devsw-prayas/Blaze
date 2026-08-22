@@ -3,6 +3,7 @@
 #include "AtomicVariable.h"
 #include "CoriumAllocator.h"
 #include "CoriumMemory.h"
+#include "PlatIntrin.h"
 
 namespace Corium::Memory::Allocators {
 	struct CORIUM_RUNTIME_API CORIUM_ALIGNAS(64) BumpAllocator : IArena<BumpAllocator> {
@@ -93,6 +94,24 @@ namespace Corium::Memory::Allocators {
 
 	private:
 		BlockHeader* m_FreeList = nullptr;
+		Core::Atomic::AtomicValue32<uint32_t> m_Lock{ 0 };
+
+		// findFree/insertFree/split/coalesce touch m_FreeList and block headers with plain
+		// pointers, so this bookkeeping needs real mutual exclusion.
+		// TODO: whole-function lock is coarse (shows up as jitter under contention) - revisit
+		// with finer-grained locking or a lock-free free-list if it ever becomes a hot path.
+		struct LockGuard final {
+			Core::Atomic::AtomicValue32<uint32_t>& m_Lock;
+			explicit LockGuard(Core::Atomic::AtomicValue32<uint32_t>& r_Lock) : m_Lock(r_Lock) {
+				uint32_t expected = 0;
+				while (!m_Lock.compareExchange(&expected, 1u,
+					Core::Atomics::MemoryOrder::ACQUIRE, Core::Atomics::MemoryOrder::RELAXED)) {
+					expected = 0;
+					Corium::Intrinsic::Pause();
+				}
+			}
+			~LockGuard() { m_Lock.store(0u, Core::Atomics::MemoryOrder::RELEASE); }
+		};
 
 	private:
 		static CORIUM_FORCEINLINE uintptr_t alignUp(uintptr_t v, size_t a) {
@@ -213,21 +232,31 @@ namespace Corium::Memory::Allocators {
 		// always be carved out after the header); falls back to the freelist when
 		// the arena is exhausted.
 		void* allocateImpl(size_t size, size_t alignment) {
+			LockGuard guard(m_Lock);
 			if (!m_UnderlyingArena.m_Base) return nullptr;
 
 			const size_t slack = alignment > alignof(BlockHeader) ? alignment - alignof(BlockHeader) : 0;
-			const size_t total = sizeof(BlockHeader) + slack + size + sizeof(BlockFooter);
+			// BACK_PTR_SLOT: header always sits at the arena's own start for this block (raw,
+			// or a free-list block's own address) - never shifted for alignment, or the
+			// shifted-over bytes become an untracked gap next()/prev() can walk into as a fake
+			// neighbor. Any slack needed for an over-aligned userPtr lands *after* the header
+			// instead, inside this block's own already-accounted span, with the real header's
+			// address stashed in the pointer-sized slot immediately before userPtr so
+			// deallocateImpl can recover it regardless of how far alignment pushed userPtr.
+			constexpr size_t BACK_PTR_SLOT = sizeof(BlockHeader*);
+			const size_t total = alignUp(sizeof(BlockHeader) + BACK_PTR_SLOT + slack + size + sizeof(BlockFooter), alignof(BlockHeader));
 
 			if (uint8_t* raw = static_cast<uint8_t*>(m_UnderlyingArena.allocate(total, alignof(BlockHeader)))) {
-				uintptr_t aligned = alignUp(reinterpret_cast<uintptr_t>(raw) + sizeof(BlockHeader), alignment);
+				auto* header = reinterpret_cast<BlockHeader*>(raw);
+				uint8_t* userPtr = reinterpret_cast<uint8_t*>(alignUp(
+					reinterpret_cast<uintptr_t>(raw) + sizeof(BlockHeader) + BACK_PTR_SLOT, alignment));
+				*reinterpret_cast<BlockHeader**>(userPtr - BACK_PTR_SLOT) = header;
 
-				auto* header = reinterpret_cast<BlockHeader*>(aligned - sizeof(BlockHeader));
-				uint8_t* userPtr = reinterpret_cast<uint8_t*>(aligned);
-
-				size_t used = (userPtr - reinterpret_cast<uint8_t*>(header)) + size + sizeof(BlockFooter);
-
-				header->set(used, false);
-				footer(header)->m_Size = used;
+				header->set(total, false);
+				footer(header)->m_Size = total;
+				// no stale free-list linkage carried forward into this block's new life
+				header->m_NextFree = nullptr;
+				header->m_PrevFree = nullptr;
 
 				return userPtr;
 			}
@@ -239,7 +268,13 @@ namespace Corium::Memory::Allocators {
 			split(b, total);
 
 			b->set(b->size(), false);
-			return reinterpret_cast<uint8_t*>(b) + sizeof(BlockHeader);
+			b->m_NextFree = nullptr;
+			b->m_PrevFree = nullptr;
+
+			uint8_t* userPtr = reinterpret_cast<uint8_t*>(alignUp(
+				reinterpret_cast<uintptr_t>(b) + sizeof(BlockHeader) + BACK_PTR_SLOT, alignment));
+			*reinterpret_cast<BlockHeader**>(userPtr - BACK_PTR_SLOT) = b;
+			return userPtr;
 		}
 
 		void* allocateImpl(size_t size) {
@@ -249,9 +284,10 @@ namespace Corium::Memory::Allocators {
 		// Real coalesce-and-cursor-rewind reclaim - unlike the pure-bump
 		// allocators, GeneralAllocator actually reclaims individual blocks.
 		void deallocateImpl(void* ptr, size_t) {
+			LockGuard guard(m_Lock);
 			if (!ptr) return;
 
-			auto* b = reinterpret_cast<BlockHeader*>(static_cast<uint8_t*>(ptr) - sizeof(BlockHeader));
+			auto* b = *reinterpret_cast<BlockHeader**>(static_cast<uint8_t*>(ptr) - sizeof(BlockHeader*));
 			b->set(b->size(), true);
 			b = coalesce(b);
 
@@ -273,6 +309,7 @@ namespace Corium::Memory::Allocators {
 		// Own reset: the base only knows how to reset the composed BumpAllocator's
 		// bump pointer - the freelist is GeneralAllocator's own state on top of it.
 		void reset() {
+			LockGuard guard(m_Lock);
 			m_FreeList = nullptr;
 			IAllocator<void, BumpAllocator, GeneralAllocator>::reset();
 		}

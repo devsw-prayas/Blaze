@@ -10,6 +10,14 @@ else()
     project(Corium LANGUAGES CXX)
 endif()
 
+# Real MSVC (cl.exe) has no x64 inline-asm support, so CoriumFrame_ContextSwitch
+# is a true MASM .asm TU on that toolchain. clang-cl also sets CMAKE_CXX_COMPILER_ID
+# to "Clang" (not "MSVC"), so this correctly excludes it - clang-cl gets the
+# naked-function inline-asm implementation in CoriumFrameSwitchClang.cpp instead.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    enable_language(ASM_MASM)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -19,6 +27,17 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 file(GLOB_RECURSE CORIUM_PUBLIC    CONFIGURE_DEPENDS "src/Public/*.h")
 file(GLOB_RECURSE CORIUM_PRIVATE   CONFIGURE_DEPENDS "src/Private/*.cpp")
 file(GLOB_RECURSE CORIUM_INTERNAL  CONFIGURE_DEPENDS "src/Internal/*.h")
+
+# MASM sources only participate in the build under real MSVC - see the
+# CoriumFrame_ContextSwitch comment above enable_language(ASM_MASM). Under any
+# other toolchain the Clang naked-function TU (picked up by CORIUM_PRIVATE's
+# *.cpp glob already) provides the same symbol instead.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    file(GLOB_RECURSE CORIUM_ASM CONFIGURE_DEPENDS "src/Private/*.asm")
+    set_source_files_properties(${CORIUM_ASM} PROPERTIES LANGUAGE ASM_MASM)
+else()
+    set(CORIUM_ASM "")
+endif()
 
 if (CORIUM_ENABLE_CUDA)
     file(GLOB_RECURSE CORIUM_CUDA CONFIGURE_DEPENDS
@@ -39,6 +58,7 @@ add_library(Corium ${CORIUM_LIB_TYPE}
     ${CORIUM_PUBLIC}
     ${CORIUM_PRIVATE}
     ${CORIUM_INTERNAL}
+    ${CORIUM_ASM}
     $<$<BOOL:${CORIUM_ENABLE_CUDA}>:${CORIUM_CUDA}>
 )
 
@@ -50,6 +70,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES
     ${CORIUM_PUBLIC}
     ${CORIUM_PRIVATE}
     ${CORIUM_INTERNAL}
+    ${CORIUM_ASM}
     ${CORIUM_CUDA}
 )
 
@@ -106,6 +127,6 @@ target_compile_definitions(Corium PUBLIC $<$<BOOL:${CORIUM_ENABLE_DEBUG_CHECKS}>
 
 if (MSVC)
     set_property(TARGET Corium PROPERTY
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
     )
 endif()

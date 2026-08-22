@@ -222,14 +222,13 @@ namespace Corium::Memory::Allocators {
 			return static_cast<derived_*>(this)->allocateImpl(v_Bytes);
 		}
 
-		// Allocate + placement-construct in one call - unchanged from the previous
-		// combined-template behaviour; this is the exact shape CoriumPointers.h's
-		// UniquePtr/SharedPtr/WeakPtr TAllocator contract depends on.
+		// Placement-new at a caller-supplied, already-allocated pointer only -
+		// symmetric with the typed (T != void) tier's emplace(T*, Args&&...)
+		// below; callers now allocate and construct as two separate steps.
 		template<typename U, typename... Args>
-		U* emplace(Args&&... v_Args) requires std::is_void_v<T> {
-			void* p_Mem = static_cast<derived_*>(this)->allocateImpl(sizeof(U), alignof(U));
-			if (!p_Mem) return nullptr;
-			return ::new (p_Mem) U(std::forward<Args>(v_Args)...);
+		U* emplace(void* p_Ptr, Args&&... v_Args) requires std::is_void_v<T> {
+			CORIUM_ASSERT(p_Ptr != nullptr);
+			return ::new (p_Ptr) U(std::forward<Args>(v_Args)...);
 		}
 
 		// Policy-defined: no-op for pure-bump derivations, real freelist reclaim

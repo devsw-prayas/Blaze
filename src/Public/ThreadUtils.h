@@ -37,7 +37,7 @@ namespace Corium::Core {
 
 	template<typename S, typename F>
 	Closure<S> createClosure(F&& u_Func) {
-		return Closure<S>(std::forward<F>(u_Func), &Memory::Internal::AtomicAllocators::s_ClosureAllocator);
+		return Utils::buildClosure<S>(std::forward<F>(u_Func), 0);
 	}
 
 	using AffinityMask = size_t;
@@ -166,7 +166,8 @@ namespace Corium::Core {
 
 		template<typename T, typename...Args>
 		CORIUM_NODISCARD T* create(Args&&...u_Args) noexcept {
-			return allocator().emplace<T>(std::forward<Args>(u_Args)...);
+			void* memory = allocator().allocate(sizeof(T), alignof(T));
+			return memory ? allocator().emplace<T>(memory, std::forward<Args>(u_Args)...) : nullptr;
 		}
 
 		template<typename T>

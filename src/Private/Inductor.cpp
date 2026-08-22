@@ -12,10 +12,10 @@ namespace Corium::Execution::Inductor {
         if (!CoriumRuntime::isRuntimeInit()) return false;
         if (v_Node >= Environment::EnvironmentProbe::getCpuInfo().m_NumaNodeCount) return false;
 
-        auto& r_Allocs = Memory::Internal::AtomicAllocators::instance();
+        auto& allocators = Memory::Internal::AtomicAllocators::instance();
         ro_Desc.m_MemDesc = Memory::SharedPtr<TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator>::make(
-            r_Allocs.s_TaskMemoryDescAllocator[v_Node].load(),
-            r_Allocs.s_ControlBlockAllocator[v_Node].load()
+            allocators.s_TaskMemoryDescAllocator[v_Node].load(),
+            allocators.s_ControlBlockAllocator[v_Node].load()
         );
         if (!ro_Desc.m_MemDesc) return false;
 
@@ -36,27 +36,27 @@ namespace Corium::Execution::Inductor {
     TaskFrame TaskInductor::cook(TaskDesc& ro_Desc) {
         if (!validate(ro_Desc)) return TaskFrame{};
 
-        const uint32_t v_Node   = ro_Desc.m_NumaNode;
-        const uint32_t v_InSz   = ro_Desc.m_MemDesc->m_InputBufferSize;
-        const uint32_t v_OutSz  = ro_Desc.m_MemDesc->m_OutputBufferSize;
+        const uint32_t node   = ro_Desc.m_NumaNode;
+        const uint32_t inputSize   = ro_Desc.m_MemDesc->m_InputBufferSize;
+        const uint32_t outputSize  = ro_Desc.m_MemDesc->m_OutputBufferSize;
 
-        auto& r_Allocs   = Memory::Internal::AtomicAllocators::instance();
-        auto* p_PayAlloc = r_Allocs.s_TaskPayloadAllocator[v_Node].load();
+        auto& allocators   = Memory::Internal::AtomicAllocators::instance();
+        auto* payloadAllocator = allocators.s_TaskPayloadAllocator[node].load();
 
-        void* p_In  = p_PayAlloc->allocateImpl(v_InSz,  32);
-        void* p_Out = p_PayAlloc->allocateImpl(v_OutSz, 32);
-        if (!p_In || !p_Out) return TaskFrame{};
+        void* input  = payloadAllocator->allocateImpl(inputSize,  32);
+        void* output = payloadAllocator->allocateImpl(outputSize, 32);
+        if (!input || !output) return TaskFrame{};
 
-        std::memset(p_Out, 0, sizeof(Corium::Execution::TaskError));
+        std::memset(output, 0, sizeof(Corium::Execution::TaskError));
 
         ro_Desc.m_State = TaskDescState::FROZEN;
 
-        Memory::WeakPtr<TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> v_Wp{ ro_Desc.m_MemDesc };
+        Memory::WeakPtr<TaskMemoryDesc, Memory::Allocators::TaskMetadataAllocator> weakMemoryDesc{ ro_Desc.m_MemDesc };
 
-        Memory::Internal::VARegion v_InBuf { static_cast<uint8_t*>(p_In),  v_InSz  };
-        Memory::Internal::VARegion v_OutBuf{ static_cast<uint8_t*>(p_Out), v_OutSz };
+        Memory::Internal::VARegion inputBuffer { static_cast<uint8_t*>(input),  inputSize  };
+        Memory::Internal::VARegion outputBuffer{ static_cast<uint8_t*>(output), outputSize };
 
-        return TaskFrame{ std::move(v_Wp), v_InBuf, v_OutBuf };
+        return TaskFrame{ std::move(weakMemoryDesc), inputBuffer, outputBuffer };
     }
 
     bool TaskInductor::reset(TaskDesc& ro_Desc) {

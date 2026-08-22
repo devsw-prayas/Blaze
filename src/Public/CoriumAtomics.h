@@ -12,7 +12,7 @@ namespace Corium::Core::Atomics {
 	};
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atonic load")
+	CORIUM_NODISCARD_MSG("Cannot discard an atonic load") CORIUM_FORCEINLINE
 		Valid atomicLoad(Valid* p_Memory, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -30,7 +30,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic store")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic store") CORIUM_FORCEINLINE
 		void atomicStore(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -50,7 +50,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic exchange")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic exchange") CORIUM_FORCEINLINE
 		Valid atomicExchange32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::ACQ_REL:
@@ -69,7 +69,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic exchange")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic exchange") CORIUM_FORCEINLINE
 		Valid atomicExchange64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::ACQ_REL:
@@ -88,7 +88,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic compare exchange")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic compare exchange") CORIUM_FORCEINLINE
 		Valid atomicCompareExchange32(
 			Valid* p_Memory,
 			T* v_Expected,
@@ -171,7 +171,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic compare exchange")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic compare exchange") CORIUM_FORCEINLINE
 		Valid atomicCompareExchange64(
 			Valid* p_Memory,
 			T* v_Expected,
@@ -247,15 +247,15 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch add")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch add") CORIUM_FORCEINLINE
 		Valid atomicFetchAdd32(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
-		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
+		auto* raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED: return static_cast<Valid>(AtomicFetchAdd32_Relaxed(p_Raw, v_Value));
-		case MemoryOrder::ACQUIRE: return static_cast<Valid>(AtomicFetchAdd32_Acquire(p_Raw, v_Value));
-		case MemoryOrder::RELEASE: return static_cast<Valid>(AtomicFetchAdd32_Release(p_Raw, v_Value));
-		case MemoryOrder::ACQ_REL: return static_cast<Valid>(AtomicFetchAdd32_AcqRel(p_Raw, v_Value));
-		case MemoryOrder::SEQ_CST: return static_cast<Valid>(AtomicFetchAdd32_SeqCst(p_Raw, v_Value));
+		case MemoryOrder::RELAXED: return static_cast<Valid>(AtomicFetchAdd32_Relaxed(raw, v_Value));
+		case MemoryOrder::ACQUIRE: return static_cast<Valid>(AtomicFetchAdd32_Acquire(raw, v_Value));
+		case MemoryOrder::RELEASE: return static_cast<Valid>(AtomicFetchAdd32_Release(raw, v_Value));
+		case MemoryOrder::ACQ_REL: return static_cast<Valid>(AtomicFetchAdd32_AcqRel(raw, v_Value));
+		case MemoryOrder::SEQ_CST: return static_cast<Valid>(AtomicFetchAdd32_SeqCst(raw, v_Value));
 
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
@@ -263,15 +263,15 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch") CORIUM_FORCEINLINE
 		Valid atomicFetchAdd64(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
-		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
+		auto* raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicFetchAdd64_Relaxed(p_Raw, v_Value));
-		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicFetchAdd64_Acquire(p_Raw, v_Value));
-		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicFetchAdd64_Release(p_Raw, v_Value));
-		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicFetchAdd64_AcqRel(p_Raw, v_Value));
-		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicFetchAdd64_SeqCst(p_Raw, v_Value));
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicFetchAdd64_Relaxed(raw, v_Value));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicFetchAdd64_Acquire(raw, v_Value));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicFetchAdd64_Release(raw, v_Value));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicFetchAdd64_AcqRel(raw, v_Value));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicFetchAdd64_SeqCst(raw, v_Value));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -279,15 +279,15 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic increment")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic increment") CORIUM_FORCEINLINE
 		Valid atomicIncrement32(Valid* p_Memory, MemoryOrder v_Ordering) {
-		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
+		auto* raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement32_Relaxed(p_Raw));
-		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicIncrement32_Acquire(p_Raw));
-		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicIncrement32_Release(p_Raw));
-		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicIncrement32_AcqRel(p_Raw));
-		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicIncrement32_SeqCst(p_Raw));
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement32_Relaxed(raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicIncrement32_Acquire(raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicIncrement32_Release(raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicIncrement32_AcqRel(raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicIncrement32_SeqCst(raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -295,15 +295,15 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic increment")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic increment") CORIUM_FORCEINLINE
 		Valid atomicIncrement64(Valid* p_Memory, MemoryOrder v_Ordering) {
-		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
+		auto* raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement64_Relaxed(p_Raw));
-		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicIncrement64_Acquire(p_Raw));
-		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicIncrement64_Release(p_Raw));
-		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicIncrement64_AcqRel(p_Raw));
-		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicIncrement64_SeqCst(p_Raw));
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicIncrement64_Relaxed(raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicIncrement64_Acquire(raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicIncrement64_Release(raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicIncrement64_AcqRel(raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicIncrement64_SeqCst(raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -311,15 +311,15 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement") CORIUM_FORCEINLINE
 		Valid atomicDecrement32(Valid* p_Memory, MemoryOrder v_Ordering) {
-		auto* p_Raw = reinterpret_cast<volatile long*>(p_Memory);
+		auto* raw = reinterpret_cast<volatile long*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement32_Relaxed(p_Raw));
-		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicDecrement32_Acquire(p_Raw));
-		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicDecrement32_Release(p_Raw));
-		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicDecrement32_AcqRel(p_Raw));
-		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicDecrement32_SeqCst(p_Raw));
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement32_Relaxed(raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicDecrement32_Acquire(raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicDecrement32_Release(raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicDecrement32_AcqRel(raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicDecrement32_SeqCst(raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -327,15 +327,15 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic decrement") CORIUM_FORCEINLINE
 		Valid atomicDecrement64(Valid* p_Memory, MemoryOrder v_Ordering) {
-		auto* p_Raw = reinterpret_cast<volatile __int64*>(p_Memory);
+		auto* raw = reinterpret_cast<volatile __int64*>(p_Memory);
 		switch (v_Ordering) {
-		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement64_Relaxed(p_Raw));
-		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicDecrement64_Acquire(p_Raw));
-		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicDecrement64_Release(p_Raw));
-		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicDecrement64_AcqRel(p_Raw));
-		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicDecrement64_SeqCst(p_Raw));
+		case MemoryOrder::RELAXED:return static_cast<Valid>(AtomicDecrement64_Relaxed(raw));
+		case MemoryOrder::ACQUIRE:return static_cast<Valid>(AtomicDecrement64_Acquire(raw));
+		case MemoryOrder::RELEASE:return static_cast<Valid>(AtomicDecrement64_Release(raw));
+		case MemoryOrder::ACQ_REL:return static_cast<Valid>(AtomicDecrement64_AcqRel(raw));
+		case MemoryOrder::SEQ_CST:return static_cast<Valid>(AtomicDecrement64_SeqCst(raw));
 		case MemoryOrder::CONSUME: CORIUM_UNREACHABLE();
 		}
 
@@ -343,7 +343,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch AND")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch AND") CORIUM_FORCEINLINE
 		Valid atomicFetchAnd(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -369,7 +369,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch OR")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch OR") CORIUM_FORCEINLINE
 		Valid atomicFetchOr(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -395,7 +395,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch XOR")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch XOR") CORIUM_FORCEINLINE
 		Valid atomicFetchXor(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -421,7 +421,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch NAND")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch NAND") CORIUM_FORCEINLINE
 		Valid atomicFetchNand(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -447,7 +447,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch min long")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch min long") CORIUM_FORCEINLINE
 		Valid atomicMinFetchLong(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -473,7 +473,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch max long")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch max long") CORIUM_FORCEINLINE
 		Valid atomicMaxFetchLong(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -499,7 +499,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch min unsigned long")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch min unsigned long") CORIUM_FORCEINLINE
 		Valid atomicMinFetchULong(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -525,7 +525,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch max unsigned long")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch max unsigned long") CORIUM_FORCEINLINE
 		Valid atomicMaxFetchULong(Valid* p_Memory, T v_Value, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -551,7 +551,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch test and set")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic fetch test and set") CORIUM_FORCEINLINE
 		bool atomicTestAndSet(Valid* p_Memory, int bit, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:
@@ -577,7 +577,7 @@ namespace Corium::Core::Atomics {
 	}
 
 	template<typename T, typename Valid = Intrinsic::ValidAtomicParameter<T>::Type>
-	CORIUM_FORCEINLINE CORIUM_NODISCARD_MSG("Cannot discard an atomic clear")
+	CORIUM_NODISCARD_MSG("Cannot discard an atomic clear") CORIUM_FORCEINLINE
 		bool atomicClear(Valid* p_Memory, int bit, MemoryOrder v_Ordering) {
 		switch (v_Ordering) {
 		case MemoryOrder::RELAXED:

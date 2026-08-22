@@ -15,8 +15,8 @@ namespace Corium::Runtime::Sync {
 		CORIUM_DEBUG_ASSERT(next != UINT32_MAX);
 #endif
 		if (next == 0) {// Last Thread
-			Core::ParkingSupport v_Support(&m_Counter);
-			Core::NativeThread::wakeAllOnAddress(v_Support);
+			Core::ParkingSupport support(&m_Counter);
+			Core::NativeThread::wakeAllOnAddress(support);
 		}
 	}
 
@@ -30,8 +30,8 @@ namespace Corium::Runtime::Sync {
 				expected = m_Counter.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			}
 			if (expected == 0) return;
-			Core::ParkingSupport v_Support(&m_Counter);
-			Core::NativeThread::waitOnAddress(v_Support, expected); // Blocking wait
+			Core::ParkingSupport support(&m_Counter);
+			Core::NativeThread::waitOnAddress(support, expected); // Blocking wait
 		}
 	}
 
@@ -45,8 +45,8 @@ namespace Corium::Runtime::Sync {
 			}
 			if (expected == 0) return true;
 			if (v_Deadline.isExpired()) return false;
-			Core::ParkingSupport v_Support(&m_Counter);
-			Core::NativeThread::waitOnAddressFor(v_Support, v_Deadline);
+			Core::ParkingSupport support(&m_Counter);
+			Core::NativeThread::waitOnAddressFor(support, v_Deadline);
 		}
 	}
 
@@ -61,49 +61,51 @@ namespace Corium::Runtime::Sync {
 	uint32_t CyclicBarrier::await() {
 		uint32_t gen = m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 		uint32_t rem = m_Remaining.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
-		Core::ParkingSupport v_Support(&m_Generation);
+		Core::ParkingSupport support(&m_Generation);
 
 		if (rem == 0) {
 			m_Remaining.store(m_Parties, Core::Atomics::MemoryOrder::RELEASE);
 			m_Generation.m_ParkingPermit.increment(Core::Atomics::MemoryOrder::ACQ_REL);
-			Core::NativeThread::wakeAllOnAddress(v_Support);
+			Core::NativeThread::wakeAllOnAddress(support);
+			m_IsBroken.store(false, Core::Atomics::MemoryOrder::RELEASE); // heal any prior break
 			return 0;
 		}
 
 		while (m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE) == gen && !isBroken())
-			Core::NativeThread::waitOnAddress(v_Support, gen);
+			Core::NativeThread::waitOnAddress(support, gen);
 		return 0;
 	}
 
 	bool CyclicBarrier::await(Chrono::Instant v_Deadline) {
 		uint32_t gen = m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 		uint32_t rem = m_Remaining.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
-		Core::ParkingSupport v_Support(&m_Generation);
+		Core::ParkingSupport support(&m_Generation);
 
 		if (rem == 0) {
 			m_Remaining.store(m_Parties, Core::Atomics::MemoryOrder::RELEASE);
 			m_Generation.m_ParkingPermit.increment(Core::Atomics::MemoryOrder::ACQ_REL);
-			Core::NativeThread::wakeAllOnAddress(v_Support);
+			Core::NativeThread::wakeAllOnAddress(support);
+			m_IsBroken.store(false, Core::Atomics::MemoryOrder::RELEASE);
 			return true;
 		}
 
 		while (m_Generation.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE) == gen && !isBroken()) {
 			if (v_Deadline.isExpired()) {
 				m_IsBroken.store(true, Core::Atomics::MemoryOrder::RELEASE);
-				Core::NativeThread::wakeAllOnAddress(v_Support);
+				Core::NativeThread::wakeAllOnAddress(support);
 				return false;
 			}
-			Core::NativeThread::waitOnAddressFor(v_Support, v_Deadline);
+			Core::NativeThread::waitOnAddressFor(support, v_Deadline);
 		}
 		return !isBroken();
 	}
 
 	void CyclicBarrier::reset() {
 		m_Remaining.store(m_Parties, Core::Atomics::MemoryOrder::RELEASE);
-		m_IsBroken.store(false, Core::Atomics::MemoryOrder::RELEASE);
+		m_IsBroken.store(true, Core::Atomics::MemoryOrder::RELEASE); // await()'s rem==0 branch heals this
 		m_Generation.m_ParkingPermit.increment(Core::Atomics::MemoryOrder::ACQ_REL);
-		Core::ParkingSupport v_Support(&m_Generation);
-		Core::NativeThread::wakeAllOnAddress(v_Support);
+		Core::ParkingSupport support(&m_Generation);
+		Core::NativeThread::wakeAllOnAddress(support);
 	}
 
 	bool CyclicBarrier::isBroken() const {
@@ -136,8 +138,8 @@ namespace Corium::Runtime::Sync {
 			}
 			v = m_Permits.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (v == 0) {
-				Core::ParkingSupport v_Support(&m_Permits);
-				Core::NativeThread::waitOnAddress(v_Support, 0);
+				Core::ParkingSupport support(&m_Permits);
+				Core::NativeThread::waitOnAddress(support, 0);
 			}
 		}
 	}
@@ -158,8 +160,8 @@ namespace Corium::Runtime::Sync {
 			}
 			v = m_Permits.m_ParkingPermit.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (v < v_Permits) {
-				Core::ParkingSupport v_Support(&m_Permits);
-				Core::NativeThread::waitOnAddress(v_Support, v);
+				Core::ParkingSupport support(&m_Permits);
+				Core::NativeThread::waitOnAddress(support, v);
 			}
 		}
 	}
@@ -181,23 +183,23 @@ namespace Corium::Runtime::Sync {
 				if (old == v) return true;
 			}
 			if (v_Deadline.isExpired()) return false;
-			Core::ParkingSupport v_Support(&m_Permits);
-			Core::NativeThread::waitOnAddressFor(v_Support, v_Deadline);
+			Core::ParkingSupport support(&m_Permits);
+			Core::NativeThread::waitOnAddressFor(support, v_Deadline);
 		}
 	}
 
 	void Semaphore::release() {
 		uint32_t prev = m_Permits.m_ParkingPermit.fetchAdd(1, Core::Atomics::MemoryOrder::ACQ_REL);
 		if (prev == 0) {
-			Core::ParkingSupport v_Support(&m_Permits);
-			Core::NativeThread::wakeOnAddress(v_Support);
+			Core::ParkingSupport support(&m_Permits);
+			Core::NativeThread::wakeOnAddress(support);
 		}
 	}
 
 	void Semaphore::release(uint32_t v_Permits) {
 		uint32_t prev = m_Permits.m_ParkingPermit.fetchAdd(v_Permits, Core::Atomics::MemoryOrder::ACQ_REL);
-		Core::ParkingSupport v_Support(&m_Permits);
-		Core::NativeThread::wakeAllOnAddress(v_Support);
+		Core::ParkingSupport support(&m_Permits);
+		Core::NativeThread::wakeAllOnAddress(support);
 	}
 
 	uint32_t Semaphore::availablePermits() const {
@@ -218,11 +220,11 @@ namespace Corium::Runtime::Sync {
 #ifdef _WIN32
 		InitializeCriticalSection(reinterpret_cast<CRITICAL_SECTION*>(m_Storage));
 #elif defined(__linux__)
-		pthread_mutexattr_t v_Attr;
-		pthread_mutexattr_init(&v_Attr);
-		pthread_mutexattr_settype(&v_Attr, PTHREAD_MUTEX_RECURSIVE);
-		pthread_mutex_init(reinterpret_cast<pthread_mutex_t*>(m_Storage), &v_Attr);
-		pthread_mutexattr_destroy(&v_Attr);
+		pthread_mutexattr_t attr;
+		pthread_mutexattr_init(&attr);
+		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+		pthread_mutex_init(reinterpret_cast<pthread_mutex_t*>(m_Storage), &attr);
+		pthread_mutexattr_destroy(&attr);
 #endif
 	}
 
@@ -275,16 +277,16 @@ namespace Corium::Runtime::Sync {
 	}
 
 	void ReentrantLock::lock() noexcept {
-		const uint32_t v_MyTid = currentTid();
+		const uint32_t myTid = currentTid();
 
-		if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == v_MyTid) {
+		if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == myTid) {
 			m_HoldCount.increment(Core::Atomics::MemoryOrder::RELAXED);
 			return;
 		}
 
 		for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-			uint32_t v_Expected = 0u;
-			if (m_OwnerTid.compareExchange(&v_Expected, v_MyTid,
+			uint32_t expected = 0u;
+			if (m_OwnerTid.compareExchange(&expected, myTid,
 					Core::Atomics::MemoryOrder::ACQ_REL,
 					Core::Atomics::MemoryOrder::RELAXED) == 0u) {
 				m_HoldCount.store(1u, Core::Atomics::MemoryOrder::RELAXED);
@@ -294,17 +296,17 @@ namespace Corium::Runtime::Sync {
 		}
 
 		while (true) {
-			uint32_t v_Expected = 0u;
-			if (m_OwnerTid.compareExchange(&v_Expected, v_MyTid,
+			uint32_t expected = 0u;
+			if (m_OwnerTid.compareExchange(&expected, myTid,
 					Core::Atomics::MemoryOrder::ACQ_REL,
 					Core::Atomics::MemoryOrder::RELAXED) == 0u) {
 				m_HoldCount.store(1u, Core::Atomics::MemoryOrder::RELAXED);
 				return;
 			}
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == 0u) continue;
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -312,8 +314,8 @@ namespace Corium::Runtime::Sync {
 	}
 
 	void ReentrantLock::unlock() noexcept {
-		const uint32_t v_Remaining = m_HoldCount.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
-		if (v_Remaining > 0u) return;
+		const uint32_t remaining = m_HoldCount.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
+		if (remaining > 0u) return;
 		m_OwnerTid.store(0u, Core::Atomics::MemoryOrder::RELEASE);
 		m_Gate.fetchAdd(1u, Core::Atomics::MemoryOrder::ACQ_REL);
 #ifdef _WIN32
@@ -324,13 +326,13 @@ namespace Corium::Runtime::Sync {
 	}
 
 	bool ReentrantLock::tryLock() noexcept {
-		const uint32_t v_MyTid = currentTid();
-		if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == v_MyTid) {
+		const uint32_t myTid = currentTid();
+		if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == myTid) {
 			m_HoldCount.increment(Core::Atomics::MemoryOrder::RELAXED);
 			return true;
 		}
-		uint32_t v_Expected = 0u;
-		if (m_OwnerTid.compareExchange(&v_Expected, v_MyTid,
+		uint32_t expected = 0u;
+		if (m_OwnerTid.compareExchange(&expected, myTid,
 				Core::Atomics::MemoryOrder::ACQ_REL,
 				Core::Atomics::MemoryOrder::RELAXED) == 0u) {
 			m_HoldCount.store(1u, Core::Atomics::MemoryOrder::RELAXED);
@@ -340,27 +342,27 @@ namespace Corium::Runtime::Sync {
 	}
 
 	bool ReentrantLock::tryLock(Chrono::Instant v_Deadline) noexcept {
-		const uint32_t v_MyTid = currentTid();
-		if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == v_MyTid) {
+		const uint32_t myTid = currentTid();
+		if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == myTid) {
 			m_HoldCount.increment(Core::Atomics::MemoryOrder::RELAXED);
 			return true;
 		}
 		while (true) {
-			uint32_t v_Expected = 0u;
-			if (m_OwnerTid.compareExchange(&v_Expected, v_MyTid,
+			uint32_t expected = 0u;
+			if (m_OwnerTid.compareExchange(&expected, myTid,
 					Core::Atomics::MemoryOrder::ACQ_REL,
 					Core::Atomics::MemoryOrder::RELAXED) == 0u) {
 				m_HoldCount.store(1u, Core::Atomics::MemoryOrder::RELAXED);
 				return true;
 			}
 			if (v_Deadline.isExpired()) return false;
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_OwnerTid.load(Core::Atomics::MemoryOrder::ACQUIRE) == 0u) continue;
 #ifdef _WIN32
-			const int64_t v_Ms = v_Deadline.remainingMilliseconds();
-			const DWORD v_Timeout = (v_Ms <= 0) ? 0u
-				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), v_Timeout);
+			const int64_t milliseconds = v_Deadline.remainingMilliseconds();
+			const DWORD timeout = (milliseconds <= 0) ? 0u
+				: static_cast<DWORD>(milliseconds < 0xFFFFFFFELL ? milliseconds : 0xFFFFFFFEu);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), timeout);
 #else
 			// TODO: Linux futex with timeout
 			return false;
@@ -384,18 +386,18 @@ namespace Corium::Runtime::Sync {
 	void ReadWriteLock::lockRead() noexcept {
 		for (;;) {
 			for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-				uint32_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-				if (v_State != RWL_WRITE_LOCKED) {
-					if (m_State.compareExchange(&v_State, v_State + 1,
+				uint32_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+				if (state != RWL_WRITE_LOCKED) {
+					if (m_State.compareExchange(&state, state + 1,
 							Core::Atomics::MemoryOrder::ACQ_REL,
-							Core::Atomics::MemoryOrder::RELAXED) == v_State) return;
+							Core::Atomics::MemoryOrder::RELAXED) == state) return;
 				}
 				Intrinsic::Pause();
 			}
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) != RWL_WRITE_LOCKED) continue;
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -403,30 +405,30 @@ namespace Corium::Runtime::Sync {
 	}
 
 	bool ReadWriteLock::tryLockRead() noexcept {
-		uint32_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		if (v_State == RWL_WRITE_LOCKED) return false;
-		return m_State.compareExchange(&v_State, v_State + 1,
+		uint32_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		if (state == RWL_WRITE_LOCKED) return false;
+		return m_State.compareExchange(&state, state + 1,
 			Core::Atomics::MemoryOrder::ACQ_REL,
-			Core::Atomics::MemoryOrder::RELAXED) == v_State;
+			Core::Atomics::MemoryOrder::RELAXED) == state;
 	}
 
 	bool ReadWriteLock::tryLockRead(Chrono::Instant v_Deadline) noexcept {
 		for (;;) {
-			uint32_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v_State != RWL_WRITE_LOCKED) {
-				if (m_State.compareExchange(&v_State, v_State + 1,
+			uint32_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			if (state != RWL_WRITE_LOCKED) {
+				if (m_State.compareExchange(&state, state + 1,
 						Core::Atomics::MemoryOrder::ACQ_REL,
-						Core::Atomics::MemoryOrder::RELAXED) == v_State) return true;
+						Core::Atomics::MemoryOrder::RELAXED) == state) return true;
 				continue;
 			}
 			if (v_Deadline.isExpired()) return false;
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) != RWL_WRITE_LOCKED) continue;
 #ifdef _WIN32
-			const int64_t v_Ms = v_Deadline.remainingMilliseconds();
-			const DWORD v_Timeout = (v_Ms <= 0) ? 0u
-				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), v_Timeout);
+			const int64_t milliseconds = v_Deadline.remainingMilliseconds();
+			const DWORD timeout = (milliseconds <= 0) ? 0u
+				: static_cast<DWORD>(milliseconds < 0xFFFFFFFELL ? milliseconds : 0xFFFFFFFEu);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), timeout);
 #else
 			// TODO: Linux futex with timeout
 			return false;
@@ -435,8 +437,8 @@ namespace Corium::Runtime::Sync {
 	}
 
 	void ReadWriteLock::unlockRead() noexcept {
-		const uint32_t v_New = m_State.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
-		if (v_New == 0) {
+		const uint32_t newState = m_State.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
+		if (newState == 0) {
 			m_Gate.fetchAdd(1u, Core::Atomics::MemoryOrder::ACQ_REL);
 #ifdef _WIN32
 			WakeByAddressSingle(m_Gate.data()); // only one writer can win
@@ -449,16 +451,16 @@ namespace Corium::Runtime::Sync {
 	void ReadWriteLock::lockWrite() noexcept {
 		for (;;) {
 			for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-				uint32_t v_Expected = 0u;
-				if (m_State.compareExchange(&v_Expected, RWL_WRITE_LOCKED,
+				uint32_t expected = 0u;
+				if (m_State.compareExchange(&expected, RWL_WRITE_LOCKED,
 						Core::Atomics::MemoryOrder::ACQ_REL,
 						Core::Atomics::MemoryOrder::RELAXED) == 0u) return;
 				Intrinsic::Pause();
 			}
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) == 0u) continue;
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -466,26 +468,26 @@ namespace Corium::Runtime::Sync {
 	}
 
 	bool ReadWriteLock::tryLockWrite() noexcept {
-		uint32_t v_Expected = 0u;
-		return m_State.compareExchange(&v_Expected, RWL_WRITE_LOCKED,
+		uint32_t expected = 0u;
+		return m_State.compareExchange(&expected, RWL_WRITE_LOCKED,
 			Core::Atomics::MemoryOrder::ACQ_REL,
 			Core::Atomics::MemoryOrder::RELAXED) == 0u;
 	}
 
 	bool ReadWriteLock::tryLockWrite(Chrono::Instant v_Deadline) noexcept {
 		for (;;) {
-			uint32_t v_Expected = 0u;
-			if (m_State.compareExchange(&v_Expected, RWL_WRITE_LOCKED,
+			uint32_t expected = 0u;
+			if (m_State.compareExchange(&expected, RWL_WRITE_LOCKED,
 					Core::Atomics::MemoryOrder::ACQ_REL,
 					Core::Atomics::MemoryOrder::RELAXED) == 0u) return true;
 			if (v_Deadline.isExpired()) return false;
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) == 0u) continue;
 #ifdef _WIN32
-			const int64_t v_Ms = v_Deadline.remainingMilliseconds();
-			const DWORD v_Timeout = (v_Ms <= 0) ? 0u
-				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), v_Timeout);
+			const int64_t milliseconds = v_Deadline.remainingMilliseconds();
+			const DWORD timeout = (milliseconds <= 0) ? 0u
+				: static_cast<DWORD>(milliseconds < 0xFFFFFFFELL ? milliseconds : 0xFFFFFFFEu);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), timeout);
 #else
 			// TODO: Linux futex with timeout
 			return false;
@@ -508,8 +510,8 @@ namespace Corium::Runtime::Sync {
 	}
 
 	uint32_t ReadWriteLock::getReadLockCount() const noexcept {
-		const uint32_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		return (v_State == RWL_WRITE_LOCKED) ? 0u : v_State;
+		const uint32_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		return (state == RWL_WRITE_LOCKED) ? 0u : state;
 	}
 
 	// ─── StampedLock ─────────────────────────────────────────────────────────
@@ -523,19 +525,19 @@ namespace Corium::Runtime::Sync {
 	uint64_t StampedLock::writeLock() noexcept {
 		for (;;) {
 			for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-				uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-				if ((v_State & SL_ABITS) == 0) {
-					uint64_t v_Next = v_State | SL_WBIT;
-					if (m_State.compareExchange(&v_State, v_Next,
+				uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+				if ((state & SL_ABITS) == 0) {
+					uint64_t nextState = state | SL_WBIT;
+					if (m_State.compareExchange(&state, nextState,
 							Core::Atomics::MemoryOrder::ACQ_REL,
-							Core::Atomics::MemoryOrder::RELAXED) == v_State) return v_Next;
+							Core::Atomics::MemoryOrder::RELAXED) == state) return nextState;
 				}
 				Intrinsic::Pause();
 			}
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if ((m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) & SL_ABITS) == 0) continue;
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -543,13 +545,13 @@ namespace Corium::Runtime::Sync {
 	}
 
 	bool StampedLock::tryWriteLock(uint64_t& ro_Stamp) noexcept {
-		uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		if ((v_State & SL_ABITS) == 0) {
-			uint64_t v_Next = v_State | SL_WBIT;
-			if (m_State.compareExchange(&v_State, v_Next,
+		uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		if ((state & SL_ABITS) == 0) {
+			uint64_t nextState = state | SL_WBIT;
+			if (m_State.compareExchange(&state, nextState,
 					Core::Atomics::MemoryOrder::ACQ_REL,
-					Core::Atomics::MemoryOrder::RELAXED) == v_State) {
-				ro_Stamp = v_Next;
+					Core::Atomics::MemoryOrder::RELAXED) == state) {
+				ro_Stamp = nextState;
 				return true;
 			}
 		}
@@ -570,19 +572,19 @@ namespace Corium::Runtime::Sync {
 	uint64_t StampedLock::readLock() noexcept {
 		for (;;) {
 			for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-				uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-				if (!(v_State & SL_WBIT) && (v_State & SL_RBITS) < SL_RBITS) {
-					uint64_t v_Next = v_State + 1;
-					if (m_State.compareExchange(&v_State, v_Next,
+				uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+				if (!(state & SL_WBIT) && (state & SL_RBITS) < SL_RBITS) {
+					uint64_t nextState = state + 1;
+					if (m_State.compareExchange(&state, nextState,
 							Core::Atomics::MemoryOrder::ACQ_REL,
-							Core::Atomics::MemoryOrder::RELAXED) == v_State) return v_Next;
+							Core::Atomics::MemoryOrder::RELAXED) == state) return nextState;
 				}
 				Intrinsic::Pause();
 			}
-			uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (!(m_State.load(Core::Atomics::MemoryOrder::ACQUIRE) & SL_WBIT)) continue;
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), &v_Gate, sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), &gate, sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -590,13 +592,13 @@ namespace Corium::Runtime::Sync {
 	}
 
 	bool StampedLock::tryReadLock(uint64_t& ro_Stamp) noexcept {
-		uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		if (!(v_State & SL_WBIT) && (v_State & SL_RBITS) < SL_RBITS) {
-			uint64_t v_Next = v_State + 1;
-			if (m_State.compareExchange(&v_State, v_Next,
+		uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		if (!(state & SL_WBIT) && (state & SL_RBITS) < SL_RBITS) {
+			uint64_t nextState = state + 1;
+			if (m_State.compareExchange(&state, nextState,
 					Core::Atomics::MemoryOrder::ACQ_REL,
-					Core::Atomics::MemoryOrder::RELAXED) == v_State) {
-				ro_Stamp = v_Next;
+					Core::Atomics::MemoryOrder::RELAXED) == state) {
+				ro_Stamp = nextState;
 				return true;
 			}
 		}
@@ -604,8 +606,8 @@ namespace Corium::Runtime::Sync {
 	}
 
 	void StampedLock::unlockRead(uint64_t v_Stamp) noexcept {
-		CORIUM_MAYBE_UNUSED uint64_t v_New = m_State.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
-		if ((v_New & SL_ABITS) == 0) {
+		CORIUM_MAYBE_UNUSED uint64_t newState = m_State.decrement(Core::Atomics::MemoryOrder::ACQ_REL);
+		if ((newState & SL_ABITS) == 0) {
 			m_Gate.fetchAdd(1u, Core::Atomics::MemoryOrder::ACQ_REL);
 #ifdef _WIN32
 			WakeByAddressSingle(m_Gate.data()); // last reader: wake one waiting writer
@@ -613,17 +615,17 @@ namespace Corium::Runtime::Sync {
 			// TODO: Linux futex_wake
 #endif
 		}
-		CORIUM_MAYBE_UNUSED uint64_t v_Unused = v_Stamp; // stamp reserved for future validation
+		CORIUM_MAYBE_UNUSED uint64_t unused = v_Stamp; // stamp reserved for future validation
 	}
 
 	uint64_t StampedLock::tryOptimisticRead() noexcept {
-		uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		return (v_State & SL_WBIT) ? 0ULL : (v_State & SL_SBITS);
+		uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		return (state & SL_WBIT) ? 0ULL : (state & SL_SBITS);
 	}
 
 	bool StampedLock::validate(uint64_t v_Stamp) const noexcept {
-		uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		return !(v_State & SL_WBIT) && (v_State & SL_SBITS) == v_Stamp;
+		uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		return !(state & SL_WBIT) && (state & SL_SBITS) == v_Stamp;
 	}
 
 	uint64_t StampedLock::tryConvertToWriteLock(uint64_t v_Stamp) noexcept {
@@ -633,29 +635,29 @@ namespace Corium::Runtime::Sync {
 		}
 		// Read stamp: upgrade only if we are the sole reader
 		if (v_Stamp & SL_RBITS) {
-			uint64_t v_Expected = v_Stamp;
-			uint64_t v_Next = (v_Stamp & SL_SBITS) | SL_WBIT; // drop reader count, set write bit
-			return (m_State.compareExchange(&v_Expected, v_Next,
+			uint64_t expected = v_Stamp;
+			uint64_t nextState = (v_Stamp & SL_SBITS) | SL_WBIT; // drop reader count, set write bit
+			return (m_State.compareExchange(&expected, nextState,
 				Core::Atomics::MemoryOrder::ACQ_REL,
-				Core::Atomics::MemoryOrder::RELAXED) == v_Stamp) ? v_Next : 0ULL;
+				Core::Atomics::MemoryOrder::RELAXED) == v_Stamp) ? nextState : 0ULL;
 		}
 		// Optimistic stamp: acquire write lock if version matches and state is unlocked
 		for (;;) {
-			uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if ((v_State & SL_SBITS) != v_Stamp) return 0ULL; // writer intervened
-			if ((v_State & SL_ABITS) != 0) return 0ULL;       // locked by someone
-			uint64_t v_Next = v_State | SL_WBIT;
-			if (m_State.compareExchange(&v_State, v_Next,
+			uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			if ((state & SL_SBITS) != v_Stamp) return 0ULL; // writer intervened
+			if ((state & SL_ABITS) != 0) return 0ULL;       // locked by someone
+			uint64_t nextState = state | SL_WBIT;
+			if (m_State.compareExchange(&state, nextState,
 					Core::Atomics::MemoryOrder::ACQ_REL,
-					Core::Atomics::MemoryOrder::RELAXED) == v_State) return v_Next;
+					Core::Atomics::MemoryOrder::RELAXED) == state) return nextState;
 		}
 	}
 
 	uint64_t StampedLock::tryConvertToReadLock(uint64_t v_Stamp) noexcept {
 		// Write stamp: downgrade to read
 		if (v_Stamp & SL_WBIT) {
-			uint64_t v_Next = (v_Stamp & SL_SBITS) | 1ULL; // clear write bit, add 1 reader
-			if (m_State.compareExchange(&v_Stamp, v_Next,
+			uint64_t nextState = (v_Stamp & SL_SBITS) | 1ULL; // clear write bit, add 1 reader
+			if (m_State.compareExchange(&v_Stamp, nextState,
 					Core::Atomics::MemoryOrder::ACQ_REL,
 					Core::Atomics::MemoryOrder::RELAXED) == v_Stamp) {
 				// Wake any waiting readers — we released the write lock
@@ -665,72 +667,72 @@ namespace Corium::Runtime::Sync {
 #else
 				// TODO: Linux futex_wake broadcast
 #endif
-				return v_Next;
+				return nextState;
 			}
 			return 0ULL;
 		}
 		// Read stamp: already a reader, validate version is still current
 		if (v_Stamp & SL_RBITS) {
-			uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			return ((v_State & SL_SBITS) == (v_Stamp & SL_SBITS) && !(v_State & SL_WBIT))
+			uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			return ((state & SL_SBITS) == (v_Stamp & SL_SBITS) && !(state & SL_WBIT))
 				? v_Stamp : 0ULL;
 		}
 		// Optimistic stamp: acquire read lock if version still matches and no writer
-		uint64_t v_State = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
-		if ((v_State & SL_SBITS) != v_Stamp || (v_State & SL_WBIT)) return 0ULL;
-		if ((v_State & SL_RBITS) >= SL_RBITS) return 0ULL;
-		uint64_t v_Next = v_State + 1;
-		return (m_State.compareExchange(&v_State, v_Next,
+		uint64_t state = m_State.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		if ((state & SL_SBITS) != v_Stamp || (state & SL_WBIT)) return 0ULL;
+		if ((state & SL_RBITS) >= SL_RBITS) return 0ULL;
+		uint64_t nextState = state + 1;
+		return (m_State.compareExchange(&state, nextState,
 			Core::Atomics::MemoryOrder::ACQ_REL,
-			Core::Atomics::MemoryOrder::RELAXED) == v_State) ? v_Next : 0ULL;
+			Core::Atomics::MemoryOrder::RELAXED) == state) ? nextState : 0ULL;
 	}
 
 	// ─── Condition ────────────────────────────────────────────────────────────
 
 	void Condition::await() noexcept {
-		const uint32_t v_HoldCount = m_Lock.getHoldCount();
+		const uint32_t holdCount = m_Lock.getHoldCount();
 		// Read seq while still holding the lock so we can't miss a signal.
-		const uint32_t v_Seq = m_Seq.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		const uint32_t sequence = m_Seq.load(Core::Atomics::MemoryOrder::ACQUIRE);
 
-		for (uint32_t i = 0; i < v_HoldCount; ++i)
+		for (uint32_t i = 0; i < holdCount; ++i)
 			m_Lock.unlock();
 
 #ifdef _WIN32
-		WaitOnAddress(m_Seq.data(), const_cast<uint32_t*>(&v_Seq), sizeof(uint32_t), INFINITE);
+		WaitOnAddress(m_Seq.data(), const_cast<uint32_t*>(&sequence), sizeof(uint32_t), INFINITE);
 #else
 		// TODO: Linux futex
 #endif
 
 		m_Lock.lock();
-		for (uint32_t i = 1; i < v_HoldCount; ++i)
+		for (uint32_t i = 1; i < holdCount; ++i)
 			m_Lock.lock();
 	}
 
 	bool Condition::await(Chrono::Instant v_Deadline) noexcept {
-		const uint32_t v_HoldCount = m_Lock.getHoldCount();
-		const uint32_t v_Seq       = m_Seq.load(Core::Atomics::MemoryOrder::ACQUIRE);
+		const uint32_t holdCount = m_Lock.getHoldCount();
+		const uint32_t sequence       = m_Seq.load(Core::Atomics::MemoryOrder::ACQUIRE);
 
-		for (uint32_t i = 0; i < v_HoldCount; ++i)
+		for (uint32_t i = 0; i < holdCount; ++i)
 			m_Lock.unlock();
 
-		bool v_Signaled = false;
+		bool signaled = false;
 		if (!v_Deadline.isExpired()) {
 #ifdef _WIN32
-			const int64_t v_Ms = v_Deadline.remainingMilliseconds();
-			const DWORD v_Timeout = (v_Ms <= 0) ? 0u
-				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Seq.data(), const_cast<uint32_t*>(&v_Seq), sizeof(uint32_t), v_Timeout);
+			const int64_t milliseconds = v_Deadline.remainingMilliseconds();
+			const DWORD timeout = (milliseconds <= 0) ? 0u
+				: static_cast<DWORD>(milliseconds < 0xFFFFFFFELL ? milliseconds : 0xFFFFFFFEu);
+			WaitOnAddress(m_Seq.data(), const_cast<uint32_t*>(&sequence), sizeof(uint32_t), timeout);
 #else
 			// TODO: Linux futex with timeout
 #endif
-			v_Signaled = (m_Seq.load(Core::Atomics::MemoryOrder::ACQUIRE) != v_Seq);
+			signaled = (m_Seq.load(Core::Atomics::MemoryOrder::ACQUIRE) != sequence);
 		}
 
 		m_Lock.lock();
-		for (uint32_t i = 1; i < v_HoldCount; ++i)
+		for (uint32_t i = 1; i < holdCount; ++i)
 			m_Lock.lock();
 
-		return v_Signaled;
+		return signaled;
 	}
 
 	void Condition::signal() noexcept {
@@ -767,10 +769,10 @@ namespace Corium::Runtime::Sync {
 	// Called with m_Lock held; updates phase state, then wakes waiters and
 	// propagates to parent AFTER releasing the lock.
 	void Phaser::doAdvance() noexcept {
-		const uint32_t v_OldPhase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
-		const bool     v_Terminate = onAdvance(v_OldPhase, m_Registered);
+		const uint32_t oldPhase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+		const bool     terminate = onAdvance(oldPhase, m_Registered);
 
-		if (v_Terminate || m_Registered == 0) {
+		if (terminate || m_Registered == 0) {
 			m_Terminated.store(1u, Core::Atomics::MemoryOrder::RELEASE);
 		} else {
 			m_Phase.increment(Core::Atomics::MemoryOrder::RELEASE);
@@ -793,80 +795,80 @@ namespace Corium::Runtime::Sync {
 		}
 	}
 
-	bool Phaser::onAdvance(uint32_t /*v_Phase*/, uint32_t v_RegisteredParties) noexcept {
-		return v_RegisteredParties == 0;
+	bool Phaser::onAdvance(uint32_t /*v_Phase*/, uint32_t registeredParties) noexcept {
+		return registeredParties == 0;
 	}
 
 	uint32_t Phaser::register_() noexcept {
 		m_Lock.lock();
 		++m_Registered;
-		const uint32_t v_Phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+		const uint32_t phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
 		m_Lock.unlock();
-		return v_Phase;
+		return phase;
 	}
 
 	uint32_t Phaser::bulkRegister(uint32_t v_Parties) noexcept {
 		m_Lock.lock();
 		m_Registered += v_Parties;
-		const uint32_t v_Phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+		const uint32_t phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
 		m_Lock.unlock();
-		return v_Phase;
+		return phase;
 	}
 
 	uint32_t Phaser::arrive() noexcept {
 		m_Lock.lock();
 		if (m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) {
-			const uint32_t v_Phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+			const uint32_t phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
 			m_Lock.unlock();
-			return v_Phase;
+			return phase;
 		}
-		const uint32_t v_Phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+		const uint32_t phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
 		++m_Arrived;
 		if (m_Arrived >= m_Registered) {
 			doAdvance(); // releases lock internally
 		} else {
 			m_Lock.unlock();
 		}
-		return v_Phase;
+		return phase;
 	}
 
 	uint32_t Phaser::arriveAndDeregister() noexcept {
 		m_Lock.lock();
 		if (m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) {
-			const uint32_t v_Phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+			const uint32_t phase = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
 			m_Lock.unlock();
-			return v_Phase;
+			return phase;
 		}
-		const uint32_t v_Phase       = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
-		const uint32_t v_OldRegistered = m_Registered;
+		const uint32_t phase       = m_Phase.load(Core::Atomics::MemoryOrder::RELAXED);
+		const uint32_t oldRegistered = m_Registered;
 		if (m_Registered > 0) --m_Registered;
 		++m_Arrived;
-		if (m_Arrived >= v_OldRegistered) {
+		if (m_Arrived >= oldRegistered) {
 			doAdvance(); // releases lock internally
 		} else {
 			m_Lock.unlock();
 		}
-		return v_Phase;
+		return phase;
 	}
 
 	uint32_t Phaser::arriveAndAwaitAdvance() noexcept {
-		const uint32_t v_Phase = arrive();
-		return awaitAdvance(v_Phase);
+		const uint32_t phase = arrive();
+		return awaitAdvance(phase);
 	}
 
 	uint32_t Phaser::awaitAdvance(uint32_t v_Phase) noexcept {
 		for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-			const uint32_t v_Cur = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v_Cur != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return v_Cur;
+			const uint32_t currentPhase = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			if (currentPhase != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return currentPhase;
 			Intrinsic::Pause();
 		}
 		while (true) {
-			const uint32_t v_Cur  = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v_Cur != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return v_Cur;
-			const uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			const uint32_t currentPhase  = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			if (currentPhase != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return currentPhase;
+			const uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE) != v_Phase) return m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
 #ifdef _WIN32
-			WaitOnAddress(m_Gate.data(), const_cast<uint32_t*>(&v_Gate), sizeof(uint32_t), INFINITE);
+			WaitOnAddress(m_Gate.data(), const_cast<uint32_t*>(&gate), sizeof(uint32_t), INFINITE);
 #else
 			// TODO: Linux futex
 #endif
@@ -875,21 +877,21 @@ namespace Corium::Runtime::Sync {
 
 	bool Phaser::awaitAdvance(uint32_t v_Phase, Chrono::Instant v_Deadline) noexcept {
 		for (int i = 0; i < CORIUM_SPIN_COUNT; ++i) {
-			const uint32_t v_Cur = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v_Cur != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return true;
+			const uint32_t currentPhase = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			if (currentPhase != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return true;
 			Intrinsic::Pause();
 		}
 		while (true) {
-			const uint32_t v_Cur = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
-			if (v_Cur != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return true;
+			const uint32_t currentPhase = m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			if (currentPhase != v_Phase || m_Terminated.load(Core::Atomics::MemoryOrder::ACQUIRE)) return true;
 			if (v_Deadline.isExpired()) return false;
-			const uint32_t v_Gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
+			const uint32_t gate = m_Gate.load(Core::Atomics::MemoryOrder::ACQUIRE);
 			if (m_Phase.load(Core::Atomics::MemoryOrder::ACQUIRE) != v_Phase) return true;
 #ifdef _WIN32
-			const int64_t v_Ms      = v_Deadline.remainingMilliseconds();
-			const DWORD   v_Timeout = (v_Ms <= 0) ? 0u
-				: static_cast<DWORD>(v_Ms < 0xFFFFFFFELL ? v_Ms : 0xFFFFFFFEu);
-			WaitOnAddress(m_Gate.data(), const_cast<uint32_t*>(&v_Gate), sizeof(uint32_t), v_Timeout);
+			const int64_t milliseconds      = v_Deadline.remainingMilliseconds();
+			const DWORD   timeout = (milliseconds <= 0) ? 0u
+				: static_cast<DWORD>(milliseconds < 0xFFFFFFFELL ? milliseconds : 0xFFFFFFFEu);
+			WaitOnAddress(m_Gate.data(), const_cast<uint32_t*>(&gate), sizeof(uint32_t), timeout);
 #else
 			// TODO: Linux futex with timeout
 			return false;
@@ -920,23 +922,23 @@ namespace Corium::Runtime::Sync {
 
 	uint32_t Phaser::getRegisteredParties() const noexcept {
 		m_Lock.lock();
-		const uint32_t v_Registered = m_Registered;
+		const uint32_t registered = m_Registered;
 		m_Lock.unlock();
-		return v_Registered;
+		return registered;
 	}
 
 	uint32_t Phaser::getArrivedParties() const noexcept {
 		m_Lock.lock();
-		const uint32_t v_Arrived = m_Arrived;
+		const uint32_t arrived = m_Arrived;
 		m_Lock.unlock();
-		return v_Arrived;
+		return arrived;
 	}
 
 	uint32_t Phaser::getUnarrivedParties() const noexcept {
 		m_Lock.lock();
-		const uint32_t v_Unarrived = (m_Registered > m_Arrived) ? m_Registered - m_Arrived : 0u;
+		const uint32_t unarrived = (m_Registered > m_Arrived) ? m_Registered - m_Arrived : 0u;
 		m_Lock.unlock();
-		return v_Unarrived;
+		return unarrived;
 	}
 
 	bool Phaser::isTerminated() const noexcept {

@@ -39,13 +39,16 @@ namespace Corium::Execution::Builder {
 			if (ro_Frame.isBuilt())  return false;
 
 			using CF    = Core::Utils::ClosureFunction<Memory::Allocators::ClosureAllocator, void(TaskContext&)>;
-			auto* p_Alloc = Memory::Internal::AtomicAllocators::instance()
+			auto* allocator = Memory::Internal::AtomicAllocators::instance()
 				.s_ClosureAllocator[ro_Desc.m_NumaNode].load();
 
-			CF* p_Fn = p_Alloc->template emplace<CF>(std::forward<Callable>(u_Fn), p_Alloc);
-			if (!p_Fn || !p_Fn->isCallable()) return false;
+			void* memory = allocator->allocate(sizeof(CF), alignof(CF));
+			CF* function = memory
+				? allocator->template emplace<CF>(memory, std::forward<Callable>(u_Fn), allocator)
+				: nullptr;
+			if (!function || !function->isCallable()) return false;
 
-			ro_Frame.m_pClosure     = p_Fn;
+			ro_Frame.m_pClosure     = function;
 			ro_Frame.m_pfnDestroy   = [](void* p) { static_cast<CF*>(p)->~CF(); };
 			ro_Frame.m_pfnCpuInvoke = [](void* p, TaskContext& ctx) { (*static_cast<CF*>(p))(ctx); };
 

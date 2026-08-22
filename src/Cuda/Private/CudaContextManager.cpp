@@ -30,13 +30,13 @@ namespace Corium::Cuda::Context {
 		CUexecAffinityParam affinityBuf[8] = {};
 		if (p_Params) {
 			if (p_Params->m_ExecAffinityParams && p_Params->m_NumExecAffinityParams > 0) {
-				const int v_Count = p_Params->m_NumExecAffinityParams;
-				for (int i = 0; i < v_Count; ++i) {
+				const int count = p_Params->m_NumExecAffinityParams;
+				for (int i = 0; i < count; ++i) {
 					affinityBuf[i].type               = static_cast<CUexecAffinityType>(p_Params->m_ExecAffinityParams[i].m_Type);
 					affinityBuf[i].param.smCount.val  = p_Params->m_ExecAffinityParams[i].m_SmCount.m_Val;
 				}
 				params.execAffinityParams    = affinityBuf;
-				params.numExecAffinityParams = v_Count;
+				params.numExecAffinityParams = count;
 			}
 			params.cigParams = static_cast<CUctxCigParam*>(p_Params->m_CigParams);
 		}

@@ -144,18 +144,18 @@ namespace Corium::Execution {
 		CORIUM_NODISCARD bool      isValid() const noexcept { return !m_wpState.expired(); }
 
 		CORIUM_NODISCARD TaskState state() const noexcept {
-			auto v_Locked = m_wpState.lock();
-			if (!v_Locked) return TaskState::Cancelled;
+			auto locked = m_wpState.lock();
+			if (!locked) return TaskState::Cancelled;
 			return static_cast<TaskState>(
-				v_Locked->m_State.load(Core::Atomics::MemoryOrder::ACQUIRE));
+				locked->m_State.load(Core::Atomics::MemoryOrder::ACQUIRE));
 		}
 
 		CORIUM_NODISCARD bool isComplete()  const noexcept { return state() == TaskState::Completed; }
 		CORIUM_NODISCARD bool isFailed()    const noexcept { return state() == TaskState::Failed; }
 		CORIUM_NODISCARD bool isCancelled() const noexcept { return state() == TaskState::Cancelled; }
 		CORIUM_NODISCARD bool isPending()   const noexcept {
-			const TaskState v_S = state();
-			return v_S == TaskState::Pending || v_S == TaskState::Running;
+			const TaskState currentState = state();
+			return currentState == TaskState::Pending || currentState == TaskState::Running;
 		}
 
 		// Blocks until Completed, Failed, or Cancelled.
@@ -165,26 +165,26 @@ namespace Corium::Execution {
 		// MPH lookup into output buffer. Hard UB before completion or on miss.
 		template<typename TParam, size_t N>
 		CORIUM_NODISCARD const typename TParam::DataType& get() const noexcept {
-			auto v_Locked = m_wpState.lock();
-			const uint64_t v_Hash = IR::mixPositionHash(TParam::TypeHash, N);
-			const size_t   v_Off = m_pOutputMPH->lookup(v_Hash);
+			auto locked = m_wpState.lock();
+			const uint64_t hash = IR::mixPositionHash(TParam::TypeHash, N);
+			const size_t   offset = m_pOutputMPH->lookup(hash);
 			return *reinterpret_cast<const typename TParam::DataType*>(
-				v_Locked->m_pOutputBuffer + v_Off);
+				locked->m_pOutputBuffer + offset);
 		}
 
 		template<typename TParam, size_t N>
 		CORIUM_NODISCARD typename TParam::DataType& get() noexcept {
-			auto v_Locked = m_wpState.lock();
-			const uint64_t v_Hash = IR::mixPositionHash(TParam::TypeHash, N);
-			const size_t   v_Off = m_pOutputMPH->lookup(v_Hash);
+			auto locked = m_wpState.lock();
+			const uint64_t hash = IR::mixPositionHash(TParam::TypeHash, N);
+			const size_t   offset = m_pOutputMPH->lookup(hash);
 			return *reinterpret_cast<typename TParam::DataType*>(
-				v_Locked->m_pOutputBuffer + v_Off);
+				locked->m_pOutputBuffer + offset);
 		}
 
 		// Reads TaskError from output buffer offset 0. Meaningful only after isFailed().
 		CORIUM_NODISCARD TaskError error() const noexcept {
-			auto v_Locked = m_wpState.lock();
-			return *reinterpret_cast<const TaskError*>(v_Locked->m_pOutputBuffer);
+			auto locked = m_wpState.lock();
+			return *reinterpret_cast<const TaskError*>(locked->m_pOutputBuffer);
 		}
 
 	private:

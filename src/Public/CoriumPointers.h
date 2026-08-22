@@ -67,9 +67,9 @@ namespace Corium::Memory {
 		template<typename... Args>
 		void alloc(Args&&... u_Params) {
 			CORIUM_ASSERT(m_Allocator != nullptr);
-			T* p_Mem = m_Allocator->template emplace<T>(std::forward<Args>(u_Params)...);
-			if (p_Mem) {
-				m_Memory = p_Mem;
+			void* memory = m_Allocator->allocate(sizeof(T), alignof(T));
+			if (memory) {
+				m_Memory = m_Allocator->template emplace<T>(memory, std::forward<Args>(u_Params)...);
 			} else {
 				m_Memory = nullptr;
 				CORIUM_ASSERT(false && "Allocation failed in UniquePtr");
@@ -128,10 +128,10 @@ namespace Corium::Memory {
 		explicit operator bool() const noexcept { return m_Memory != nullptr; }
 
 		T* release() noexcept {
-			T* p_Ret = m_Memory;
+			T* result = m_Memory;
 			m_Memory = nullptr;
 			m_Allocator = nullptr;
-			return p_Ret;
+			return result;
 		}
 
 		void reset() noexcept {
@@ -175,19 +175,19 @@ namespace Corium::Memory {
 			}
 
 			bool release() noexcept {
-				uint64_t v_NewCount = m_StrongCount.decrement(MemoryOrder::ACQ_REL);
-				return v_NewCount == 0u;
+				uint64_t newCount = m_StrongCount.decrement(MemoryOrder::ACQ_REL);
+				return newCount == 0u;
 			}
 
 			bool tryAddRef() noexcept {
 				uint64_t cur = m_StrongCount.load(MemoryOrder::ACQUIRE);
 				while (cur != 0u) {
-					uint64_t v_Prev = cur;
+					uint64_t previous = cur;
 					CORIUM_UNUSED(m_StrongCount.compareExchange(
 						&cur, cur + 1u,
 						MemoryOrder::ACQ_REL,
 						MemoryOrder::ACQUIRE));
-					if (cur == v_Prev) return true;
+					if (cur == previous) return true;
 				}
 				return false;
 			}
@@ -254,10 +254,13 @@ namespace Corium::Memory {
 			CORIUM_ASSERT(p_ObjAlloc && "Allocator is null");
 			CORIUM_ASSERT(p_CtrlAlloc && "ControlBlockAllocator is null");
 
-			auto* p_Control = p_CtrlAlloc->emplace<Internal::SharedControlBlock>(1u);
-			CORIUM_ASSERT(p_Control && "ControlBlockAllocator out of capacity");
+			void* controlMemory = p_CtrlAlloc->allocate(sizeof(Internal::SharedControlBlock), alignof(Internal::SharedControlBlock));
+			auto* control = controlMemory
+				? p_CtrlAlloc->emplace<Internal::SharedControlBlock>(controlMemory, 1u)
+				: nullptr;
+			CORIUM_ASSERT(control && "ControlBlockAllocator out of capacity");
 
-			return SharedPtr(p_Object, p_Control, p_ObjAlloc);
+			return SharedPtr(p_Object, control, p_ObjAlloc);
 		}
 
 		template<typename... Args>
@@ -267,10 +270,13 @@ namespace Corium::Memory {
 			CORIUM_ASSERT(p_ObjAlloc && "Allocator is null");
 			CORIUM_ASSERT(p_CtrlAlloc && "ControlBlockAllocator is null");
 
-			T* p_Object = p_ObjAlloc->template emplace<T>(std::forward<Args>(u_Args)...);
-			if (!p_Object) return SharedPtr{};
+			void* memory = p_ObjAlloc->allocate(sizeof(T), alignof(T));
+			T* object = memory
+				? p_ObjAlloc->template emplace<T>(memory, std::forward<Args>(u_Args)...)
+				: nullptr;
+			if (!object) return SharedPtr{};
 
-			return adopt(p_Object, p_ObjAlloc, p_CtrlAlloc);
+			return adopt(object, p_ObjAlloc, p_CtrlAlloc);
 		}
 
 		SharedPtr(const SharedPtr& r_Other) noexcept

@@ -5,21 +5,21 @@
 namespace Corium::Execution {
 
 	void TaskContext::fail(uint32_t v_Code, const char* p_Message) noexcept {
-		auto* p_Err = reinterpret_cast<TaskError*>(m_pOutputBuffer);
-		if (p_Err->v_Code != 0) return;
+		auto* error = reinterpret_cast<TaskError*>(m_pOutputBuffer);
+		if (error->v_Code != 0) return;
 
-		p_Err->v_Code = v_Code;
+		error->v_Code = v_Code;
 
 		if (p_Message) {
-			size_t v_Len = 0;
-			while (p_Message[v_Len] && v_Len < 123) ++v_Len;
-			std::memcpy(p_Err->v_Message, p_Message, v_Len);
-			p_Err->v_Message[v_Len] = '\0';
+			size_t length = 0;
+			while (p_Message[length] && length < 123) ++length;
+			std::memcpy(error->v_Message, p_Message, length);
+			error->v_Message[length] = '\0';
 		}
 
-		auto v_Locked = m_Handle.m_wpState.lock();
-		if (v_Locked) {
-			v_Locked->m_State.store(
+		auto locked = m_Handle.m_wpState.lock();
+		if (locked) {
+			locked->m_State.store(
 				static_cast<uint32_t>(TaskState::Failed),
 				Core::Atomics::MemoryOrder::RELEASE);
 		}

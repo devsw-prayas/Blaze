@@ -20,6 +20,8 @@
 */
 #pragma once
 #include <intrin.h>
+#include "Corium.h"
+#include "CoriumCompiler.h"
 
 // I'm not touching this file until something fucking breaks like 30,000 lines later
 // fuck u future me

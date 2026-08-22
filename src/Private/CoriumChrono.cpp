@@ -13,16 +13,16 @@ namespace Corium::Core::Chrono {
 
 		CORIUM_FORCEINLINE int64_t queryNow() noexcept {
 			if (s_QpcFrequency == 0) {
-				LARGE_INTEGER v_Freq;
-				QueryPerformanceFrequency(&v_Freq);
-				s_QpcFrequency = v_Freq.QuadPart;
+				LARGE_INTEGER frequency;
+				QueryPerformanceFrequency(&frequency);
+				s_QpcFrequency = frequency.QuadPart;
 			}
-			LARGE_INTEGER v_Counter;
-			QueryPerformanceCounter(&v_Counter);
+			LARGE_INTEGER counter;
+			QueryPerformanceCounter(&counter);
 			// Split into seconds + sub-second remainder to avoid int64 overflow.
-			const int64_t v_Secs = v_Counter.QuadPart / s_QpcFrequency;
-			const int64_t v_Rem  = v_Counter.QuadPart % s_QpcFrequency;
-			return v_Secs * 1'000'000'000LL + (v_Rem * 1'000'000'000LL / s_QpcFrequency);
+			const int64_t seconds = counter.QuadPart / s_QpcFrequency;
+			const int64_t remainder  = counter.QuadPart % s_QpcFrequency;
+			return seconds * 1'000'000'000LL + (remainder * 1'000'000'000LL / s_QpcFrequency);
 		}
 	}
 #endif
@@ -45,8 +45,8 @@ namespace Corium::Core::Chrono {
 	}
 
 	Interval Instant::remaining() const noexcept {
-		const int64_t v_Delta = m_Nanoseconds - MonotonicClock::now().m_Nanoseconds;
-		return Interval{ v_Delta > 0 ? v_Delta : 0LL };
+		const int64_t delta = m_Nanoseconds - MonotonicClock::now().m_Nanoseconds;
+		return Interval{ delta > 0 ? delta : 0LL };
 	}
 
 	int64_t Instant::remainingMilliseconds() const noexcept {

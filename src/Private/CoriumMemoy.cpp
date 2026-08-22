@@ -1,5 +1,7 @@
 #include "Corium.h"
 
+#include <atomic>
+
 #include <CoriumMemory.h>
 #define ALLOW_SYSCALL
 #include <CoriumSyscalls.h>
@@ -65,11 +67,20 @@ namespace Corium::Memory {
 			{
 				if (!segment.isValid())return INVALID_SEGMENT;
 				v_Size = alignToPage(v_Size);
-				if (segment.m_CommittedSize + v_Size > segment.m_TotalSize)return INVALID_SEGMENT;
 
-				void* p = VirtualAlloc(static_cast<std::byte*>(segment.m_Memory) + segment.m_CommittedSize, v_Size, MEM_COMMIT, PAGE_READWRITE);
+				// atomic_ref: m_CommittedSize can't be a real atomic (VirtualSegment is
+				// copied/moved by value), but concurrent commits into the same arena race on it.
+				std::atomic_ref<Bytes> committed(segment.m_CommittedSize);
+				Bytes old = committed.load(std::memory_order_acquire);
+				Bytes newCommitted;
+				do {
+					newCommitted = old + v_Size;
+					if (newCommitted > segment.m_TotalSize) return INVALID_SEGMENT;
+				} while (!committed.compare_exchange_weak(
+					old, newCommitted, std::memory_order_acq_rel, std::memory_order_relaxed));
+
+				void* p = VirtualAlloc(static_cast<std::byte*>(segment.m_Memory) + old, v_Size, MEM_COMMIT, PAGE_READWRITE);
 				if (!p)return INVALID_SEGMENT;
-				segment.m_CommittedSize += v_Size;
 				return segment;
 			}
 		case MemoryOperation::Decommit:
@@ -94,11 +105,18 @@ namespace Corium::Memory {
 			{
 				if (!segment.isValid())return INVALID_SEGMENT;
 				v_Size = alignToPage(v_Size);
-				if (segment.m_CommittedSize + v_Size > segment.m_TotalSize)return INVALID_SEGMENT;
 
-				void* p = static_cast<std::byte*>(segment.m_Memory) + segment.m_CommittedSize;
+				std::atomic_ref<Bytes> committed(segment.m_CommittedSize);
+				Bytes old = committed.load(std::memory_order_acquire);
+				Bytes newCommitted;
+				do {
+					newCommitted = old + v_Size;
+					if (newCommitted > segment.m_TotalSize) return INVALID_SEGMENT;
+				} while (!committed.compare_exchange_weak(
+					old, newCommitted, std::memory_order_acq_rel, std::memory_order_relaxed));
+
+				void* p = static_cast<std::byte*>(segment.m_Memory) + old;
 				if (mprotect(p, v_Size, PROT_READ | PROT_WRITE) == -1)return INVALID_SEGMENT;
-				segment.m_CommittedSize += v_Size;
 				return segment;
 			}
 		case MemoryOperation::Decommit:
@@ -261,7 +279,13 @@ namespace Corium::Memory {
 		switch (queryPage(ro_Segment, v_Offset)) {
 		case MemState::Committed: return true;
 		case MemState::Reserved:
-			return virtualAlloc(ro_Segment, v_Offset - ro_Segment.m_CommittedSize, MemoryOperation::Commit).isValid();
+			{
+				// re-check: a racing committer may have already passed v_Offset since queryPage()
+				const Bytes committed = std::atomic_ref<Bytes>(ro_Segment.m_CommittedSize)
+					.load(std::memory_order_acquire);
+				if (v_Offset <= committed) return true;
+				return virtualAlloc(ro_Segment, v_Offset - committed, MemoryOperation::Commit).isValid();
+			}
 		case MemState::Freed: return false;
 		}
 		CORIUM_UNREACHABLE();
